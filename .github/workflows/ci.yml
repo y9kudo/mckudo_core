@@ -21,4 +21,6 @@ jobs:
       - run: npm run demo:workflow
       - run: npm run demo:plugins
       - run: npm run demo:runtime
+      - run: npm run demo:brain
+      - run: npm run demo:library
       - run: npm pack --dry-run

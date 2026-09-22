@@ -15,6 +15,7 @@ export class SkillRegistry {
   #adapterSkills; #skills = new Map(); #plugins = new Map();
   constructor(adapterSkills) { this.#adapterSkills = new Set(adapterSkills); }
   has(name) { return this.#skills.has(name) || this.#adapterSkills.has(name); }
+  names() { return [...new Set([...this.#adapterSkills, ...this.#skills.keys()])].sort(); }
   get(name) { return this.#skills.get(name); }
   register(name, handler, validate) {
     if (!id(name) || typeof handler !== 'function' || (validate !== undefined && typeof validate !== 'function')) throw new TypeError('Навыку нужны имя и функция.');

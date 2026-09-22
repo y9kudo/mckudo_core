@@ -1,0 +1,51 @@
+{
+  "$schema": "../schemas/agent.schema.json",
+  "schemaVersion": 3,
+  "name": "WorkshopBrain",
+  "worldId": "vanilla-1.21.1-workshop",
+  "actionTimeoutMs": 30000,
+  "rules": [
+    {
+      "id": "eat-first",
+      "priority": 100,
+      "when": {
+        "all": [
+          {
+            "fact": "/self/food",
+            "lt": 16
+          },
+          {
+            "fact": "/inventory/minecraft:bread",
+            "gt": 0
+          }
+        ]
+      },
+      "action": {
+        "skill": "eat",
+        "args": {
+          "item": "minecraft:bread"
+        }
+      }
+    }
+  ],
+  "goals": [
+    {
+      "id": "prepare-workshop",
+      "description": "Получить верстак и четыре палки.",
+      "priority": 10,
+      "maxActions": 32,
+      "desired": {
+        "all": [
+          {
+            "fact": "/inventory/minecraft:crafting_table",
+            "gte": 1
+          },
+          {
+            "fact": "/inventory/minecraft:stick",
+            "gte": 4
+          }
+        ]
+      }
+    }
+  ]
+}

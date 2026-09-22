@@ -10,7 +10,7 @@ try {
   if (command === 'validate') {
     if (args.length > 1) throw new Error('Использование: mckudo validate [agent.json]');
     const config = await readConfig(args[0] || 'agent.json');
-    console.log(`JSON корректен: ${config.name}; правил ${config.rules.length}, задач ${config.workflows.length}.`);
+    console.log(`JSON корректен: ${config.name}; правил ${config.rules.length}, задач ${config.workflows.length}, целей ${config.goals.length}.`);
   } else if (command === 'simulate') {
     const file = args[0] || 'agent.json';
     if (args.length > 1 && (args[1] !== '--steps' || args.length !== 3)) throw new Error('Использование: mckudo simulate agent.json --steps 20');

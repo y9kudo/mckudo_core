@@ -48,16 +48,17 @@ export function validateCondition(c, path, depth = 0) {
 }
 export function validateConfig(input) {
   const c = jsonCopy(input);
-  keys(c, ['$schema', 'schemaVersion', 'name', 'worldId', 'tickIntervalMs', 'actionTimeoutMs', 'failureBackoffMs', 'maxHistory', 'rules', 'workflows'], '$');
+  keys(c, ['$schema', 'schemaVersion', 'name', 'worldId', 'tickIntervalMs', 'actionTimeoutMs', 'failureBackoffMs', 'maxHistory', 'rules', 'workflows', 'goals'], '$');
   if (c.$schema !== undefined && typeof c.$schema !== 'string') fail('$.$schema', 'нужна строка с адресом схемы');
-  if (![1, 2].includes(c.schemaVersion)) fail('$.schemaVersion', 'поддерживаются версии 1 и 2');
+  if (![1, 2, 3, 4].includes(c.schemaVersion)) fail('$.schemaVersion', 'поддерживаются версии 1–4');
+  if (c.schemaVersion < 3 && c.goals !== undefined && (!Array.isArray(c.goals) || c.goals.length)) fail('$.goals', 'для целей нужен schemaVersion: 3');
   if (c.schemaVersion === 1 && c.workflows !== undefined && (!Array.isArray(c.workflows) || c.workflows.length)) fail('$.workflows', 'для многошаговых задач укажи schemaVersion: 2');
   if (typeof c.name !== 'string' || !c.name.trim() || c.name.length > 64) fail('$.name', 'нужно имя, 1–64 символа');
   if (typeof c.worldId !== 'string' || !c.worldId.trim() || c.worldId.length > 128) fail('$.worldId', 'назови мир, например local-test');
   c.tickIntervalMs ??= 1000; c.actionTimeoutMs ??= 15000; c.failureBackoffMs ??= 5000; c.maxHistory ??= 50;
   integer(c.tickIntervalMs, 50, 60000, '$.tickIntervalMs'); integer(c.actionTimeoutMs, 100, 300000, '$.actionTimeoutMs');
   integer(c.failureBackoffMs, 100, 300000, '$.failureBackoffMs'); integer(c.maxHistory, 1, 200, '$.maxHistory');
-  if (c.schemaVersion === 2) c.rules ??= [];
+  if (c.schemaVersion >= 2) c.rules ??= [];
   if (!Array.isArray(c.rules) || c.rules.length < (c.schemaVersion === 1 ? 1 : 0) || c.rules.length > 64) fail('$.rules', 'нужен список, максимум 64 правила');
   const names = new Set();
   c.rules.forEach((r, i) => {
@@ -72,7 +73,19 @@ export function validateConfig(input) {
   });
   c.workflows ??= [];
   if (!Array.isArray(c.workflows) || c.workflows.length > 16) fail('$.workflows', 'нужен список, максимум 16 задач');
-  if (!c.rules.length && !c.workflows.length) fail('$', 'добавь хотя бы одно правило или задачу');
+  if (c.goals === undefined) c.goals = [];
+  if (!Array.isArray(c.goals) || c.goals.length > 16) fail('$.goals', 'нужно до 16 целей');
+  const goalNames = new Set();
+  c.goals.forEach((g, i) => {
+    const p = `$.goals[${i}]`; keys(g, ['id', 'priority', 'description', 'desired', 'maxActions'], p);
+    if (!id(g.id) || goalNames.has(g.id)) fail(p + '.id', 'нужен уникальный id цели'); goalNames.add(g.id);
+    if (g.priority === undefined) g.priority = 0;
+    if (g.maxActions === undefined) g.maxActions = 64;
+    integer(g.priority, -1000, 1000, p + '.priority'); integer(g.maxActions, 1, 256, p + '.maxActions');
+    if (g.description !== undefined && (typeof g.description !== 'string' || g.description.length > 300)) fail(p + '.description', 'максимум 300 символов');
+    validateCondition(g.desired, p + '.desired');
+  });
+  if (c.schemaVersion < 4 && !c.rules.length && !c.workflows.length && !c.goals.length) fail('$', 'добавь хотя бы одно правило, задачу или цель');
   const workflowNames = new Set(); let totalSteps = 0;
   c.workflows.forEach((w, wi) => {
     const p = `$.workflows[${wi}]`; keys(w, ['id', 'priority', 'description', 'when', 'steps'], p);

@@ -15,9 +15,11 @@
     "schemaVersion": {
       "enum": [
         1,
-        2
+        2,
+        3,
+        4
       ],
-      "default": 2
+      "default": 4
     },
     "name": {
       "type": "string",
@@ -138,6 +140,42 @@
             "items": {
               "$ref": "#/$defs/step"
             }
+          }
+        }
+      }
+    },
+    "goals": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "desired"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -1000,
+            "maximum": 1000,
+            "default": 0
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "maxActions": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256,
+            "default": 64
+          },
+          "desired": {
+            "$ref": "#/$defs/condition"
           }
         }
       }
@@ -328,6 +366,23 @@
           "minItems": 1
         }
       }
+    },
+    {
+      "required": [
+        "goals"
+      ],
+      "properties": {
+        "goals": {
+          "minItems": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "schemaVersion": {
+          "const": 4
+        }
+      }
     }
   ],
   "allOf": [
@@ -348,6 +403,25 @@
             "minItems": 1
           },
           "workflows": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "enum": [
+              1,
+              2
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "goals": {
             "maxItems": 0
           }
         }

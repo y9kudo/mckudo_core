@@ -1,0 +1,95 @@
+[
+  {
+    "id": "gather-oak",
+    "cost": 3,
+    "requires": {
+      "fact": "/world/nearbyBlocks/minecraft:oak_log",
+      "eq": true
+    },
+    "action": {
+      "skill": "gather",
+      "args": {
+        "block": "minecraft:oak_log",
+        "count": 1
+      }
+    },
+    "effects": [
+      {
+        "fact": "/inventory/minecraft:oak_log",
+        "add": 1
+      }
+    ]
+  },
+  {
+    "id": "make-planks",
+    "requires": {
+      "fact": "/inventory/minecraft:oak_log",
+      "gte": 1
+    },
+    "action": {
+      "skill": "craft",
+      "args": {
+        "item": "minecraft:oak_planks",
+        "times": 1
+      }
+    },
+    "effects": [
+      {
+        "fact": "/inventory/minecraft:oak_log",
+        "add": -1
+      },
+      {
+        "fact": "/inventory/minecraft:oak_planks",
+        "add": 4
+      }
+    ]
+  },
+  {
+    "id": "make-table",
+    "requires": {
+      "fact": "/inventory/minecraft:oak_planks",
+      "gte": 4
+    },
+    "action": {
+      "skill": "craft",
+      "args": {
+        "item": "minecraft:crafting_table",
+        "times": 1
+      }
+    },
+    "effects": [
+      {
+        "fact": "/inventory/minecraft:oak_planks",
+        "add": -4
+      },
+      {
+        "fact": "/inventory/minecraft:crafting_table",
+        "add": 1
+      }
+    ]
+  },
+  {
+    "id": "make-sticks",
+    "requires": {
+      "fact": "/inventory/minecraft:oak_planks",
+      "gte": 2
+    },
+    "action": {
+      "skill": "craft",
+      "args": {
+        "item": "minecraft:stick",
+        "times": 1
+      }
+    },
+    "effects": [
+      {
+        "fact": "/inventory/minecraft:oak_planks",
+        "add": -2
+      },
+      {
+        "fact": "/inventory/minecraft:stick",
+        "add": 4
+      }
+    ]
+  }
+]

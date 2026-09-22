@@ -4,7 +4,8 @@
       "fileMatch": [
         "/examples/agent.json",
         "/examples/workshop.json",
-        "/agent.json"
+        "/agent.json",
+        "/examples/brain.json"
       ],
       "url": "./schemas/agent.schema.json"
     }

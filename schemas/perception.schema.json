@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MCKudo Perception 1 (normalized)",
+  "type": "object",
+  "required": [
+    "perceptionVersion",
+    "self",
+    "inventory",
+    "world",
+    "entities",
+    "time"
+  ],
+  "properties": {
+    "perceptionVersion": {
+      "const": 1
+    },
+    "dimension": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "self": {
+      "type": "object",
+      "required": [
+        "health",
+        "food",
+        "position"
+      ],
+      "properties": {
+        "health": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "food": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "position": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "x",
+                "y",
+                "z"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "z": {
+                  "type": "number"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$"
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      }
+    },
+    "world": {
+      "type": "object",
+      "required": [
+        "dimension"
+      ],
+      "properties": {
+        "dimension": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "time": {
+      "type": "object",
+      "required": [
+        "timeOfDay",
+        "isDay"
+      ],
+      "properties": {
+        "timeOfDay": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 23999
+        },
+        "isDay": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "entities": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "position"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "position": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "x",
+                      "y",
+                      "z"
+                    ],
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      },
+                      "z": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

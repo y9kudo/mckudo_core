@@ -1,0 +1,59 @@
+{
+  "test": "vanilla-1.21.1-workshop",
+  "testedAt": "2026-09-22T12:01:29.419Z",
+  "engine": "0.3.0",
+  "version": "1.21.1",
+  "status": "passed",
+  "emptyStart": true,
+  "actions": [
+    {
+      "at": 1790078479183,
+      "rule": "prepare-workshop",
+      "skill": "gather",
+      "outcome": "progress",
+      "detail": ""
+    },
+    {
+      "at": 1790078480350,
+      "rule": "prepare-workshop",
+      "skill": "craft",
+      "outcome": "progress",
+      "detail": ""
+    },
+    {
+      "at": 1790078481508,
+      "rule": "prepare-workshop",
+      "skill": "craft",
+      "outcome": "progress",
+      "detail": ""
+    },
+    {
+      "at": 1790078486506,
+      "rule": "prepare-workshop",
+      "skill": "gather",
+      "outcome": "failure",
+      "detail": "Наблюдение не подтвердило ожидаемый эффект; план отброшен."
+    },
+    {
+      "at": 1790078487695,
+      "rule": "prepare-workshop",
+      "skill": "craft",
+      "outcome": "progress",
+      "detail": ""
+    },
+    {
+      "at": 1790078488861,
+      "rule": "prepare-workshop",
+      "skill": "craft",
+      "outcome": "success",
+      "detail": ""
+    }
+  ],
+  "items": {
+    "minecraft:oak_planks": 2,
+    "minecraft:crafting_table": 1,
+    "minecraft:stick": 4
+  },
+  "plannerCalls": 2,
+  "limitation": "Первый успешный запуск включал задержку подбора второго бревна и перепланирование. После теста добавлено ожидание подбора; оно проверено отдельным тестом API, повторный игровой прогон после исправления не выполнялся."
+}

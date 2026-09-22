@@ -1,4 +1,5 @@
 import { jsonCopy } from '../src/config.js';
+import { normalizeObservation } from '../src/perception.js';
 // A deterministic, offline example. It never connects to Minecraft.
 export function createSimulator(initial = {}) {
   const recipes = {
@@ -8,10 +9,12 @@ export function createSimulator(initial = {}) {
   };
   const seed = jsonCopy(initial);
   const world = { dimension: 'minecraft:overworld', ...seed, self: { health: 20, food: 12, position: { x: 0, y: 64, z: 0 }, ...seed.self },
+    world: { dimension: 'minecraft:overworld', nearbyBlocks: { 'minecraft:oak_log': true, 'minecraft:birch_log': true, 'minecraft:crafting_table': false }, ...seed.world },
+    time: { timeOfDay: 1000, isDay: true, ...seed.time }, entities: seed.entities ?? [],
     inventory: { 'minecraft:oak_log': 0, 'minecraft:bread': 3, 'minecraft:oak_planks': 0, 'minecraft:stick': 0, 'minecraft:crafting_table': 0, ...seed.inventory } };
   return {
-    describe: () => ({ protocolVersion: 1, kind: 'simulator', loader: 'vanilla', minecraftVersion: 'simulation', skills: ['eat', 'gather', 'craft'] }),
-    observe: async ({ signal }) => { signal.throwIfAborted(); return jsonCopy(world); },
+    describe: () => ({ protocolVersion: 1, perceptionVersion: 1, kind: 'simulator', loader: 'vanilla', minecraftVersion: 'simulation', skills: ['eat', 'gather', 'craft'] }),
+    observe: async ({ signal }) => { signal.throwIfAborted(); return normalizeObservation(world); },
     execute: async ({ skill, args }, { signal }) => {
       signal.throwIfAborted();
       if (skill === 'eat') {
@@ -19,6 +22,7 @@ export function createSimulator(initial = {}) {
         world.inventory['minecraft:bread']--; world.self.food = Math.min(20, world.self.food + 5);
       } else if (skill === 'gather') {
         if (typeof args.block !== 'string' || !/^[a-z0-9_.-]+:[a-z0-9_./-]+$/.test(args.block) || !Number.isInteger(args.count) || args.count < 1 || args.count > 16) throw new Error('Укажи block (namespace:id) и count от 1 до 16.');
+        if (world.world.nearbyBlocks?.[args.block] === false) throw new Error('Рядом нет указанного блока.');
         world.inventory[args.block] = (world.inventory[args.block] || 0) + args.count;
       } else if (skill === 'craft') {
         const recipe = Object.hasOwn(recipes, args.item) ? recipes[args.item] : null, times = args.times ?? 1;

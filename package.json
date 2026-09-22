@@ -1,23 +1,44 @@
 {
   "name": "mckudo",
-  "version": "0.2.0",
-  "description": "JSON-first Minecraft automation kernel with pluggable game adapters",
+  "version": "0.4.0",
+  "description": "Reusable Minecraft automation kernel: catalogs, resource planning, construction and reactors",
   "author": "y9kudo",
   "license": "MIT",
   "type": "module",
   "main": "./mckudo_core.js",
   "types": "./mckudo_core.d.ts",
-  "bin": { "mckudo": "./src/cli.js" },
+  "bin": {
+    "mckudo": "./src/cli.js"
+  },
   "exports": {
-    ".": { "types": "./mckudo_core.d.ts", "import": "./mckudo_core.js" },
+    ".": {
+      "types": "./mckudo_core.d.ts",
+      "import": "./mckudo_core.js"
+    },
     "./adapters/mineflayer": "./adapters/mineflayer.js",
     "./adapters/bridge": "./adapters/bridge.js",
     "./adapters/simulator": "./adapters/simulator.js",
     "./memory": "./src/file-memory.js",
-    "./schema": "./schemas/agent.schema.json"
+    "./schema": "./schemas/agent.schema.json",
+    "./adapters/catalog-simulator": "./adapters/catalog-simulator.js"
   },
-  "files": ["mckudo_core.js", "mckudo_core.d.ts", "src/", "adapters/", "schemas/", "examples/", "docs/", "README.md", "ROADMAP.md", "CONTRIBUTING.md", "CHANGELOG.md", "LICENSE"],
-  "engines": { "node": ">=22" },
+  "files": [
+    "mckudo_core.js",
+    "mckudo_core.d.ts",
+    "src/",
+    "adapters/",
+    "schemas/",
+    "examples/",
+    "docs/",
+    "README.md",
+    "ROADMAP.md",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "node --test",
     "demo": "node examples/demo.js",
@@ -27,6 +48,14 @@
     "cli": "node src/cli.js",
     "validate": "node scripts/validate.js",
     "check": "npm run validate && npm test",
-    "prepublishOnly": "node scripts/publication-check.js"
+    "prepublishOnly": "node scripts/publication-check.js",
+    "demo:brain": "node examples/brain.js",
+    "demo:brain:mineflayer": "node examples/brain-mineflayer.js",
+    "demo:library": "node examples/library-04.js"
+  },
+  "dependencies": {
+    "minecraft-data": "^3.117.0",
+    "mineflayer": "^4.39.0",
+    "mineflayer-pathfinder": "^2.4.5"
   }
 }
