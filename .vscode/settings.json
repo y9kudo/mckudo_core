@@ -1,0 +1,12 @@
+{
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "/examples/agent.json",
+        "/examples/workshop.json",
+        "/agent.json"
+      ],
+      "url": "./schemas/agent.schema.json"
+    }
+  ]
+}

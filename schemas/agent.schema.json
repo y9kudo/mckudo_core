@@ -1,0 +1,357 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MCKudo · поведение агента",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "name",
+    "worldId"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "enum": [
+        1,
+        2
+      ],
+      "default": 2
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Имя агента в ядре. Ник Minecraft задаёт адаптер."
+    },
+    "worldId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Отдельное имя памяти для каждого мира."
+    },
+    "tickIntervalMs": {
+      "type": "integer",
+      "minimum": 50,
+      "maximum": 60000,
+      "default": 1000,
+      "description": "Пауза между завершёнными шагами, миллисекунды."
+    },
+    "actionTimeoutMs": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 300000,
+      "default": 15000
+    },
+    "failureBackoffMs": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 300000,
+      "default": 5000
+    },
+    "maxHistory": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200,
+      "default": 50
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "action"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -1000,
+            "maximum": 1000,
+            "default": 0,
+            "description": "Чем больше число, тем раньше выполняется правило."
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "when": {
+            "$ref": "#/$defs/condition"
+          },
+          "action": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "skill"
+            ],
+            "properties": {
+              "skill": {
+                "$ref": "#/$defs/id"
+              },
+              "args": {
+                "type": "object",
+                "default": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "workflows": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "steps"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -1000,
+            "maximum": 1000,
+            "default": 0
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "when": {
+            "$ref": "#/$defs/condition"
+          },
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "$ref": "#/$defs/step"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_:.\\/-]{1,100}$",
+      "not": {
+        "enum": [
+          "__proto__",
+          "constructor",
+          "prototype"
+        ]
+      }
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "all"
+          ],
+          "properties": {
+            "all": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "items": {
+                "$ref": "#/$defs/condition"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "any"
+          ],
+          "properties": {
+            "any": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 16,
+              "items": {
+                "$ref": "#/$defs/condition"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "not"
+          ],
+          "properties": {
+            "not": {
+              "$ref": "#/$defs/condition"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fact"
+          ],
+          "minProperties": 2,
+          "maxProperties": 2,
+          "properties": {
+            "fact": {
+              "type": "string",
+              "pattern": "^/(?:[^~]|~[01])*$",
+              "maxLength": 200,
+              "description": "Например /self/food или /inventory/minecraft:oak_log."
+            },
+            "eq": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            },
+            "ne": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            },
+            "lt": {
+              "type": "number"
+            },
+            "lte": {
+              "type": "number"
+            },
+            "gt": {
+              "type": "number"
+            },
+            "gte": {
+              "type": "number"
+            },
+            "exists": {
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "action"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "dependsOn": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "description": "Если поле пропущено — зависимость от предыдущего шага. [] означает независимый шаг."
+        },
+        "action": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "skill"
+          ],
+          "properties": {
+            "skill": {
+              "$ref": "#/$defs/id"
+            },
+            "args": {
+              "type": "object",
+              "default": {}
+            }
+          }
+        },
+        "until": {
+          "$ref": "#/$defs/condition",
+          "description": "Факт, подтверждающий достижение результата шага."
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 32
+        },
+        "retryDelayMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 300000,
+          "default": 5000
+        }
+      }
+    }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "rules"
+      ],
+      "properties": {
+        "rules": {
+          "minItems": 1
+        }
+      }
+    },
+    {
+      "required": [
+        "workflows"
+      ],
+      "properties": {
+        "workflows": {
+          "minItems": 1
+        }
+      }
+    }
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "rules"
+        ],
+        "properties": {
+          "rules": {
+            "minItems": 1
+          },
+          "workflows": {
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
+}

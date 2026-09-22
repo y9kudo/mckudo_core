@@ -1,0 +1,10 @@
+import { readFile } from 'node:fs/promises';
+import { createCore } from '../mckudo_core.js';
+import { createSimulator } from '../adapters/simulator.js';
+const config = JSON.parse(await readFile(new URL('./workshop.json', import.meta.url), 'utf8'));
+const core = createCore({ config, adapter: createSimulator() });
+core.on('action:finish', r => console.log(`${r.rule}: ${r.outcome}`));
+for (let step = 0; step < 10 && core.snapshot().workflows[0].status !== 'completed'; step++) await core.tick();
+console.log(JSON.stringify(core.snapshot().workflows, null, 2));
+console.log(JSON.stringify(core.snapshot().observation.inventory, null, 2));
+await core.stop();

@@ -1,0 +1,22 @@
+{
+  "$schema": "../schemas/agent.schema.json",
+  "schemaVersion": 2,
+  "name": "WorkshopAgent",
+  "worldId": "workshop-demo",
+  "rules": [
+    { "id": "food", "priority": 100, "when": { "fact": "/self/food", "lt": 16 }, "action": { "skill": "eat" } }
+  ],
+  "workflows": [
+    {
+      "id": "prepare-workshop",
+      "priority": 20,
+      "description": "Подготовить материалы, верстак и палки.",
+      "steps": [
+        { "id": "logs", "action": { "skill": "gather", "args": { "block": "minecraft:oak_log", "count": 1 } }, "until": { "fact": "/inventory/minecraft:oak_log", "gte": 2 } },
+        { "id": "boards", "action": { "skill": "craft", "args": { "item": "minecraft:oak_planks", "times": 2 } }, "until": { "fact": "/inventory/minecraft:oak_planks", "gte": 8 } },
+        { "id": "table", "dependsOn": ["boards"], "action": { "skill": "craft", "args": { "item": "minecraft:crafting_table" } }, "until": { "fact": "/inventory/minecraft:crafting_table", "gte": 1 } },
+        { "id": "sticks", "dependsOn": ["boards"], "action": { "skill": "craft", "args": { "item": "minecraft:stick" } }, "until": { "fact": "/inventory/minecraft:stick", "gte": 4 } }
+      ]
+    }
+  ]
+}

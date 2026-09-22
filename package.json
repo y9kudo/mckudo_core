@@ -1,0 +1,32 @@
+{
+  "name": "mckudo",
+  "version": "0.2.0",
+  "description": "JSON-first Minecraft automation kernel with pluggable game adapters",
+  "author": "y9kudo",
+  "license": "MIT",
+  "type": "module",
+  "main": "./mckudo_core.js",
+  "types": "./mckudo_core.d.ts",
+  "bin": { "mckudo": "./src/cli.js" },
+  "exports": {
+    ".": { "types": "./mckudo_core.d.ts", "import": "./mckudo_core.js" },
+    "./adapters/mineflayer": "./adapters/mineflayer.js",
+    "./adapters/bridge": "./adapters/bridge.js",
+    "./adapters/simulator": "./adapters/simulator.js",
+    "./memory": "./src/file-memory.js",
+    "./schema": "./schemas/agent.schema.json"
+  },
+  "files": ["mckudo_core.js", "mckudo_core.d.ts", "src/", "adapters/", "schemas/", "examples/", "docs/", "README.md", "ROADMAP.md", "CONTRIBUTING.md", "CHANGELOG.md", "LICENSE"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test",
+    "demo": "node examples/demo.js",
+    "demo:workflow": "node examples/workflow.js",
+    "demo:plugins": "node examples/plugin.js",
+    "demo:runtime": "node examples/runtime.js",
+    "cli": "node src/cli.js",
+    "validate": "node scripts/validate.js",
+    "check": "npm run validate && npm test",
+    "prepublishOnly": "node scripts/publication-check.js"
+  }
+}

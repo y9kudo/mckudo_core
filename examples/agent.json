@@ -1,0 +1,23 @@
+{
+  "$schema": "../schemas/agent.schema.json",
+  "schemaVersion": 1,
+  "name": "ResourceAgent",
+  "worldId": "my-test-world",
+  "tickIntervalMs": 1000,
+  "rules": [
+    {
+      "id": "eat-first",
+      "priority": 100,
+      "description": "Сначала поесть, если голод ниже 16.",
+      "when": { "all": [{ "fact": "/self/food", "lt": 16 }, { "fact": "/inventory/minecraft:bread", "gt": 0 }] },
+      "action": { "skill": "eat", "args": { "item": "minecraft:bread" } }
+    },
+    {
+      "id": "collect-wood",
+      "priority": 10,
+      "description": "Собрать запас из четырёх дубовых брёвен.",
+      "when": { "fact": "/inventory/minecraft:oak_log", "lt": 4 },
+      "action": { "skill": "gather", "args": { "block": "minecraft:oak_log", "count": 1 } }
+    }
+  ]
+}
