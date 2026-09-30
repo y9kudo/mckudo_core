@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "Портал и стержни ифрита",
+  "steps": [
+    { "id": "portal", "type": "netherPortal" },
+    { "id": "enter-nether", "type": "travel", "dimension": "minecraft:the_nether" },
+    { "id": "blazes", "type": "blazeRods", "count": 8 },
+    { "id": "return", "type": "travel", "dimension": "minecraft:overworld" }
+  ]
+}

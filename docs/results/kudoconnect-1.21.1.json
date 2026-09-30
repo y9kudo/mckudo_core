@@ -1,0 +1,295 @@
+{
+  "minecraft": "1.21.1",
+  "client": "KudoConnect",
+  "auth": "offline",
+  "mineflayerInExecution": false,
+  "localDate": "2026-09-28",
+  "runs": [
+    {
+      "mode": "observe",
+      "status": "passed",
+      "startedAt": "2026-09-27T22:25:43.330Z",
+      "finishedAt": "2026-09-27T22:25:44.463Z",
+      "actions": [],
+      "reason": null,
+      "initial": {
+        "position": {
+          "x": -15.31497845547584,
+          "y": 67,
+          "z": 10.500239455082848
+        },
+        "inventory": {
+          "minecraft:stick": 2,
+          "minecraft:oak_planks": 3,
+          "minecraft:wooden_pickaxe": 1
+        }
+      },
+      "final": {
+        "position": {
+          "x": -15.31497845547584,
+          "y": 67,
+          "z": 10.500239455082848
+        },
+        "inventory": {
+          "minecraft:stick": 2,
+          "minecraft:oak_planks": 3,
+          "minecraft:wooden_pickaxe": 1
+        },
+        "health": 20
+      },
+      "metrics": {
+        "packetsSent": 5,
+        "corrections": 0,
+        "actions": 0,
+        "maxTickMs": 1.3078999999997905,
+        "decoderWarnings": [
+          {
+            "message": "Пакет play/declare_recipes: Read error for undefined : Missing characters in string, found size is 108271 expected size was 114153",
+            "at": 1790547944331
+          }
+        ],
+        "reactions": []
+      },
+      "selection": [
+        {
+          "name": "minecraft:oak_log",
+          "position": {
+            "x": -17,
+            "y": 68,
+            "z": 10
+          },
+          "distance": 1.9116161011890336,
+          "stateId": 131,
+          "properties": {
+            "axis": "y"
+          }
+        },
+        {
+          "name": "minecraft:oak_log",
+          "position": {
+            "x": -17,
+            "y": 69,
+            "z": 10
+          },
+          "distance": 2.766636246116421,
+          "stateId": 131,
+          "properties": {
+            "axis": "y"
+          }
+        },
+        {
+          "name": "minecraft:oak_log",
+          "position": {
+            "x": -17,
+            "y": 70,
+            "z": 10
+          },
+          "distance": 3.695169294947819,
+          "stateId": 131,
+          "properties": {
+            "axis": "y"
+          }
+        }
+      ]
+    },
+    {
+      "mode": "gather",
+      "status": "passed",
+      "startedAt": "2026-09-27T22:27:43.838Z",
+      "finishedAt": "2026-09-27T22:27:48.342Z",
+      "actions": [
+        {
+          "at": 1790548068328,
+          "rule": "single",
+          "skill": "gather",
+          "outcome": "success",
+          "detail": ""
+        }
+      ],
+      "reason": "Действие завершено. Следующий шаг начнётся с нового наблюдения.",
+      "initial": {
+        "position": {
+          "x": -15.31497845547584,
+          "y": 67,
+          "z": 10.500239455082848
+        },
+        "inventory": {
+          "minecraft:stick": 2,
+          "minecraft:oak_planks": 3,
+          "minecraft:wooden_pickaxe": 1
+        }
+      },
+      "final": {
+        "position": {
+          "x": -16.497877957524004,
+          "y": 68,
+          "z": 10.500239455082848
+        },
+        "inventory": {
+          "minecraft:stick": 2,
+          "minecraft:oak_planks": 3,
+          "minecraft:wooden_pickaxe": 1,
+          "minecraft:oak_log": 1
+        },
+        "health": 20
+      },
+      "metrics": {
+        "packetsSent": 135,
+        "corrections": 0,
+        "actions": 1,
+        "maxTickMs": 0.6816000000001168,
+        "decoderWarnings": [
+          {
+            "message": "Пакет play/declare_recipes: Read error for undefined : Missing characters in string, found size is 108271 expected size was 114153",
+            "at": 1790548064581
+          }
+        ],
+        "reactions": []
+      },
+      "selection": [
+        {
+          "name": "minecraft:oak_log",
+          "position": {
+            "x": -17,
+            "y": 70,
+            "z": 10
+          },
+          "distance": 3.695169294947819,
+          "stateId": 131,
+          "properties": {
+            "axis": "y"
+          }
+        },
+        {
+          "name": "minecraft:oak_log",
+          "position": {
+            "x": -17,
+            "y": 71,
+            "z": 10
+          },
+          "distance": 4.653415532522875,
+          "stateId": 131,
+          "properties": {
+            "axis": "y"
+          }
+        },
+        {
+          "name": "minecraft:oak_log",
+          "position": {
+            "x": -19,
+            "y": 68,
+            "z": 14
+          },
+          "distance": 5.328456310767595,
+          "stateId": 131,
+          "properties": {
+            "axis": "y"
+          }
+        }
+      ]
+    },
+    {
+      "mode": "walk",
+      "status": "passed",
+      "startedAt": "2026-09-27T22:29:13.254Z",
+      "finishedAt": "2026-09-27T22:29:15.818Z",
+      "actions": [
+        {
+          "at": 1790548155805,
+          "rule": "single",
+          "skill": "goto",
+          "outcome": "success",
+          "detail": ""
+        }
+      ],
+      "reason": "Действие завершено. Следующий шаг начнётся с нового наблюдения.",
+      "initial": {
+        "position": {
+          "x": -16.497877957524004,
+          "y": 68,
+          "z": 10.500239455082848
+        },
+        "inventory": {
+          "minecraft:stick": 2,
+          "minecraft:oak_planks": 3,
+          "minecraft:wooden_pickaxe": 1,
+          "minecraft:oak_log": 1
+        }
+      },
+      "final": {
+        "position": {
+          "x": -13.519654425890542,
+          "y": 67,
+          "z": 10.500239455082848
+        },
+        "inventory": {
+          "minecraft:stick": 2,
+          "minecraft:oak_planks": 3,
+          "minecraft:wooden_pickaxe": 1,
+          "minecraft:oak_log": 1
+        },
+        "health": 20
+      },
+      "metrics": {
+        "packetsSent": 105,
+        "corrections": 0,
+        "actions": 1,
+        "maxTickMs": 0.988399999999956,
+        "decoderWarnings": [
+          {
+            "message": "Пакет play/declare_recipes: Read error for undefined : Missing characters in string, found size is 108271 expected size was 114153",
+            "at": 1790548154257
+          }
+        ],
+        "reactions": []
+      },
+      "selection": [
+        {
+          "name": "minecraft:oak_log",
+          "position": {
+            "x": -17,
+            "y": 71,
+            "z": 10
+          },
+          "distance": 3.500000651486083,
+          "stateId": 131,
+          "properties": {
+            "axis": "y"
+          }
+        },
+        {
+          "name": "minecraft:oak_log",
+          "position": {
+            "x": -21,
+            "y": 68,
+            "z": 9
+          },
+          "distance": 4.155413314025052,
+          "stateId": 131,
+          "properties": {
+            "axis": "y"
+          }
+        },
+        {
+          "name": "minecraft:oak_log",
+          "position": {
+            "x": -21,
+            "y": 69,
+            "z": 9
+          },
+          "distance": 4.389471472783105,
+          "stateId": 131,
+          "properties": {
+            "axis": "y"
+          }
+        }
+      ]
+    }
+  ],
+  "initialFailure": {
+    "status": "failed",
+    "reason": "The collector attempted to navigate to a falling item in unsupported air. Fixed to choose a reachable supported cell and verify inventory."
+  },
+  "scope": "Connection, dry-land movement, one class-based log gathering and confirmed pickup. No dragon victory or live shield/PvP verification.",
+  "performanceComparison": null
+}

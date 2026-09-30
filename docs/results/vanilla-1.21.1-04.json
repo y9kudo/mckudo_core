@@ -1,0 +1,99 @@
+{
+  "engine": "0.4.0",
+  "minecraft": "1.21.1",
+  "startedAt": "2026-09-22T12:33:44.945Z",
+  "status": "passed",
+  "actions": [
+    {
+      "at": 1790080430962,
+      "rule": "wooden-tool/resource-1",
+      "skill": "gather",
+      "outcome": "success",
+      "detail": ""
+    },
+    {
+      "at": 1790080431303,
+      "rule": "wooden-tool/resource-2",
+      "skill": "craft",
+      "outcome": "success",
+      "detail": ""
+    },
+    {
+      "at": 1790080431645,
+      "rule": "wooden-tool/resource-3",
+      "skill": "craft",
+      "outcome": "success",
+      "detail": ""
+    },
+    {
+      "at": 1790080433019,
+      "rule": "wooden-tool/resource-4",
+      "skill": "place",
+      "outcome": "success",
+      "detail": ""
+    },
+    {
+      "at": 1790080437929,
+      "rule": "wooden-tool/resource-5",
+      "skill": "gather",
+      "outcome": "success",
+      "detail": ""
+    },
+    {
+      "at": 1790080438239,
+      "rule": "wooden-tool/resource-6",
+      "skill": "craft",
+      "outcome": "success",
+      "detail": ""
+    },
+    {
+      "at": 1790080442180,
+      "rule": "wooden-tool/resource-7",
+      "skill": "gather",
+      "outcome": "success",
+      "detail": ""
+    },
+    {
+      "at": 1790080442664,
+      "rule": "wooden-tool/resource-8",
+      "skill": "craft",
+      "outcome": "success",
+      "detail": ""
+    },
+    {
+      "at": 1790080443211,
+      "rule": "wooden-tool/resource-9",
+      "skill": "craft",
+      "outcome": "success",
+      "detail": ""
+    },
+    {
+      "at": 1790080444783,
+      "rule": "wooden-tool/resource-10",
+      "skill": "craft",
+      "outcome": "success",
+      "detail": ""
+    }
+  ],
+  "catalog": {
+    "version": "1.21.1",
+    "items": 1333,
+    "blocks": 1060,
+    "recipes": 1470,
+    "executableRecipes": 1470,
+    "types": {
+      "minecraft:crafting_shapeless": 253,
+      "minecraft:crafting_shaped": 1217
+    }
+  },
+  "initialItems": {},
+  "finalItems": {
+    "minecraft:oak_planks": 3,
+    "minecraft:wooden_pickaxe": 1,
+    "minecraft:stick": 2
+  },
+  "stationBlock": "crafting_table",
+  "reason": "Проверены установленный верстак и деревянная кирка в инвентаре.",
+  "finishedAt": "2026-09-22T12:34:05.322Z",
+  "scope": "Earlier live 0.4 crafting and station test; does not verify later navigation, food or defense changes"
+}

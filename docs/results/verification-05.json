@@ -1,0 +1,56 @@
+{
+  "version": "0.5.0",
+  "testedAt": "2026-09-30T11:14:43.193Z",
+  "author": "y9kudo",
+  "environment": {
+    "minecraft": "1.21.1",
+    "auth": "offline",
+    "node": "v24.19.0"
+  },
+  "automated": {
+    "passed": 203,
+    "failed": 0,
+    "typeCheck": "passed"
+  },
+  "live": {
+    "fall": {
+      "status": "passed",
+      "healthDelta": 0,
+      "corrections": 0
+    },
+    "team": {
+      "armor": "three complete iron sets equipped",
+      "sharing": "server-confirmed transfers",
+      "fixtures": true
+    },
+    "sleep": {
+      "confirmed": true,
+      "nightSkipped": false,
+      "readyMadeBed": true
+    },
+    "endExpedition": {
+      "status": "incomplete",
+      "fromZero": true,
+      "goalAchieved": false,
+      "actions": 28,
+      "failures": 0,
+      "corrections": 0,
+      "decoderWarnings": 0,
+      "finalInventory": {
+        "minecraft:dirt": 3,
+        "minecraft:jungle_log": 1,
+        "minecraft:wooden_pickaxe": 1,
+        "minecraft:stick": 2,
+        "minecraft:jungle_planks": 3
+      },
+      "stage": "stone-tools"
+    }
+  },
+  "notVerified": [
+    "Full autonomous journey to the End",
+    "Ender Dragon defeat",
+    "Unassisted diamond sets for three agents",
+    "Bed crafting from wool in a live world",
+    "Complete hunting acceptance test"
+  ]
+}

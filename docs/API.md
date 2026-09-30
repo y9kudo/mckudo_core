@@ -1,11 +1,13 @@
-# API MCKudo 0.3
+# API MCKudo 0.4
 
 Публичный вход — mckudo_core.js. Основные экспорты: createCore, MckudoCore, MckudoRuntime, definePlugin, validateConfig, ConfigError, matches, MCKUDO.
+
+Каталог, классы блоков, рецепты, маршруты, исследование, Reactor, питание и строительство описаны в [AUTOMATION.md](AUTOMATION.md). Полный список сигнатур находится в [mckudo_core.d.ts](../mckudo_core.d.ts).
 
 ## Один агент
 
 ~~~js
-const core = createCore({ config, adapter, memory, planning });
+const core = createCore({ config, adapter, memory, planning, reactors, preemptionMs: 100 });
 await core.tick();
 core.start();
 await core.pause();
@@ -19,7 +21,7 @@ tick() выполняет один цикл наблюдение → выбор 
 
 ## Контракт отмены
 
-Тайм-аут, pause и stop передают AbortSignal. Адаптер обязан реально остановить действие и завершить Promise. Ядро не запускает другую задачу до этого подтверждения. Если навык игнорирует сигнал, ожидание может продолжаться; библиотека не умеет принудительно остановить произвольный игровой поток.
+Тайм-аут, pause, stop и срочный Reactor передают AbortSignal. Адаптер обязан реально остановить действие и завершить Promise. Ядро не запускает другую задачу до этого подтверждения. Если навык игнорирует сигнал, ожидание может продолжаться; библиотека не умеет принудительно остановить произвольный игровой поток. `observeThreats` — необязательный быстрый read-only метод адаптера для срочных реакций. Он может вызываться во время действия, обязан завершаться при отмене и не должен менять мир. Без него используется `observe`.
 
 ## Наблюдаемость
 
