@@ -1,0 +1,49 @@
+{
+  "name": "kudoconnect",
+  "version": "0.5.0",
+  "description": "Independent Minecraft Java agent client, physics and peer communication",
+  "author": "y9kudo",
+  "license": "MIT",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "src/",
+    "examples/",
+    "README.md",
+    "CHANGELOG.md",
+    "docs/",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "demo": "node examples/team.js"
+  },
+  "dependencies": {
+    "minecraft-data": "^3.117.0",
+    "minecraft-protocol": "^1.68.0",
+    "prismarine-chunk": "^1.41.0",
+    "prismarine-block": "^1.23.0",
+    "protodef": "^1.19.0",
+    "prismarine-nbt": "^2.8.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/y9kudo/kudoconnect.git"
+  },
+  "homepage": "https://github.com/y9kudo/kudoconnect#readme",
+  "bugs": {
+    "url": "https://github.com/y9kudo/kudoconnect/issues"
+  }
+}

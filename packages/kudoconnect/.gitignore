@@ -1,0 +1,7 @@
+node_modules/
+data/
+*.log
+*.tgz
+.env
+.env.*
+!.env.example
