@@ -7,3 +7,11 @@ data/
 *.tgz
 coverage/
 .cache/
+
+# Local runs and scratch files are not release sources.
+bot-log.txt
+work/
+outputs/
+*.tmp
+examples/follow-test.js
+examples/iron-pickaxe.js
