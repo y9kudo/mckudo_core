@@ -1,0 +1,15 @@
+import {createMinecraftBrain,createEquipmentReactor,createNightReactor,createHuntingReactor,createLootReactor,planRoute,shareTeamSupplies,teamSupplyTargets} from '../../mckudo_core.js';
+import {createKudoConnect} from '../../kudoconnect/index.js';
+const client=createKudoConnect();
+const brain=createMinecraftBrain({client,worldId:'types',equipment:true,night:{retryMs:10000},hunting:{targets:{leather:4},prepareWool:true}});
+createNightReactor().attach(brain);createHuntingReactor().attach(brain);createEquipmentReactor();createLootReactor();
+client.inventory.ownedCount('diamond_helmet');client.inventory.equipment().head?.item;
+client.snapshot().time.timeOfDay;client.observe().equipment.feet?.name;
+planRoute({start:{x:0,y:1,z:0},goal:{x:1,y:1,z:1},getBlock:()=>null,occupied:()=>false});
+const members=[client,createKudoConnect({username:'Liam'})];
+teamSupplyTargets(client,members);void shareTeamSupplies({clients:members,maxTransfers:12});
+import {assessFall,createEndExpedition,endExpeditionScenario} from '../../mckudo_core.js';
+import {planRoute as nativeRoute} from '../../kudoconnect/index.js';
+assessFall({height:5,health:20,landing:null});
+nativeRoute({start:{x:0,y:0,z:0},goal:{x:1,y:0,z:0},getBlock:()=>null,fallPolicy:{minHealthAfter:6}});
+createEndExpedition({client,worldId:'test-end',scenario:endExpeditionScenario()}).snapshot();

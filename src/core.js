@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { randomUUID } from 'node:crypto';
 import { validateConfig, jsonCopy, id, object } from './config.js';
 import { matches, explainCondition } from './conditions.js';
 import { MCKUDO } from './identity.js';
@@ -10,12 +11,16 @@ import { normalizeObservation } from './perception.js';
 export class MckudoCore extends EventEmitter {
   #config; #adapter; #skills; #workflows; #clock; #pending = null; #abort; #timer; #loop = false; #paused = false;
   #cooldowns = new Map(); #stats = Object.create(null); #history = []; #state; #generation = 0; #listenerErrors = [];
-  #brain = null; #tickNumber = 0; #reactors;
-  constructor({ config, adapter, memory, planning, reactors = [], clock = Date.now }) {
+  #brain = null; #tickNumber = 0; #reactors; #preemptionMs; #urgent = false; #unsubscribeUrgent; #learning; #session = randomUUID();
+  constructor({ config, adapter, memory, planning, learning = planning?.experience, reactors = [], preemptionMs = 50, clock = Date.now }) {
     super();
     this.#config = validateConfig(config);
+    if (learning && (learning.worldId !== this.#config.worldId || typeof learning.record !== 'function' || typeof learning.assess !== 'function')) throw new Error('Модель опыта должна принадлежать тому же worldId.');
+    this.#learning = learning;
     if (!Array.isArray(reactors) || reactors.length > 16 || new Set(reactors.map(r => r?.id)).size !== reactors.length || reactors.some(r => !id(r?.id) || r.apiVersion !== 1 || typeof r.react !== 'function')) throw new Error('Нужно до 16 уникальных Reactor: id, apiVersion: 1, react().');
     this.#reactors = [...reactors];
+    if (!Number.isInteger(preemptionMs) || preemptionMs < 50 || preemptionMs > 2000) throw new Error('preemptionMs: 50–2000.');
+    this.#preemptionMs = preemptionMs;
     if (!reactors.length && !this.#config.rules.length && !this.#config.workflows.length && !this.#config.goals.length) throw new Error('Добавь правила, задачи, цели или Reactor.');
     if (!adapter || typeof adapter.observe !== 'function' || typeof adapter.execute !== 'function' || typeof adapter.describe !== 'function') throw new TypeError('Адаптер должен реализовать describe(), observe() и execute().');
     this.#adapter = adapter; this.#clock = clock;
@@ -34,7 +39,7 @@ export class MckudoCore extends EventEmitter {
   #restore(input) {
     const m = jsonCopy(input, '$', 1048576);
     if (![1, 2, 3].includes(m.schemaVersion) || m.worldId !== this.#config.worldId || !object(m.stats) || !Array.isArray(m.history)) throw new TypeError('Память другого мира или неподдерживаемого формата.');
-    const names = [...this.#config.rules.map(r => r.id), ...this.#config.workflows.flatMap(w => w.steps.map(s => JSON.stringify(['workflow', w.id, s.id]))), ...this.#config.goals.map(g => JSON.stringify(['goal', g.id]))];
+    const names = [...this.#reactors.map(r => JSON.stringify(['reactor', r.id])), ...this.#config.rules.map(r => r.id), ...this.#config.workflows.flatMap(w => w.steps.map(s => JSON.stringify(['workflow', w.id, s.id]))), ...this.#config.goals.map(g => JSON.stringify(['goal', g.id]))];
     for (const name of names) {
       const s = Object.hasOwn(m.stats, name) ? m.stats[name] : null;
       if (s) {
@@ -57,8 +62,8 @@ export class MckudoCore extends EventEmitter {
     const o = await this.#adapter.observe({ signal }); signal.throwIfAborted();
     return this.manifest.perceptionVersion === 1 ? normalizeObservation(o) : jsonCopy(o);
   }
-  #reactions(observation) {
-    return this.#reactors.map(reactor => {
+  #reactions(observation, interruptsOnly = false) {
+    return this.#reactors.filter(r => !interruptsOnly || r.preempt === true).map(reactor => {
       try {
         const r = jsonCopy(reactor.react(jsonCopy(observation)));
         if (!object(r) || typeof r.reason !== 'string' || r.reason.length > 500) throw new Error('Reactor должен вернуть action и reason (до 500 символов).');
@@ -91,7 +96,7 @@ export class MckudoCore extends EventEmitter {
   async #step() {
     if (this.#paused) return this.snapshot();
     const ac = new AbortController(); this.#abort = ac;
-    let timedOut = false, plan = null, context = 'world', began = false;
+    let timedOut = false, plan = null, context = 'world', began = false, monitoring = false, monitorTimer, monitorPending, beforeAction, startedAt;
     const timeout = setTimeout(() => { timedOut = true; ac.abort(new Error('Истекло время задачи.')); }, this.#config.actionTimeoutMs);
     try {
       this.#state.status = 'observing'; this.#state.decision = null;
@@ -140,6 +145,7 @@ export class MckudoCore extends EventEmitter {
       if (plan.kind === 'workflow') this.#workflows.begin(plan);
       if (plan.kind === 'goal') this.#brain.begin(plan);
       began = true;
+      beforeAction = jsonCopy(o); startedAt = this.#clock();
       this.#notify(); this.#publish('action:start', this.#state.decision);
       ac.signal.throwIfAborted();
       const handler = this.#skills.get(plan.action.skill);
@@ -147,23 +153,41 @@ export class MckudoCore extends EventEmitter {
         const valid = await handler.validate(jsonCopy(plan.action.args)); ac.signal.throwIfAborted();
         if (valid === false || typeof valid === 'string') throw new Error(typeof valid === 'string' ? valid : 'Параметры навыка не прошли проверку.');
       }
-      const result = handler ? await handler.execute(jsonCopy(plan.action.args), { signal: ac.signal, observation: jsonCopy(o) }) : await this.#adapter.execute(jsonCopy(plan.action), { signal: ac.signal });
+      monitoring = this.#reactors.some(r => r.preempt === true);
+      const poll = async () => {
+        try {
+          if (!monitoring || ac.signal.aborted) return;
+          const fresh = this.#adapter.observeThreats ? await this.#adapter.observeThreats({ signal: ac.signal }) : await this.#observe(ac.signal);
+          if (!monitoring || ac.signal.aborted) return;
+          const urgent = this.#reactions(fresh, true).find(r => r.active && (r.priority > plan.priority || r.priority === plan.priority && r.id === plan.id && r.action.skill === 'flee' && plan.action.skill !== 'flee') && this.#skills.has(r.action.skill) && !this.#cooldowns.has(this.#context(fresh) + '/' + r.memoryKey));
+          if (urgent) { this.#urgent = true; ac.abort(new Error(`Прерывание: ${urgent.description}`)); }
+        } catch (error) {
+          if (!ac.signal.aborted) this.#publish('monitor:error', { message: String(error.message).slice(0, 300) });
+        } finally { if (monitoring && !ac.signal.aborted) monitorTimer = setTimeout(() => { monitorPending = poll(); }, this.#preemptionMs); }
+      };
+      if (monitoring) monitorTimer = setTimeout(() => { monitorPending = poll(); }, this.#preemptionMs);
+      let result;
+      try { result = handler ? await handler.execute(jsonCopy(plan.action.args), { signal: ac.signal, observation: jsonCopy(o) }) : await this.#adapter.execute(jsonCopy(plan.action), { signal: ac.signal, priority: plan.priority }); }
+      finally { monitoring = false; clearTimeout(monitorTimer); await monitorPending; }
       ac.signal.throwIfAborted();
       if (result?.ok === false) throw new Error(String(result.message || 'Навык сообщил о неудаче.'));
       let outcome = 'success';
-      if (plan.until || plan.kind === 'goal') {
+      if (plan.until || plan.kind === 'goal' || this.#learning) {
         const after = await this.#observe(ac.signal); this.#state.observation = after;
         if (plan.until && !matches(plan.until, after)) outcome = 'progress';
       }
       this.#record(plan, context, outcome);
+      this.#learn(plan, beforeAction, this.#state.observation, this.#state.lastResult.outcome, startedAt);
+      if (plan.priority >= 900 && this.#state.lastResult?.outcome !== 'failure') this.#urgent = true;
       this.#state.status = this.#state.lastResult?.outcome === 'failure' ? 'fault' : 'idle';
       this.#state.reason = this.#state.status === 'fault' ? this.#state.lastResult.detail : 'Действие завершено. Следующий шаг начнётся с нового наблюдения.';
     } catch (error) {
       const cancelled = ac.signal.aborted && !timedOut;
       const message = timedOut ? 'Истекло время задачи.' : String(error?.message || error).slice(0, 300);
       if (plan && began) this.#record(plan, context, cancelled ? 'cancelled' : 'failure', message);
-      this.#state.status = cancelled ? 'paused' : 'fault'; this.#state.reason = message;
-    } finally { clearTimeout(timeout); if (this.#abort === ac) this.#abort = null; }
+      if (plan && began) this.#learn(plan, beforeAction, null, cancelled ? 'cancelled' : 'failure', startedAt);
+      this.#state.status = cancelled ? this.#paused ? 'paused' : 'idle' : 'fault'; this.#state.reason = message;
+    } finally { monitoring = false; clearTimeout(monitorTimer); clearTimeout(timeout); if (this.#abort === ac) this.#abort = null; }
     this.#notify(); return this.snapshot();
   }
   #record(plan, context, outcome, detail = '') {
@@ -181,14 +205,25 @@ export class MckudoCore extends EventEmitter {
     this.#history.push(result); this.#history = this.#history.slice(-this.#config.maxHistory);
     this.#state.lastResult = result; this.#publish('action:finish', result);
   }
+  #learn(plan, before, after, outcome, startedAt) {
+    if (!this.#learning) return;
+    try { this.#learning.record({ episodeId: `${this.#session}:${this.#tickNumber}`, action: plan.action, before, after, outcome, durationMs: Math.max(0, this.#clock() - startedAt) }); }
+    catch (error) { this.#publish('monitor:error', { message: `Модель опыта: ${String(error.message).slice(0, 250)}` }); }
+  }
   start() {
     if (this.#loop) { this.resume(); return this; }
     this.#loop = true; this.#paused = false; const generation = ++this.#generation;
     const next = async () => {
       if (!this.#loop || generation !== this.#generation) return;
       try { await this.tick(); } catch (e) { this.#state.status = 'fault'; this.#state.reason = String(e.message).slice(0, 300); }
-      if (this.#loop && generation === this.#generation) this.#timer = setTimeout(next, this.#config.tickIntervalMs);
+      if (this.#loop && generation === this.#generation) this.#timer = setTimeout(next, this.#urgent ? 50 : this.#config.tickIntervalMs);
+      this.#urgent = false;
     };
+    if (typeof this.#adapter.subscribeUrgent === 'function') this.#unsubscribeUrgent = this.#adapter.subscribeUrgent(() => {
+      if (!this.#loop || this.#paused) return;
+      this.#urgent = true;
+      if (!this.#pending) { clearTimeout(this.#timer); this.#timer = setTimeout(next, 0); }
+    });
     void next(); return this;
   }
   pause() {
@@ -197,6 +232,6 @@ export class MckudoCore extends EventEmitter {
     return this.#pending || Promise.resolve(this.snapshot());
   }
   resume() { this.#paused = false; this.#state.status = this.#pending ? 'stopping' : 'idle'; return this; }
-  async stop() { this.#loop = false; this.#generation++; clearTimeout(this.#timer); await this.pause(); }
+  async stop() { this.#loop = false; this.#generation++; clearTimeout(this.#timer); this.#unsubscribeUrgent?.(); this.#unsubscribeUrgent = undefined; await this.pause(); }
 }
 export const createCore = options => new MckudoCore(options);

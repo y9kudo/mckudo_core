@@ -1,6 +1,6 @@
 {
   "name": "mckudo",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Reusable Minecraft automation kernel: catalogs, resource planning, construction and reactors",
   "author": "y9kudo",
   "license": "MIT",
@@ -15,7 +15,18 @@
       "types": "./mckudo_core.d.ts",
       "import": "./mckudo_core.js"
     },
-    "./adapters/mineflayer": "./adapters/mineflayer.js",
+    "./adapters/mineflayer": {
+      "types": "./adapters/mineflayer.d.ts",
+      "import": "./adapters/mineflayer.js"
+    },
+    "./connect": {
+      "types": "./kudoconnect/index.d.ts",
+      "import": "./kudoconnect/index.js"
+    },
+    "./adapters/kudoconnect": {
+      "types": "./adapters/kudoconnect.d.ts",
+      "import": "./adapters/kudoconnect.js"
+    },
     "./adapters/bridge": "./adapters/bridge.js",
     "./adapters/simulator": "./adapters/simulator.js",
     "./memory": "./src/file-memory.js",
@@ -26,6 +37,8 @@
     "mckudo_core.js",
     "mckudo_core.d.ts",
     "src/",
+    "kudoconnect/",
+    "packages/kudoconnect/",
     "adapters/",
     "schemas/",
     "examples/",
@@ -40,7 +53,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test",
+    "test": "node --test test/*.test.js packages/kudoconnect/test/*.test.js",
     "demo": "node examples/demo.js",
     "demo:workflow": "node examples/workflow.js",
     "demo:plugins": "node examples/plugin.js",
@@ -51,11 +64,38 @@
     "prepublishOnly": "node scripts/publication-check.js",
     "demo:brain": "node examples/brain.js",
     "demo:brain:mineflayer": "node examples/brain-mineflayer.js",
-    "demo:library": "node examples/library-04.js"
+    "demo:library": "node examples/library-04.js",
+    "demo:navigation": "node examples/navigation.js",
+    "demo:resources:mineflayer": "node examples/resources-mineflayer.js",
+    "demo:scenario": "node examples/scenario-mineflayer.js",
+    "test:live:campaign": "node examples/scenario-mineflayer.js examples/scenarios/survival-to-dragon.json",
+    "demo:kudoconnect": "node examples/kudoconnect-live.js",
+    "dashboard": "node examples/dashboard.js",
+    "test:live:native": "node examples/native-campaign.js",
+    "test:live:environment": "node examples/environment-probe.js",
+    "test:live:daily": "node examples/daily-live.js",
+    "test:live:end": "node examples/end-expedition.js",
+    "test:live:fall": "node examples/fall-live.js",
+    "test:end:check": "node examples/end-expedition.js --check"
   },
   "dependencies": {
     "minecraft-data": "^3.117.0",
+    "minecraft-protocol": "^1.68.0",
+    "prismarine-chunk": "^1.41.0",
+    "prismarine-block": "^1.23.0",
+    "protodef": "^1.19.0",
+    "prismarine-nbt": "^2.8.0"
+  },
+  "devDependencies": {
     "mineflayer": "^4.39.0",
     "mineflayer-pathfinder": "^2.4.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/y9kudo/mckudo_core.git"
+  },
+  "homepage": "https://github.com/y9kudo/mckudo_core#readme",
+  "bugs": {
+    "url": "https://github.com/y9kudo/mckudo_core/issues"
   }
 }

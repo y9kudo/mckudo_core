@@ -55,7 +55,7 @@ export function importVanillaRecipes(input, tags = {}) {
         grouped.get(key).count++;
       }
       record.ingredients = [...grouped.values()];
-      record.executable = Boolean(record.output) && ['minecraft:crafting_shaped', 'minecraft:crafting_shapeless', 'minecraft:smelting'].includes(raw.type);
+      record.executable = Boolean(record.output) && ['minecraft:crafting_shaped', 'minecraft:crafting_shapeless', 'minecraft:smelting', 'minecraft:smoking', 'minecraft:blasting'].includes(raw.type);
       if (!record.executable) record.reason = 'Рецепт проиндексирован; исполнитель этого типа ещё не подключён.';
     } catch (error) { record.reason = String(error.message).slice(0, 300); }
     return record;

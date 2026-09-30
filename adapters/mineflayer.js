@@ -2,16 +2,65 @@ import { normalizeObservation } from '../src/perception.js';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createWorldActions } from './mineflayer-actions.js';
 import { blockKey } from '../src/construction.js';
+import { catalogFromMinecraftData } from '../src/catalog.js';
+import { createBlockTaxonomy } from '../src/taxonomy.js';
+import { cropTypes } from '../src/food.js';
+import { createNavigator } from './mineflayer-navigation.js';
+import { createCombatExecutor, entityCombatState } from './mineflayer-combat.js';
+import { createDropCollector } from './mineflayer-drops.js';
+import { createEndgameExecutor } from './mineflayer-endgame.js';
 const resourceName = value => {
   if (typeof value !== 'string' || !/^(minecraft:)?[a-z0-9_]+$/.test(value)) throw new Error('Mineflayer-адаптер принимает только vanilla ID minecraft:имя. Для модов нужен bridge.');
   return value.replace(/^minecraft:/, '');
 };
-export function createMineflayerAdapter(bot, { goals, trackedBlocks = ['minecraft:oak_log', 'minecraft:birch_log', 'minecraft:crafting_table'], watchedPositions = [] }) {
+export function createMineflayerAdapter(bot, { goals, catalog, taxonomy, trackedBlocks, watchedPositions = [], searchRadius = 128, entityRadius = 128, scanIntervalMs = 1000, requestedViewDistance = 16 }) {
   if (!bot.pathfinder || !goals?.GoalNear || !goals?.GoalLookAtBlock) throw new Error('Загрузи mineflayer-pathfinder и передай его goals.');
-  const cancel = () => { bot.pathfinder.setGoal(null); bot.stopDigging(); bot.deactivateItem(); bot.clearControlStates(); };
+  for (const [name, value, min, max] of [['searchRadius', searchRadius, 16, 512], ['entityRadius', entityRadius, 16, 512], ['scanIntervalMs', scanIntervalMs, 100, 60000], ['requestedViewDistance', requestedViewDistance, 2, 32]]) if (!Number.isInteger(value) || value < min || value > max) throw new Error(`${name}: ${min}–${max}.`);
+  catalog ||= bot.registry?.blocksArray && bot.registry?.itemsArray ? catalogFromMinecraftData(bot.registry) : null;
+  taxonomy ||= catalog ? createBlockTaxonomy(catalog) : null;
+  trackedBlocks ||= taxonomy ? ['#logs', '#ores', '#workstations', '#crops'] : ['minecraft:oak_log', 'minecraft:birch_log', 'minecraft:crafting_table'];
+  if (!Array.isArray(trackedBlocks) || trackedBlocks.length > 128) throw new Error('trackedBlocks: до 128 ID или #классов.');
+  const resolveBlocks = selector => selector.startsWith('#') ? (() => { const members = taxonomy?.members(selector.slice(1)); if (!members?.length) throw new Error(`Неизвестный или пустой класс ${selector}.`); return members.map(resourceName); })() : [resourceName(selector)];
+  const blockGroups = trackedBlocks.map(resolveBlocks), blockNames = [...new Set(blockGroups.flat())];
+  if (blockNames.length > 2048) throw new Error('Не более 2048 типов блоков в одном сканировании.');
+  const cancel = () => { endgame.cancel(); bot.pathfinder.setGoal(null); bot.stopDigging(); bot.deactivateItem(); bot.clearControlStates(); };
   const check = signal => { signal.throwIfAborted(); if (!bot.entity || bot.health <= 0) throw new Error('Бот не в мире или мёртв.'); };
   if (!Array.isArray(watchedPositions) || watchedPositions.length > 2048 || watchedPositions.some(p => !['x', 'y', 'z'].every(k => Number.isInteger(p[k])))) throw new Error('watchedPositions: до 2048 целых координат.');
-  const worldActions = createWorldActions(bot, { goals, check }), attackers = new Map();
+  const worldActions = createWorldActions(bot, { goals, check, searchRadius }), attackers = new Map();
+  const navigate = createNavigator(bot, { searchRadius, check });
+  const combatExecutor = createCombatExecutor(bot, { goals, check }), collector = createDropCollector(bot, { goals, check });
+  const endgame = createEndgameExecutor(bot, { goals, check });
+  let scanCache = null;
+  const invalidate = () => { scanCache = null; };
+  const scan = p => {
+    if (scanCache && Date.now() - scanCache.at < scanIntervalMs && Math.hypot(p.x - scanCache.p.x, p.y - scanCache.p.y, p.z - scanCache.p.z) < 4) return scanCache.result;
+    let positions = [], nearbyBlocks;
+    const ids = blockNames.map(n => bot.registry?.blocksByName?.[n]?.id).filter(Number.isInteger);
+    if (typeof bot.findBlocks === 'function' && ids.length) {
+      // Separate budgets prevent dense tree trunks from hiding every ore/crop in the sample.
+      for (const group of blockGroups) {
+        const matching = group.map(n => bot.registry.blocksByName[n]?.id).filter(Number.isInteger);
+        if (matching.length) positions.push(...bot.findBlocks({ matching, maxDistance: searchRadius, count: Math.max(1, Math.floor(512 / blockGroups.length)) }));
+      }
+      positions = [...new Map(positions.map(p => [blockKey(p), p])).values()];
+      const present = new Set(positions.map(p => bot.blockAt(p)?.name).filter(Boolean));
+      nearbyBlocks = Object.fromEntries(blockNames.map(n => ['minecraft:' + n, present.has(n) ? true : null]));
+    } else nearbyBlocks = Object.fromEntries(blockNames.map(name => ['minecraft:' + name, typeof bot.findBlock === 'function' ? Boolean(bot.findBlock({ matching: b => b.name === name, maxDistance: searchRadius })) : null]));
+    const crops = positions.map(p => bot.blockAt(p)).filter(b => b && cropTypes[b.name]).map(b => ({ name: 'minecraft:' + b.name, position: { x: b.position.x, y: b.position.y, z: b.position.z }, mature: b.getProperties().age === cropTypes[b.name].age }));
+    const result = { nearbyBlocks, crops, sampledBlocks: positions.map(p => { const b = bot.blockAt(p); return b ? { name: 'minecraft:' + b.name, position: { x: p.x, y: p.y, z: p.z }, properties: b.getProperties?.() || {} } : null; }).filter(Boolean) };
+    scanCache = { at: Date.now(), p: { x: p.x, y: p.y, z: p.z }, result }; return result;
+  };
+  const threats = () => {
+    const p = bot.entity.position;
+    const entities = bot.entities ? Object.values(bot.entities).filter(e => e !== bot.entity && e.position && Math.hypot(e.position.x - p.x, e.position.y - p.y, e.position.z - p.z) <= entityRadius)
+      .sort((a, b) => Math.hypot(a.position.x - p.x, a.position.y - p.y, a.position.z - p.z) - Math.hypot(b.position.x - p.x, b.position.y - p.y, b.position.z - p.z)).slice(0, 128)
+      .map(e => ({ id: String(e.id), name: String(e.name || e.type || 'unknown'), kind: e.type === 'player' ? 'player' : 'entity', username: e.username || null,
+        hostile: ['zombie', 'zombie_villager', 'husk', 'drowned', 'skeleton', 'stray', 'bogged', 'wither_skeleton', 'creeper', 'pillager', 'vindicator', 'evoker', 'vex', 'ravager', 'witch', 'phantom', 'blaze', 'breeze', 'ghast', 'warden', 'slime', 'magma_cube', 'cave_spider', 'silverfish', 'endermite', 'hoglin', 'zoglin', 'piglin_brute', 'guardian', 'elder_guardian', 'shulker', 'wither', 'ender_dragon'].includes(e.name),
+        ...entityCombatState(bot, e), radius: entityMetaRadius(e) })) : null;
+    for (const [id, hit] of attackers) if (Date.now() - hit.lastHitAt > 10000) attackers.delete(id);
+    const rawDimension = String(bot.game?.dimension);
+    return { dimension: rawDimension.includes(':') ? rawDimension : 'minecraft:' + rawDimension, self: { health: bot.health, food: bot.food ?? null, position: { x: p.x, y: p.y, z: p.z }, shield: bot.inventory?.slots?.[45]?.name === 'shield' }, entities, combat: { attackers: [...attackers.values()], ...combatExecutor.state() } };
+  };
   const onHurt = (victim, source) => {
     if (victim !== bot.entity || !source || source === bot.entity) return;
     const key = String(source.id), previous = attackers.get(key), now = Date.now();
@@ -19,8 +68,9 @@ export function createMineflayerAdapter(bot, { goals, trackedBlocks = ['minecraf
     if (attackers.size > 32) attackers.delete(attackers.keys().next().value);
   };
   bot.on?.('entityHurt', onHurt);
-  if (!Array.isArray(trackedBlocks) || trackedBlocks.length > 16) throw new Error('trackedBlocks: до 16 vanilla ID.');
-  const blockNames = [...new Set(trackedBlocks.map(resourceName))];
+  for (const event of ['blockUpdate', 'chunkColumnLoad', 'chunkColumnUnload', 'respawn']) bot.on?.(event, invalidate);
+  bot.setSettings?.({ viewDistance: requestedViewDistance });
+  function entityMetaRadius(e) { const i = bot.registry?.entitiesByName?.[e.name]?.metadataKeys?.indexOf('radius') ?? -1; return i < 0 ? null : e.metadata?.[i] ?? null; }
   const canCraft = typeof bot.craft === 'function' && typeof bot.recipesFor === 'function';
   const countItem = name => bot.inventory.items().filter(i => i.name === name).reduce((sum, i) => sum + i.count, 0);
   const findRecipe = (item, times, table, expectedIngredients) => {
@@ -38,33 +88,43 @@ export function createMineflayerAdapter(bot, { goals, trackedBlocks = ['minecraf
     });
   };
   return {
-    describe: () => ({ protocolVersion: 1, perceptionVersion: 1, kind: 'mineflayer', loader: 'vanilla', minecraftVersion: bot.version || 'unknown', skills: ['eat', 'gather', 'goto', ...(canCraft ? ['craft'] : []), ...worldActions.names] }),
-    dispose: () => { bot.removeListener?.('entityHurt', onHurt); attackers.clear(); },
+    describe: () => ({ protocolVersion: 1, perceptionVersion: 1, kind: 'mineflayer', loader: 'vanilla', minecraftVersion: bot.version || 'unknown', skills: ['eat', 'gather', 'goto', 'navigate', 'collect', ...(typeof bot.attack === 'function' ? ['combat'] : []), ...(canCraft ? ['craft'] : []), ...worldActions.names, ...endgame.names], perception: { searchRadius, entityRadius, requestedViewDistance, scanIntervalMs } }),
+    dispose: () => { endgame.dispose(); bot.removeListener?.('entityHurt', onHurt); for (const event of ['blockUpdate', 'chunkColumnLoad', 'chunkColumnUnload', 'respawn']) bot.removeListener?.(event, invalidate); attackers.clear(); scanCache = null; },
+    subscribeUrgent(listener) {
+      const onThreat = entity => {
+        if (!bot.entity?.position || !entity?.position || entity === bot.entity) return;
+        if (entity.position.distanceTo(bot.entity.position) <= 12 && (entity.type === 'player' || ['zombie', 'skeleton', 'creeper', 'blaze', 'arrow', 'small_fireball', 'area_effect_cloud', 'end_crystal', 'wither_skeleton', 'enderman'].includes(entity.name))) listener();
+      };
+      const onDamage = victim => { if (victim === bot.entity) listener(); };
+      bot.on('entityMoved', onThreat); bot.on('entitySpawn', onThreat); bot.on('entityHurt', onDamage);
+      return () => { bot.removeListener('entityMoved', onThreat); bot.removeListener('entitySpawn', onThreat); bot.removeListener('entityHurt', onDamage); };
+    },
+    observeThreats: async ({ signal }) => { check(signal); return threats(); },
     observe: async ({ signal }) => {
       check(signal);
       const inventory = Object.fromEntries(Object.keys(bot.registry.itemsByName).map(name => ['minecraft:' + name, 0]));
       for (const i of bot.inventory.items()) inventory['minecraft:' + i.name] = (inventory['minecraft:' + i.name] || 0) + i.count;
       const p = bot.entity.position;
       const rawDimension = String(bot.game.dimension), dimension = rawDimension.includes(':') ? rawDimension : 'minecraft:' + rawDimension;
-      const nearbyBlocks = Object.fromEntries(blockNames.map(name => ['minecraft:' + name, typeof bot.findBlock === 'function' ? Boolean(bot.findBlock({ matching: b => b.name === name, maxDistance: 24 })) : null]));
-      const entities = bot.entities ? Object.values(bot.entities).filter(e => e !== bot.entity && e.position && Math.hypot(e.position.x - p.x, e.position.y - p.y, e.position.z - p.z) <= 32)
-        .sort((a, b) => Math.hypot(a.position.x - p.x, a.position.y - p.y, a.position.z - p.z) - Math.hypot(b.position.x - p.x, b.position.y - p.y, b.position.z - p.z)).slice(0, 128)
-        .map(e => ({ id: String(e.id), name: String(e.name || e.type || 'unknown'), kind: e.type === 'player' ? 'player' : 'entity', username: e.username || null,
-          hostile: ['zombie', 'husk', 'drowned', 'skeleton', 'stray', 'wither_skeleton', 'creeper', 'pillager', 'vindicator', 'ravager', 'witch', 'phantom', 'blaze', 'ghast', 'warden'].includes(e.name),
-          position: { x: e.position.x, y: e.position.y, z: e.position.z } })) : null;
-      for (const [id, hit] of attackers) if (Date.now() - hit.lastHitAt > 10000) attackers.delete(id);
+      const scanned = scan(p), threat = threats();
       const blocks = Object.fromEntries(watchedPositions.map(pos => { const b = bot.blockAt(bot.entity.position.offset(pos.x - p.x, pos.y - p.y, pos.z - p.z)); return [blockKey(pos), b ? 'minecraft:' + b.name : null]; }));
       return normalizeObservation({ dimension, self: { health: bot.health, food: bot.food, position: { x: p.x, y: p.y, z: p.z } }, inventory,
-        world: { dimension, nearbyBlocks, blocks }, time: { timeOfDay: bot.time?.timeOfDay ?? null, isDay: bot.time?.isDay ?? null }, entities, combat: { attackers: [...attackers.values()] } });
+        world: { dimension, ...scanned, blocks, searchRadius, requestedViewDistance }, time: { timeOfDay: bot.time?.timeOfDay ?? null, isDay: bot.time?.isDay ?? null }, entities: threat.entities, combat: threat.combat, drops: collector.observe(), endgame: endgame.observe() });
     },
     execute: async ({ skill, args }, { signal }) => {
       check(signal); signal.addEventListener('abort', cancel, { once: true });
       try {
-        if (skill === 'eat') {
+        if (skill === 'combat') {
+          return await combatExecutor.execute(args, signal);
+        } else if (skill === 'collect') {
+          return await collector.collect(args, signal);
+        } else if (skill === 'eat') {
           const name = resourceName(args.item || 'minecraft:bread');
           const item = bot.inventory.items().find(i => i.name === name);
           if (!item) throw new Error(`Нет ${name} в инвентаре.`);
           await bot.equip(item, 'hand'); check(signal); await bot.consume();
+        } else if (skill === 'navigate') {
+          await navigate(args, signal);
         } else if (skill === 'goto') {
           if (![args.x, args.y, args.z].every(Number.isFinite)) throw new Error('goto: x, y, z должны быть числами.');
           const range = args.range ?? 2;
@@ -78,7 +138,7 @@ export function createMineflayerAdapter(bot, { goals, trackedBlocks = ['minecraf
           if (!item) throw new Error(`Неизвестный предмет ${name}.`);
           let table = null, recipe = findRecipe(item, times, null, args.ingredients);
           if (!recipe) {
-            table = bot.findBlock({ matching: b => b.name === 'crafting_table', maxDistance: 24 });
+            table = bot.findBlock({ matching: b => b.name === 'crafting_table', maxDistance: searchRadius });
             if (!table) throw new Error('Нет доступного рецепта в инвентаре; рядом нет верстака.');
             recipe = findRecipe(item, times, table, args.ingredients);
             if (!recipe) throw new Error('Не хватает ингредиентов для указанного количества крафта.');
@@ -97,13 +157,14 @@ export function createMineflayerAdapter(bot, { goals, trackedBlocks = ['minecraf
           }
           if (countItem(name) - before < expected) throw new Error('Инвентарь не подтвердил результат крафта.');
         } else if (skill === 'gather') {
-          const name = resourceName(args.block), count = args.count ?? 1;
+          const choices = resolveBlocks(args.block), count = args.count ?? 1;
           if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('gather: count от 1 до 16.');
           for (let n = 0; n < count; n++) {
             check(signal);
             if (bot.inventory.emptySlotCount() < 2) throw new Error('Инвентарь заполнен.');
-            let block = bot.findBlock({ matching: b => b.name === name, maxDistance: 24 });
-            if (!block) throw new Error(`Рядом нет ${name}.`);
+            let block = bot.findBlock({ matching: b => choices.includes(b.name), maxDistance: searchRadius });
+            if (!block) throw new Error(`В наблюдаемой области нет ${args.block}.`);
+            const name = block.name;
             await bot.pathfinder.goto(new goals.GoalLookAtBlock(block.position, bot.world)); check(signal);
             block = bot.blockAt(block.position);
             if (!block || block.name !== name) throw new Error('Целевой блок изменился.');
@@ -116,25 +177,16 @@ export function createMineflayerAdapter(bot, { goals, trackedBlocks = ['minecraf
             if (!block.canHarvest(bot.heldItem?.type ?? null)) throw new Error('Не хватает подходящего инструмента.');
             const beforePickup = new Map();
             for (const item of bot.inventory.items()) beforePickup.set(item.name, (beforePickup.get(item.name) || 0) + item.count);
+            const expected = args.item?.replace(/^minecraft:/, '') || catalog?.block('minecraft:' + name)?.drops?.[0]?.replace(/^minecraft:/, '') || name;
             await bot.dig(block); check(signal);
             if (bot.blockAt(block.position)?.type === block.type) throw new Error('Сервер не подтвердил добычу.');
-            // Pick up drops by approaching the mined block. No teleporting or inventory injection.
-            await bot.pathfinder.goto(new goals.GoalNear(block.position.x, block.position.y, block.position.z, 1));
-            // Reaching the block does not mean the server has sent the pickup yet.
-            // Wait for observed inventory growth; the brain checks the precise effect.
-            const pickedUp = () => {
-              const current = new Map();
-              for (const item of bot.inventory.items()) current.set(item.name, (current.get(item.name) || 0) + item.count);
-              return [...current].some(([name, amount]) => amount > (beforePickup.get(name) || 0));
-            };
-            const deadline = Date.now() + 2000;
-            while (!pickedUp() && Date.now() < deadline) { await delay(50, undefined, { signal }); check(signal); }
-            if (!pickedUp()) throw new Error('Блок добыт, но подбор предмета не подтверждён инвентарём.');
+            await collector.collect({ item: expected, beforeCount: beforePickup.get(expected) || 0, origin: block.position, radius: 12, timeoutMs: 8000 }, signal);
           }
-        } else if (worldActions.names.includes(skill)) await worldActions.execute(skill, args, signal);
+        } else if (endgame.names.includes(skill)) return await endgame.execute(skill, args, signal);
+        else if (worldActions.names.includes(skill)) await worldActions.execute(skill, args, signal);
         else throw new Error(`Навык не поддерживается: ${skill}`);
         check(signal); return { ok: true };
-      } finally { signal.removeEventListener('abort', cancel); }
+      } finally { invalidate(); signal.removeEventListener('abort', cancel); }
     },
   };
 }

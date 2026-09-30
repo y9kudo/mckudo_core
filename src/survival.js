@@ -27,14 +27,16 @@ export function createSurvivalProgression({ stages = survivalStages(), completed
 }
 
 export function createDefenseReactor({ attackPlayers = false, retaliationHits = 2, retaliationWindowMs = 10000, retreatHealth = 8, dangerRadius = 8, maxChaseDistance = 12, trustedPlayers = [], clock = Date.now } = {}) {
-  if (typeof attackPlayers !== 'boolean' || !Number.isInteger(retaliationHits) || retaliationHits < 1 || retaliationHits > 10 || ![retaliationWindowMs, retreatHealth, dangerRadius, maxChaseDistance].every(n => Number.isFinite(n) && n > 0) || !Array.isArray(trustedPlayers)) throw new Error('Неверная политика защиты.');
-  return { id: 'mckudo:defense', apiVersion: 1,
+  if (typeof attackPlayers !== 'boolean' || !Number.isInteger(retaliationHits) || retaliationHits < 1 || retaliationHits > 10 || ![retaliationWindowMs, retreatHealth, dangerRadius, maxChaseDistance].every(n => Number.isFinite(n) && n > 0) || maxChaseDistance > 32 || dangerRadius > maxChaseDistance || !Array.isArray(trustedPlayers) || trustedPlayers.some(n => typeof n !== 'string')) throw new Error('Неверная политика защиты.');
+  const trusted = new Set(trustedPlayers.map(n => n.toLowerCase()));
+  const recentHits = a => Array.isArray(a.hitTimes) ? a.hitTimes.filter(t => clock() - t >= 0 && clock() - t <= retaliationWindowMs).length : a.hits;
+  return { id: 'mckudo:defense', apiVersion: 1, preempt: true,
     react(observation) {
       const p = observation.self?.position;
       if (!p || !Array.isArray(observation.entities)) return { action: null, reason: 'Недостаточно наблюдений для оценки угроз.' };
       const threats = observation.entities.map(e => ({ ...e, distance: e.position ? Math.hypot(e.position.x - p.x, e.position.y - p.y, e.position.z - p.z) : Infinity }))
-        .filter(e => e.distance <= maxChaseDistance && (e.hostile === true && e.distance <= dangerRadius || e.kind === 'player' && attackPlayers && !trustedPlayers.includes(e.username) &&
-          (observation.combat?.attackers || []).some(a => a.entityId === e.id && a.hits >= retaliationHits && clock() - a.lastHitAt >= 0 && clock() - a.lastHitAt <= retaliationWindowMs)))
+        .filter(e => e.distance <= maxChaseDistance && (e.kind !== 'player' && e.hostile === true && e.distance <= dangerRadius || (e.kind !== 'player' || attackPlayers && !trusted.has(e.username?.toLowerCase())) &&
+          (observation.combat?.attackers || []).some(a => a.entityId === e.id && recentHits(a) >= (e.kind === 'player' ? retaliationHits : 1) && clock() - a.lastHitAt >= 0 && clock() - a.lastHitAt <= retaliationWindowMs)))
         .sort((a, b) => a.distance - b.distance);
       const target = threats[0];
       if (!target) return { action: null, reason: 'Подтверждённых угроз нет.' };

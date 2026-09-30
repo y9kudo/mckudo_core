@@ -23,4 +23,5 @@ jobs:
       - run: npm run demo:runtime
       - run: npm run demo:brain
       - run: npm run demo:library
+      - run: npm run demo:navigation
       - run: npm pack --dry-run

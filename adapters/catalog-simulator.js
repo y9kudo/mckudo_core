@@ -30,7 +30,8 @@ export function createCatalogSimulator({ catalog, inventory = {}, blocks = {}, s
         if (args.block.endsWith('_door')) state.world.blocks[above] = args.block;
       } else if (skill === 'craft' || skill === 'smelt') {
         const times = skill === 'craft' ? args.times : args.count;
-        const recipe = catalog.recipesFor(args.item).find(r => r.executable && (skill === 'smelt' ? r.type === 'minecraft:smelting' && r.ingredients[0].choices.includes(args.input) : r.type.includes('crafting_') && r.ingredients.every(g => g.choices.some(i => (args.ingredients || {})[i] >= g.count))));
+        if (!Number.isInteger(times) || times < 1 || times > (skill === 'craft' ? 16 : 64)) throw new Error('Неверный размер партии.');
+        const recipe = catalog.recipesFor(args.item).find(r => r.executable && (skill === 'smelt' ? ['minecraft:smelting', 'minecraft:smoking', 'minecraft:blasting'].includes(r.type) && (!args.station || args.station === r.station) && r.ingredients[0].choices.includes(args.input) : r.type.includes('crafting_') && r.ingredients.every(g => g.choices.some(i => (args.ingredients || {})[i] >= g.count))));
         if (!recipe) throw new Error('Рецепт или ингредиенты не совпадают.');
         if (recipe.station && !Object.values(state.world.blocks).includes(recipe.station)) throw new Error('Нужна установленная станция.');
         const needs = skill === 'craft' ? Object.fromEntries(Object.entries(args.ingredients).map(([k, n]) => [k, n * times])) : { [args.input]: args.count };

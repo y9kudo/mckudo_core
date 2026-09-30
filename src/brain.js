@@ -15,7 +15,8 @@ export class GoalBrain {
       const value = this.#options[key];
       if (!Number.isInteger(value) || value < (key === 'minIntervalMs' ? 0 : 1) || value > max) throw new Error(`planning.${key}: неверный лимит.`);
     }
-    this.#operators = validateOperators(options.operators);
+    this.#operators = options.operators?.length ? validateOperators(options.operators) : [];
+    if (!this.#operators.length && !options.experience) throw new Error('Нужны operators или experience.');
     this.#planner = options.planner ?? createSymbolicPlanner();
     if (!id(this.#planner?.id) || this.#planner.apiVersion !== 1 || typeof this.#planner.plan !== 'function') throw new Error('Planner: нужны id, apiVersion: 1 и plan().');
     this.#fingerprint = fingerprint({ goals, operators: this.#operators, planner: this.#planner.id });
@@ -57,9 +58,11 @@ export class GoalBrain {
   async propose(candidate, observation, skills, signal) {
     const goal = this.#goals.find(g => g.id === candidate.goalId), state = this.#states[goal.id], now = this.#clock();
     for (const [name, until] of this.#blocked) if (until <= now) this.#blocked.delete(name);
-    const operators = this.#operators.filter(op => skills.includes(op.action.skill) && !this.#blocked.has(op.id));
+    const learned = this.#options.experience?.operators() || [];
+    const combined = [...this.#operators, ...learned.filter(op => !this.#operators.some(s => s.id === op.id))].slice(0, 64);
+    const operators = combined.filter(op => skills.includes(op.action.skill) && !this.#blocked.has(op.id) && !this.#options.experience?.assess(op.action, observation).blocked);
     const pointers = [...new Set([...conditionFacts(goal.desired), ...operators.flatMap(op => [...conditionFacts(op.requires), ...op.effects.map(e => e.fact)])])].sort();
-    const signature = fingerprint({ facts: projectFacts(observation, pointers), operators: operators.map(o => o.id), skills });
+    const signature = fingerprint({ facts: projectFacts(observation, pointers), operators, skills });
     if (!operators.length) {
       state.status = 'blocked'; state.reason = 'Нет доступных операторов для планирования.'; state.retryAt = now + this.#options.retryDelayMs;
       this.#cache = null; return { ...candidate, blocked: state.reason };
@@ -89,7 +92,7 @@ export class GoalBrain {
     if (!predicted) return block('Предпосылки плана изменились.');
     state.status = 'active'; state.reason = this.#cache.reason; state.retryAt = 0;
     return { ...candidate, operatorId: op.id, action: op.action, memoryKey: JSON.stringify(['goal', goal.id]),
-      predicted, effectFacts: op.effects.map(e => e.fact), pointers, operatorIds: operators.map(o => o.id), skills,
+      predicted, effectFacts: op.effects.map(e => e.fact), pointers, operatorIds: operators.map(o => o.id), operators, skills,
       observedSignature: fingerprint(projectFacts(observation, pointers)),
       description: this.#cache.reason, blocked: null };
   }
@@ -110,7 +113,7 @@ export class GoalBrain {
     s.status = reached ? 'achieved' : 'active'; s.reason = reached ? 'Цель подтверждена наблюдением.' : 'Эффект подтверждён. Следующий шаг — после нового наблюдения.';
     if (this.#cache) {
       this.#cache.steps.shift();
-      this.#cache.signature = fingerprint({ facts: projectFacts(plan.predicted, plan.pointers), operators: plan.operatorIds, skills: plan.skills });
+      this.#cache.signature = fingerprint({ facts: projectFacts(plan.predicted, plan.pointers), operators: plan.operators, skills: plan.skills });
     }
     return reached ? 'success' : 'progress';
   }
