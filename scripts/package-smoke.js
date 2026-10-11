@@ -19,7 +19,8 @@ try {
   }
   const consumer = join(directory, 'consumer'); await mkdir(consumer);
   await writeFile(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
-  run(['install', '--offline', '--ignore-scripts', '--omit=dev', '--no-audit', '--no-fund', '--package-lock=false', ...archives], consumer);
+  const cacheMode = process.argv.includes('--offline') ? '--offline' : '--prefer-offline';
+  run(['install', cacheMode, '--ignore-scripts', '--omit=dev', '--no-audit', '--no-fund', '--package-lock=false', ...archives], consumer);
   const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     import {createRequire} from 'node:module';
