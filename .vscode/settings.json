@@ -1,6 +1,10 @@
 {
   "json.schemas": [
     {
+      "fileMatch": ["/mission.json", "/examples/missions/*.json"],
+      "url": "./schemas/mission.schema.json"
+    },
+    {
       "fileMatch": [
         "/examples/agent.json",
         "/examples/workshop.json",

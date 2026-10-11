@@ -1,0 +1,33 @@
+{
+  "version": "0.6.0",
+  "date": "2026-10-11",
+  "author": "y9kudo",
+  "automated": { "passed": 319, "failed": 0, "skipped": 0 },
+  "strictTypes": "passed",
+  "packageIntegrity": "passed",
+  "isolatedPackageInstallation": { "status": "passed", "mineflayerInstalled": false },
+  "live": {
+    "minecraft": "1.21.1",
+    "authentication": "offline",
+    "agent": "RowanRelease06",
+    "status": "passed",
+    "emptyInitialInventory": true,
+    "administrativeItemGrants": false,
+    "existingWorld": true,
+    "goals": ["logs", "crafting_table", "wooden_pickaxe", "stone_pickaxe", "furnace"],
+    "durationSeconds": 157,
+    "health": 20,
+    "positionCorrections": 0,
+    "actions": 44,
+    "actionFailuresRecovered": 2,
+    "memoryRestored": { "cognition": true, "spatial": true },
+    "last128LocalTicks": { "effectiveHz": 12.02, "meanIntervalMs": 83.20, "p95IntervalMs": 327.42 },
+    "fullDragonCampaignCompleted": false
+  },
+  "limits": [
+    "No full autonomous zero-to-dragon victory has been confirmed.",
+    "No native brewing executor yet.",
+    "Full-load local timer cadence is below 20 Hz and still requires optimization.",
+    "Live profile coverage is Java 1.21.1; other versions require separate validation."
+  ]
+}

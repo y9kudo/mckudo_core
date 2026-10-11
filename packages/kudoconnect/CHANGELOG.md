@@ -1,5 +1,33 @@
 # Изменения KudoConnect
 
+## 0.6.0 — 2026-10-11
+
+- `allowPartial` для A*: промежуточный участок, `partial` и `target`. По умолчанию поиск по-прежнему требует достижимую конечную цель.
+- Удержание у края при наземном приседании, сетевые start/stop sneaking и безопасное завершение управления. Мост подтверждает блок и уменьшение инвентаря, затем разрешает шаг. На широкой проверенной опоре возвращается обычная скорость; курсор установки соответствует опорной грани.
+- Публичный `KudoProtection`: до 128 областей, измерения, эвристика построек, учёт подтверждённых собственных установок; проверка встроенных действий до подхода и перед отправкой изменения. A* принимает `canPlace`, расчистка учитывает защиту. [Документация](docs/PROTECTION.md).
+- Боевой A* с бюджетом 1600 узлов, без добычи/мостов, подъём по ступени, ограничение бесполезного преследования между кадрами.
+- Исправлено боковое метание у стены после спуска: проверка обхода игрока ограничена текущей точкой торможения. Проверка коридора включает конечную позицию полного следа игрока.
+- Расписание физики относительно целевого времени вместо накопления задержек интервала. Цель 20 Гц, без догоняющей серии шагов/пакетов после зависания; остановка на смерти, смене измерения и отключении. `npm run test:live:timing` в исходниках MCKudo проверяет реальный маршрут и частоту.
+
+- Публичный `traceVisibility`: ограниченный DDA с точным пересечением форм блоков, неизвестные чанки остаются непрозрачными. MCKudo использует его для исключения ложных угроз за стенами.
+
+- Общая ограниченная очередь A* с чередованием задач и мягким суммарным бюджетом; статистика `metrics.navigation` и публичный `createWorkScheduler`.
+- Представления чтения мира проверяют затронутые чанки, не отменяя поиск при посторонних обновлениях.
+- Выход из выработки к рабочей станции: A* может расчистить высоту ступени и потолок обычным инструментом; опоры, неизвестные блоки, жидкости и падающие блоки защищены. Ручная навигация включает это через `excavate:true`, подход сначала пробует обычный маршрут.
+- Состояния A* учитывают планируемую добычу и постановку каждой ветви: снятый блок не используется как будущая опора; предел расчистки — 32 блока на маршрут.
+- Cooperative `planRouteAsync`: bounded slices, cancellation, optional world-revision check; native movement and collection yield during path searches.
+- Bounded local timer cadence telemetry in `snapshot().metrics.timing` (not network ping).
+
+- Fleet/peer coordination expanded to 20 clients with cost-based resource bids.
+- Authoritative collection confirmation, pickup cancellation and target attribution fixes.
+- Shield facing and cooldown handling, weapon restoration and safe critical-jump attempts.
+
+- Lazy world registry; server recipe book indexed per output.
+- Java 1.21/1.21.1 profiles and explicit capability queries.
+- Predictive player avoidance and spectator handling; optional route edgeCost.
+- Pillar/descent, End evidence, smooth ranged aiming.
+- Smithing with authoritative inventory confirmation and preservation of components.
+
 ## 0.5.0 — 2026-09-30
 
 - Самостоятельная публикация с исходниками, тестами и MIT-лицензией y9kudo.

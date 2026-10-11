@@ -1,6 +1,6 @@
 {
   "name": "kudoconnect",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Independent Minecraft Java agent client, physics and peer communication",
   "author": "y9kudo",
   "license": "MIT",
@@ -27,7 +27,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node --test --test-concurrency=4 test/*.test.js",
     "demo": "node examples/team.js"
   },
   "dependencies": {
