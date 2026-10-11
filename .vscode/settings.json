@@ -1,5 +1,6 @@
 {
   "json.schemas": [
+    {"fileMatch":["/examples/machine-recipes.json","/machine-recipes.json"],"url":"./schemas/machine-recipes.schema.json"},
     {
       "fileMatch": ["/mission.json", "/examples/missions/*.json"],
       "url": "./schemas/mission.schema.json"

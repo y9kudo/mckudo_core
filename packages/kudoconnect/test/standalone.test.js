@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
+import {resolve,relative,isAbsolute} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import minecraftData from 'minecraft-data';
 import { KudoConnect, KudoWorld, KudoPeer, createFleet, stepPhysics, environmentAt, solveAim, traceProjectile, projectileProfile } from '../index.js';
 const air = { name: 'air', shapes: [], boundingBox: 'empty' }, stone = { name: 'stone', shapes: [[0,0,0,1,1,1]], boundingBox: 'block' };
@@ -11,7 +13,12 @@ test('the standalone package source has no imports of MCKudo or Mineflayer', asy
   assert.equal(pkg.name, 'kudoconnect'); assert.equal(pkg.dependencies.mckudo, undefined); assert.equal(pkg.dependencies.mineflayer, undefined);
   for (const file of await readdir(new URL('../src/', import.meta.url))) {
     const source = await readFile(new URL('../src/' + file, import.meta.url), 'utf8');
-    assert.doesNotMatch(source, /from\s+['"](?:\.\.\/|mckudo|mineflayer)/, file);
+    assert.doesNotMatch(source, /from\s+['"](?:mckudo|mineflayer)(?:['"]|\/)/, file);
+    const root=fileURLToPath(new URL('../',import.meta.url));
+    for(const match of source.matchAll(/(?:from\s+|import\s*\(\s*|import\s+)['"](\.{1,2}\/[^'"]+)['"]/g)){
+      const target=relative(root,resolve(root,'src',match[1]));
+      assert.ok(target!== '..'&&!target.startsWith('..\\')&&!target.startsWith('../')&&!isAbsolute(target),`${file}: import leaves standalone package`);
+    }
   }
 });
 test('fleet creates exactly 1–20 unique English clients and cleans every connection after a failure', async () => {

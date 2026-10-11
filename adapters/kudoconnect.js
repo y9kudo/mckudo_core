@@ -13,6 +13,8 @@ export function createKudoAdapter(client, { catalog = catalogFromMinecraftData(c
     return group;
   }))];
   for (const selector of trackedBlocks.filter(s => s.startsWith('#'))) client.world.registerClass(selector.slice(1), taxonomy.members(selector.slice(1)));
+  const tracked=new Set(names);
+  const reservedGroups=[['logs',32],['ores',48],['crops',16],['beds',16]].map(([group,count])=>({names:taxonomy.members(group).filter(n=>tracked.has(n)),count})).filter(g=>g.names.length);
   // Item IDs are fixed for this connected registry. Keep explicit zero counts without
   // cloning every catalog record (including metadata) on every observation.
   const emptyInventory = Object.fromEntries(catalog.items().map(i => [i.id, 0]));
@@ -41,6 +43,12 @@ export function createKudoAdapter(client, { catalog = catalogFromMinecraftData(c
       const key = `${Math.floor(p.x / 4)},${Math.floor(p.y / 4)},${Math.floor(p.z / 4)}`;
       if (!cached || cached.key !== key || cached.revision !== client.world.revision || Date.now() - cached.at > 2000) {
         const scan = await client.world.findBlocks({ names, position: p, radius: searchRadius, count: 256, signal });
+        // Dense common terrain must not erase distant but observed resource classes.
+        for(const group of reservedGroups){
+          const sample=await client.world.findBlocks({...group,position:p,radius:searchRadius,signal});
+          scan.blocks=[...new Map([...scan.blocks,...sample.blocks].map(b=>[`${b.position.x},${b.position.y},${b.position.z}`,b])).values()];
+          scan.truncated ||= sample.truncated;
+        }
         // Common stone/logs can fill the sample budget before a nearby table.
         // Reserve a separate observation budget for crafting and portal stations.
         const important=names.filter(n=>/^(?:minecraft:)?(?:crafting_table|furnace|nether_portal|end_portal|end_portal_frame)$/.test(n));

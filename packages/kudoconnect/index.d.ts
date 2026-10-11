@@ -1,4 +1,26 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+export interface VehicleObservation {entityId:string;name:string|null;position:Position|null;serverConfirmed:true;}
+export interface MenuSlot {slot:number;item:string|null;count:number;name:string;lore:string[];}
+export interface MenuObservation {windowId:number;type:number;kind:string;title:string;revision:number;stateId:number|null;ready:boolean;slots:MenuSlot[];}
+export declare function observeMenu(containers:KudoContainers):MenuObservation|null;
+export declare function menuText(input:unknown):string;
+export declare function findMenuSlot(menu:MenuObservation,selector:{item?:string;name?:string;contains?:string;slot?:number}):MenuSlot & {windowId:number;revision:number};
+export interface SwimRouteOptions {start:Position;goal:Position;getBlock:(p:Position)=>NavigationBlock|null;signal?:AbortSignal;maxNodes?:number;maxDistance?:number;airTicks?:number;airReserveTicks?:number;ticksPerBlock?:number;waterBreathing?:boolean;}
+export interface SwimRouteResult {status:'planned'|'blocked';reason:string;mode?:'swim';waypoints:Position[];visited:number;cost?:number;airRemainingTicks?:number;}
+export interface VolumeResult {clear:boolean;reason:string;position?:Position;water?:boolean;submerged?:boolean;fraction?:number;submergedSamples?:number;samples?:number;}
+export declare const KUDOVECTORIZE:Readonly<{name:'KudoVectorize';author:'y9kudo';version:string;modes:readonly string[];predictions:readonly string[]}>;
+export declare function volumeClearance(options:{position:Position;getBlock:SwimRouteOptions['getBlock'];height?:number;radius?:number}):VolumeResult;
+export declare function traceVolume(options:{from:Position;to:Position;getBlock:SwimRouteOptions['getBlock'];height?:number;radius?:number}):VolumeResult;
+export declare function planSwimRoute(options:SwimRouteOptions):SwimRouteResult;
+export declare function planSwimRouteAsync(options:SwimRouteOptions,scheduling?:{nodesPerSlice?:number;sliceMs?:number;getRevision?:()=>unknown}):Promise<SwimRouteResult>;
+export interface ElytraPrediction {position:Position;velocity:Position;yaw:number;pitch:number;}
+export declare function predictElytraTick(options:ElytraPrediction & {rocket?:boolean}):ElytraPrediction;
+export declare class KudoVectorize {
+  constructor(options:{getBlock:SwimRouteOptions['getBlock'];getRevision?:()=>unknown});
+  plan(options:Omit<SwimRouteOptions,'getBlock'>):SwimRouteResult;
+  planAsync(options:Omit<SwimRouteOptions,'getBlock'>):Promise<SwimRouteResult>;
+  clearance(position:Position):VolumeResult;
+}
 export interface Action { skill: string; args?: Record<string, Json>; }
 export interface Position { x: number; y: number; z: number; }
 export interface NavigationBlock { name?: string; id?: string; boundingBox?: string; shapes?: number[][]; diggable?: boolean; getProperties?(): Record<string, unknown>; }
@@ -17,7 +39,9 @@ export declare class KudoProtection {
   forget(dimension:string,position:Position):void;
   check(options:{operation:'dig'|'place';dimension:string;position:Position;block?:NavigationBlock|null;getBlock?:(position:Position)=>NavigationBlock|null}):EditDecision;
 }
-export interface KudoOptions { host?: string; port?: number; username?: string; version?: '1.21' | '1.21.1'; auth?: 'offline'; viewDistance?: number; connectTimeoutMs?: number; maxDrop?: number; fallHealthReserve?: number; maxFallDamage?: number; bridgeReserve?: number; bridgeItemValue?: (name: string,item: KudoItem) => number; protection?:ProtectionOptions; }
+export interface AuthCode {user_code:string;verification_uri:string;expires_in:number;}
+export interface AuthenticationState {mode:'offline'|'microsoft';status:'offline'|'pending'|'device-code'|'authenticated';profile:{name:string;uuid:string}|null;}
+export interface KudoOptions { host?: string; port?: number; username?: string; version?: '1.21' | '1.21.1'; auth?: 'offline'|'microsoft'; profilesFolder?:string;authTimeoutMs?:number;onMsaCode?:(code:AuthCode)=>void;realms?:{realmId:number}; viewDistance?: number; connectTimeoutMs?: number; maxDrop?: number; fallHealthReserve?: number; maxFallDamage?: number; bridgeReserve?: number; bridgeItemValue?: (name: string,item: KudoItem) => number; protection?:ProtectionOptions; }
 export interface KudoState { status: 'disconnected' | 'connecting' | 'ready' | 'dead'; entityId: number | null; position: Position | null; velocity: Position; yaw: number; pitch: number; onGround: boolean; health: number | null; food: number | null; dimension: string | null; gameMode: string | number | null; environment?: Environment; sleeping?: boolean; sprinting?: boolean; sneaking?:boolean; frozen?: boolean; horizontalCollision?: boolean; }
 export interface KudoMetrics { packetsSent: number; corrections: number; actions: number; failures: number; maxTickMs: number; timing?: TickTimingSnapshot; navigation?: WorkSchedulerSnapshot; decoderWarnings: { message: string; at: number }[]; reactions: unknown[]; }
 export interface KudoItem { name: string; item: string; type: number; count: number; slot: number; raw: any; }
@@ -26,8 +50,8 @@ export interface EyeFlight {entityId:string;dimension:string;launched:Position;o
 export interface EndEvidence {eyes:EyeFlight[];crystals:{entityId:string;position:Position;confirmed:true;evidence:'explosion-and-removal';at:number}[];ownDragonHits?:number;dragonDeath?:{entityId:string;confirmed:true;evidence:'entity-death-status'|'health-zero-and-dying-phase';ownDamageConfirmed:boolean;ownHitCount:number;at:number};}
 export interface PillarArgs {count?:number;block?:string;}
 export interface PillarResult {ok:true;serverConfirmed:true;placed:(Position & {block:string})[];position:Position;}
-export interface KudoSnapshot extends KudoState { time:KudoTime; equipment:ReturnType<KudoInventory["equipment"]>; identity: typeof KUDOCONNECT; inventory: Record<string, number>; loadedChunks: number; metrics: KudoMetrics; }
-export declare const KUDOCONNECT: Readonly<{ name: 'KudoConnect'; version: '0.6.0'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
+export interface KudoSnapshot extends KudoState { authentication:AuthenticationState; time:KudoTime; equipment:ReturnType<KudoInventory["equipment"]>; identity: typeof KUDOCONNECT; inventory: Record<string, number>; loadedChunks: number; metrics: KudoMetrics; }
+export declare const KUDOCONNECT: Readonly<{ name: 'KudoConnect'; version: '0.7.0-dev.0'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
 export declare const KUDO_SKILLS: readonly string[];
 export interface FallPolicy { health?:number; minHealthAfter?:number; maxDamage?:number; slowFalling?:boolean; sneaking?:boolean; }
 export interface FallAssessment { height:number; landing:string|null; estimatedDamage:number|null; healthAfter:number|null; survivable:boolean; allowed:boolean; reason:string; }
@@ -48,6 +72,10 @@ export declare class KudoConnect {
   readonly players: KudoPlayers;
   readonly containers: KudoContainers;
   readonly protection: KudoProtection;
+  readonly vectorize: KudoVectorize;
+  readonly authentication:AuthenticationState;
+  menu():MenuObservation|null;
+  vehicle():VehicleObservation|null;
   watchPlayer(username: string, options?: AttentionOptions): AttentionLease;
   findStorages(options?: StorageSearchOptions): Promise<StorageSearchResult>;
   readonly state: KudoState;

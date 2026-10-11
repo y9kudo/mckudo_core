@@ -17,8 +17,12 @@ import {NATIVE_VERSIONS} from './versions.js';
 import { TickTiming, createTickLoop } from './timing.js';
 import { navigationScheduler } from './scheduler.js';
 import { KudoProtection } from './protection.js';
+import { authenticationOptions, authenticatedProfile } from './auth.js';
+import { observeMenu } from './menus.js';
+import { KudoVectorize } from './vectorize.js';
+import { synchronizeVehicle, observeVehicle } from './transport.js';
 
-export const KUDOCONNECT = Object.freeze({ name: 'KudoConnect', version: '0.6.0', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline'] });
+export const KUDOCONNECT = Object.freeze({ name: 'KudoConnect', version: '0.7.0-dev.0', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
 export class KudoConnect extends EventEmitter {
   constructor(options = {}, { createProtocolClient = options => protocol.createClient(options), physics = stepPhysics } = {}) {
     super();
@@ -29,13 +33,16 @@ export class KudoConnect extends EventEmitter {
     const o = this.options;
     if (o.maxDrop !== undefined && (!Number.isInteger(o.maxDrop) || o.maxDrop < 1 || o.maxDrop > 32)) throw new Error('maxDrop: 1–32.');
     for (const key of ['fallHealthReserve', 'maxFallDamage']) if (o[key] !== undefined && (!Number.isFinite(o[key]) || o[key] < 0 || o[key] > 20)) throw new Error(`${key}: 0–20.`);
-    if (!NATIVE_VERSIONS.includes(o.version) || o.auth !== 'offline') throw new Error('KudoConnect: нативный профиль Java 1.21/1.21.1, auth offline. Проверь versionSupport() для других версий.');
-    if (typeof o.host !== 'string' || !o.host || !Number.isInteger(o.port) || o.port < 1 || o.port > 65535 || !/^[A-Za-z0-9_]{1,16}$/.test(o.username) || !Number.isInteger(o.viewDistance) || o.viewDistance < 2 || o.viewDistance > 32 || !Number.isInteger(o.connectTimeoutMs) || o.connectTimeoutMs < 1000 || o.connectTimeoutMs > 60000) throw new Error('KudoConnect: неверные параметры подключения.');
+    if (!NATIVE_VERSIONS.includes(o.version)) throw new Error('KudoConnect: нативный профиль Java 1.21/1.21.1. Проверь versionSupport() для других версий.');
+    authenticationOptions(o);
+    this.authentication = { mode: o.auth, status: o.auth === 'microsoft' ? 'pending' : 'offline', profile: null };
+    if (typeof o.host !== 'string' || !o.host || !Number.isInteger(o.port) || o.port < 1 || o.port > 65535 || !Number.isInteger(o.viewDistance) || o.viewDistance < 2 || o.viewDistance > 32 || !Number.isInteger(o.connectTimeoutMs) || o.connectTimeoutMs < 1000 || o.connectTimeoutMs > 60000) throw new Error('KudoConnect: неверные параметры подключения.');
     // No world catalog or recipe index for disconnected, unused clients.
     this.dataLoaded=false;
     const initialize=()=>{if(this.dataLoaded)return;this.dataLoaded=true;const registry=minecraftData(o.version),inventory=new KudoInventory(registry);this._data={registry,inventory,world:new KudoWorld(registry),recipeBook:new WorldRecipeBook(registry),containers:new KudoContainers(inventory,registry)};};
     for(const key of ['registry','world','inventory','recipeBook','containers'])Object.defineProperty(this,key,{get:()=>{initialize();return this._data[key];},set:value=>{initialize();this._data[key]=value;},configurable:true});
     this.containerRequest=false;
+    this.vectorize = new KudoVectorize({getBlock:p=>this.world.blockAt(p),getRevision:()=>this.world.revision});
     this.entities = new Map(); this.state = { status: 'disconnected', entityId: null, position: null, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, onGround: false, health: null, food: null, dimension: null, gameMode: null };
     this.time={timeOfDay:null,isDay:null,age:null};this.selfMetadata={};this.endgame={eyes:[]};this.dimensionRequested=null;
     installEndEvidence(this);
@@ -49,7 +56,23 @@ export class KudoConnect extends EventEmitter {
     if (this.connectedOnce) throw new Error('Создай новый экземпляр KudoConnect для следующего подключения.');
     this.connectedOnce = true; this.state.status = 'connecting';
     void this.registry;
-    const c = this.client = this.createProtocolClient({ ...this.options, clientSettings: { locale: 'ru_ru', viewDistance: this.options.viewDistance, chatFlags: 0, chatColors: true, skinParts: 127, mainHand: 1 }, hideErrors: true });
+    const protocolOptions = authenticationOptions(this.options, { isClosed: () => this.connectionAbort.signal.aborted, onCode: code => { this.authentication.status = 'device-code'; this.emit('authCode', code); } });
+    Object.assign(protocolOptions, { clientSettings: { locale: 'ru_ru', viewDistance: this.options.viewDistance, chatFlags: 0, chatColors: true, skinParts: 127, mainHand: 1 }, hideErrors: true });
+    let c;
+    try { c = this.client = this.createProtocolClient(protocolOptions); }
+    catch (error) { this.state.status = 'disconnected'; this.connectionAbort.abort(error); throw error; }
+    if (this.options.auth === 'microsoft') {
+      // Auth may complete after close()/timeout. Prevent a delayed TCP connection.
+      const connect = protocolOptions.connect;
+      if (connect) protocolOptions.connect = client => { if (!this.connectionAbort.signal.aborted) connect(client); };
+      const setSocket = c.setSocket?.bind(c);
+      if (setSocket) c.setSocket = socket => { if (this.connectionAbort.signal.aborted) socket.destroy(); else setSocket(socket); };
+      c.on('session', session => {
+        if (this.connectionAbort.signal.aborted) return;
+        try { this.authentication = { mode: 'microsoft', status: 'authenticated', profile: authenticatedProfile(session) }; this.emit('authenticated', { ...this.authentication.profile }); }
+        catch (error) { this.connectionAbort.abort(error); }
+      });
+    }
     const warn = error => { this.metrics.decoderWarnings.push({ message: String(error.message).slice(0, 200), at: Date.now() }); this.metrics.decoderWarnings = this.metrics.decoderWarnings.slice(-20); this.emit('warning', error); };
     c.on('state', () => {
       const parser = c.deserializer; if (!parser || parser.kudoObserved) return;
@@ -74,7 +97,7 @@ export class KudoConnect extends EventEmitter {
       if (!['minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end'].includes(dimension)) { this.connectionAbort.abort(new Error('Неизвестное измерение.')); return; }
       const changed = this.state.dimension !== dimension;
       this.state.dimension = dimension; this.state.gameMode = typeof w.gamemode === 'object' ? w.gamemode.gameMode ?? w.gamemode.gamemode : w.gamemode;
-      if (changed) { this.world.reset(dimension); this.entities.clear(); this.stopMovement(); }
+      if (changed) { this.world.reset(dimension); this.entities.clear(); this.state.vehicleId=null; this.stopMovement(); }
     };
     c.on('login', p => { this.state.entityId = p.entityId; worldState(p); this.emit('login', this.snapshot()); });
     c.on('respawn', p => {
@@ -83,7 +106,7 @@ export class KudoConnect extends EventEmitter {
       this.stopClock(); this.stopMovement(); this.attention.clear(); this.entities.clear(); this.attackers.clear();
       if (!this.respawnRequested && !expected) this.pending?.abort.abort(new Error('Сервер переместил агента; нужно новое наблюдение.'));
       this.state.status = 'connecting'; this.state.position = null; if (!changedDimension) this.state.health = null; this.state.onGround = false;
-      this.state.sleeping = false; this.selfMetadata = {}; this.state.velocity = {x:0,y:0,z:0};
+      this.state.sleeping = false; this.state.vehicleId=null; this.selfMetadata = {}; this.state.velocity = {x:0,y:0,z:0};
       if (!changedDimension) this.inventory = new KudoInventory(this.registry);
       this.containers = new KudoContainers(this.inventory,this.registry);
       this.containerRequest = false; worldState(p); this.world.reset(this.state.dimension); this.emit('respawnPacket');
@@ -113,7 +136,7 @@ export class KudoConnect extends EventEmitter {
       else this.checkReady();
       this.emit('health', {health:p.health,food:p.food});
     });
-    c.on('open_window', p => { if (!this.containerRequest) { this.write('close_window', { windowId: p.windowId }); return; } this.containers.open(p); this.emit('container'); });
+    c.on('open_window', p => { this.containers.open(p); this.stopMovement(); this.emit('container'); });
     c.on('close_window', p => { this.containers.close(p.windowId); this.emit('container'); });
     c.on('window_items', p => { if (this.inventory.updateWindow(p) || this.containers.updateWindow(p)) { this.emit('inventory', this.inventory.snapshot()); this.emit('container'); } });
     c.on('set_slot', p => { if (this.inventory.updateSlot(p) || this.containers.updateSlot(p)) { this.emit('inventory', this.inventory.snapshot()); this.emit('container'); } });
@@ -139,7 +162,8 @@ export class KudoConnect extends EventEmitter {
     c.on('entity_teleport', p => { const e = this.entities.get(p.entityId); if (e) { e.position = { x: p.x, y: p.y, z: p.z }; rotate(p); } });
     c.on('entity_velocity', p => { if (p.entityId === this.state.entityId) this.state.velocity = this.packetVelocity(p.velocity); const e = this.entities.get(p.entityId); if (e) e.velocity = this.packetVelocity(p.velocity); });
     c.on('entity_equipment', p => { const e = this.entities.get(p.entityId); if (e) { e.equipment ||= {}; for (const slot of p.equipments) e.equipment[slot.slot] = readSlot(slot.item, this.registry); } });
-    c.on('entity_destroy', p => { for (const id of p.entityIds) { const e = this.entities.get(id); this.entities.delete(id); this.attackers.delete(String(id)); this.emit('entityGone', e); } });
+    c.on('entity_destroy', p => { for (const id of p.entityIds) { const e = this.entities.get(id); this.entities.delete(id); this.attackers.delete(String(id)); if(this.state.vehicleId===id){this.state.vehicleId=null;this.emit('vehicle',null);} this.emit('entityGone', e); } });
+    c.on('set_passengers',p=>{if(p.passengers.includes(this.state.entityId)){this.state.vehicleId=p.entityId;synchronizeVehicle(this);this.emit('vehicle',observeVehicle(this));}else if(this.state.vehicleId===p.entityId){this.state.vehicleId=null;this.state.velocity={x:0,y:0,z:0};this.emit('vehicle',null);}});
     c.on('collect', p => this.emit('collect', { id: String(p.collectedEntityId), own: p.collectorEntityId === this.state.entityId, count: p.pickupItemCount }));
     c.on('damage_event', p => {
       const e = this.entities.get(p.sourceCauseId - 1), at = performance.now();
@@ -160,14 +184,18 @@ export class KudoConnect extends EventEmitter {
     c.on('error', e => { warn(e); this.connectionAbort.abort(e); this.emit('fault', e); });
     c.on('disconnect', p => { this.emit('kicked', p.reason); this.connectionAbort.abort(new Error(`Сервер отключил клиента: ${JSON.stringify(p.reason).slice(0, 500)}`)); });
     c.on('end', reason => { this.stopClock(); this.state.status = 'disconnected'; this.connectionAbort.abort(new Error('Соединение закрыто.')); this.emit('end', reason); });
-    const timeout = AbortSignal.timeout(this.options.connectTimeoutMs);
-    try { await this.waitFor(() => ['ready','dead'].includes(this.state.status), { signal: AbortSignal.any([timeout,this.connectionAbort.signal]), event: 'session', timeoutMs: this.options.connectTimeoutMs }); }
+    try {
+      if (this.options.auth === 'microsoft') await this.waitFor(() => this.authentication.status === 'authenticated', { signal: this.connectionAbort.signal, event: 'authenticated', timeoutMs: protocolOptions.authTimeoutMs });
+      await this.waitFor(() => ['ready','dead'].includes(this.state.status), { signal: this.connectionAbort.signal, event: 'session', timeoutMs: this.options.connectTimeoutMs });
+    }
     catch (error) { if(this.state.status!=='dead'){await this.close();throw error;} }
     return this;
   }
   observe() { return observeAgent(this); }
   watchPlayer(username, options) { return this.attention.watch(username, options); }
   findStorages(options) { return findStorages(this, options); }
+  menu() { return this.dataLoaded ? observeMenu(this.containers) : null; }
+  vehicle() { return observeVehicle(this); }
   async respawn({signal,timeoutMs=15000}={}) {
     if(this.state.status!=='dead'||this.client?.state!=='play')throw new Error('Возрождение доступно только погибшему подключённому агенту.');
     if(this.respawnRequested)throw new Error('Возрождение уже запрошено.');
@@ -198,7 +226,7 @@ export class KudoConnect extends EventEmitter {
       this.tickTiming.mark(performance.now());
       if (this.client?.state !== 'play' || this.state.health <= 0 || this.connectionAbort.signal.aborted || this.state.sleeping) return;
       const before = performance.now();
-      try { this.state = this.physics(this.state, { ...this.control, usingItem: this.guarding }, p => this.world.blockAt(p)); this.world.focus = this.state.position; this.attention.tick(); this.tickLook(); this.sendPosition(); }
+      try { if(!synchronizeVehicle(this))this.state = this.physics(this.state, { ...this.control, usingItem: this.guarding }, p => this.world.blockAt(p)); this.world.focus = this.state.position; this.attention.tick(); this.tickLook(); this.sendPosition(); }
       catch (error) { this.connectionAbort.abort(error); this.stopClock(); this.emit('warning', error); return; }
       this.metrics.maxTickMs = Math.max(this.metrics.maxTickMs, performance.now() - before); this.emit('physics', this.state.position);
     });
@@ -238,6 +266,7 @@ export class KudoConnect extends EventEmitter {
   }
   async execute(action, { signal, priority = 0 } = {}) {
     if (this.state.status !== 'ready') throw new Error('Сначала дождись connect().');
+    if(this.state.vehicleId!=null&&!['look','lookAtPlayer','dismount','wait'].includes(action?.skill))throw new Error('Сначала выйди из транспорта через dismount.');
     this.connectionAbort.signal.throwIfAborted(); signal?.throwIfAborted();
     if (!Number.isFinite(priority)) throw new Error('priority должен быть числом.');
     const encoded = JSON.stringify(action);
@@ -262,7 +291,7 @@ export class KudoConnect extends EventEmitter {
       });
     return job.promise;
   }
-  snapshot() { return { identity: KUDOCONNECT, ...structuredClone(this.state), time:structuredClone(this.time), inventory: this.dataLoaded?this.inventory.snapshot():{}, equipment:this.dataLoaded?this.inventory.equipment():{}, loadedChunks: this.dataLoaded?this.world.columns.size:0, metrics: { ...structuredClone(this.metrics), timing: this.tickTiming.snapshot(), navigation: navigationScheduler.snapshot() } }; }
+  snapshot() { return { identity: KUDOCONNECT, ...structuredClone(this.state), authentication: structuredClone(this.authentication), time:structuredClone(this.time), inventory: this.dataLoaded?this.inventory.snapshot():{}, equipment:this.dataLoaded?this.inventory.equipment():{}, loadedChunks: this.dataLoaded?this.world.columns.size:0, metrics: { ...structuredClone(this.metrics), timing: this.tickTiming.snapshot(), navigation: navigationScheduler.snapshot() } }; }
   async close() {
     this.connectionAbort.abort(new Error('Клиент остановлен.')); this.stopMovement(); this.attention.clear(); this.stopClock(); await this.pending?.promise.catch(() => {});
     if (!this.client?.socket?.destroyed) this.client?.end('KudoConnect stopped');

@@ -1,0 +1,17 @@
+{
+  "version":"0.7.0-dev.0",
+  "date":"2026-10-12",
+  "author":"y9kudo",
+  "releaseStatus":"development-local",
+  "environment":{"os":"Windows","node":"v24.19.0","minecraft":"Java 1.21.1","authentication":"offline"},
+  "automated":{"passed":355,"total":355,"failed":0,"strictTypeScript":"passed","isolatedPackageInstall":"passed","releaseIntegrity":"passed","githubCI":"not-run"},
+  "live":{
+    "nativeSmoke":{"agent":"RowanVector07","status":"passed","announcedRecipes":1290,"groundCorrections":0,"finalHealth":20,"closed":true},
+    "vectorize":{"serverChunkPlanning":"passed","swimmingExecution":"not-tested-live","elytraFlight":"not-tested-live"},
+    "campaign":{"zeroInventoryAttempts":2,"results":"died-at-stone-tools","dragonVictory":false},
+    "resourcePerceptionFix":{"agent":"RowanResources07","initialInventoryEmpty":true,"wood":"confirmed","craftingTable":"confirmed","woodenPickaxe":"confirmed","stonePickaxe":"not-completed","furnace":"not-completed","finalHealth":20,"status":"incomplete"},
+    "miningStaircaseFix":{"resumed":true,"fromZero":false,"collectedCobblestone":2,"finalHealth":20,"status":"incomplete"},
+    "microsoftProvider":"mock-tested-only","realms":"not-tested","vehicles":"protocol-tested-only","moddedFactory":"model-tested-only"
+  },
+  "remaining":["Reliable approaches to individual mining targets","Live Microsoft login with account owner","Elytra autopilot and boat steering","JEI exporter and mod-specific executors","Verified autonomous campaign to dragon and credits"]
+}

@@ -10,9 +10,9 @@ const full = { name: 'stone', boundingBox: 'block', shapes: [[0, 0, 0, 1, 1, 1]]
 const flat = p => p.y < 1 ? full : air;
 const player = () => ({ position: { x: 0.5, y: 1, z: 0.5 }, velocity: { x: 0, y: 0, z: 0 }, onGround: true });
 test('offline transport validates its actual version/auth support before opening any socket', () => {
-  assert.throws(() => new KudoConnect({ auth: 'microsoft' }), /offline/);
+  assert.doesNotThrow(() => new KudoConnect({ auth: 'microsoft' }));
   assert.throws(() => new KudoConnect({ version: '1.20.4' }), /1.21.1/);
-  assert.throws(() => new KudoConnect({ username: '../x' }), /параметры/);
+  assert.throws(() => new KudoConnect({ username: '../x' }), /Offline/);
   assert.equal(new KudoConnect().snapshot().identity.author, 'y9kudo');
 });
 test('own physics walks, lands on solid ground, collides with walls and freezes at unknown chunks', () => {

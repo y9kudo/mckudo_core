@@ -34,6 +34,7 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
     get(item,count=1,options) { return api.mission([{get:item,count}],options); },
     craft(item,count=1,options) { return api.mission([{craft:item,count}],options); },
     goTo(position,{range=1,bridge=true,excavate=false,...options}={}) { return api.mission([{go:position,range,bridge,excavate}],options); },
+    swimTo(position,options) { return api.mission([{swim:position}],options); },
     async start(goal = 'wood') {
       ensureOpen();
       if (active) throw new Error('Сначала останови выполняемый сценарий.');

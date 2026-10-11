@@ -12,6 +12,10 @@
   "items": {
     "oneOf": [
       {
+        "type":"object", "additionalProperties":false, "required":["swim"],
+        "properties":{"swim":{"type":"object","additionalProperties":false,"required":["x","y","z"],"properties":{"x":{"$ref":"#/$defs/coordinate"},"y":{"$ref":"#/$defs/coordinate"},"z":{"$ref":"#/$defs/coordinate"}},"description":"Водный маршрут KudoVectorize к клетке, с проверкой тела и воздуха."}}
+      },
+      {
         "type": "object", "additionalProperties": false, "required": ["get"],
         "properties": {
           "get": { "type": "string", "pattern": "^(?:#[a-z0-9_:.-]+|(?:[a-z0-9_.-]+:)?[a-z0-9_./-]+)$", "description": "Ресурс или класс: #logs, #stone, birch_log. Количество — сколько нужно иметь." },

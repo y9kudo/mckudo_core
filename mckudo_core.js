@@ -47,3 +47,6 @@ export {brewingRecipes,planBrewing,planNetheriteUpgrade,dimensionTravelPolicy} f
 export {createSpatialMemory} from './src/spatial-memory.js';
 export {createCpuPool} from './src/cpu-pool.js';
 export {createExplorationPlanner} from './src/exploration-planner.js';
+export {createMachineGraph,planMachineResources,executeMachinePlan,machineResourceKey} from './src/machines.js';
+export {createCampaignJournal} from './src/campaign-journal.js';
+export {KUDOVECTORIZE,KudoVectorize,volumeClearance,traceVolume,planSwimRoute,planSwimRouteAsync,predictElytraTick} from './packages/kudoconnect/src/vectorize.js';

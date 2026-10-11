@@ -19,3 +19,5 @@ export {WorldRecipeBook} from './src/recipes.js';
 export {traceVisibility} from './src/visibility.js';
 export {KudoProtection, isStructureBlock} from './src/protection.js';
 export {versionSupport,listVersionSupport,NATIVE_VERSIONS} from './src/versions.js';
+export {KUDOVECTORIZE,KudoVectorize,volumeClearance,traceVolume,planSwimRoute,planSwimRouteAsync,predictElytraTick} from './src/vectorize.js';
+export {observeMenu,findMenuSlot,menuText} from './src/menus.js';

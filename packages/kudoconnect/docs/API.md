@@ -6,7 +6,7 @@
 
 `createKudoConnect(options)` создаёт один клиент. `await connect()` завершается после получения позиции, здоровья и чанка под игроком. Один экземпляр используется для одной сессии. `await close()` отменяет действие, выключает физику и закрывает сокет. Даже при исключении вызывайте `close` в `finally`.
 
-Параметры: `host`, `port`, `username` (1–16 латинских букв, цифр или `_`), `version: '1.21.1'`, `auth: 'offline'`, `viewDistance: 2..32`, `connectTimeoutMs: 1000..60000`. Запрашиваемая дальность ограничивается настройками сервера.
+Параметры: `host`, `port`, `username` (offline: ник 1–16 латинских букв, цифр или `_`; Microsoft: идентификатор кэша), `version: '1.21' | '1.21.1'`, `auth: 'offline' | 'microsoft'`, `viewDistance: 2..32`, `connectTimeoutMs: 1000..60000`. Для Microsoft доступны `profilesFolder`, `authTimeoutMs`, `onMsaCode` и явный `realms.realmId`: [руководство](AUTHENTICATION.md). Запрашиваемая дальность ограничивается настройками сервера.
 
 ## Наблюдение
 

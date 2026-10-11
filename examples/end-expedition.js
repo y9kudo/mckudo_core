@@ -1,5 +1,5 @@
 import {createKudoConnect,KUDO_SKILLS} from '../kudoconnect/index.js';
-import {createEndExpedition,endExpeditionScenario,dragonExpeditionScenario,validateScenario} from '../mckudo_core.js';
+import {MCKUDO,createEndExpedition,endExpeditionScenario,dragonExpeditionScenario,validateScenario} from '../mckudo_core.js';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 
@@ -15,7 +15,7 @@ if(process.argv.includes('--check')){
   if(!Number.isFinite(minutes)||minutes<1||minutes>480)throw new Error('MC_TEST_MINUTES: 1–480.');
   const client=createKudoConnect({host:process.env.MC_HOST||'127.0.0.1',port,username:process.env.MC_NAME||'EndRunner',auth:'offline',version:'1.21.1'});
   const resumed=process.env.MC_RESUME==='1';
-  const report={version:'0.6.0',objective:dragon?'defeat-dragon':'enter-end',startedAt:new Date().toISOString(),status:'running',resumed,fromZero:false,goalAchieved:false,playersObserved:[],actions:[],checkpoints:[],warnings:[],evidence:[]};
+  const report={version:MCKUDO.version,objective:dragon?'defeat-dragon':'enter-end',startedAt:new Date().toISOString(),status:'running',resumed,fromZero:false,goalAchieved:false,playersObserved:[],actions:[],checkpoints:[],warnings:[],evidence:[]};
   const stop=new AbortController(),file=process.env.MC_REPORT||(dragon?'data/dragon-expedition.json':'data/end-expedition.json');let expedition;
   process.once('SIGINT',()=>stop.abort(new Error('Остановлено пользователем.')));
   await mkdir('data',{recursive:true});

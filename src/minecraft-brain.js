@@ -48,7 +48,7 @@ export function createMinecraftBrain({ client, worldId, config = {}, defense = {
   const nightReactor=night===false?null:createNightReactor(night);
   const huntingReactor=hunting===false?null:createHuntingReactor(hunting);
   const adapter = createKudoAdapter(client, { ...adapterOptions, trackedBlocks });
-  const combatReactor=createCombatReactor({ attackPlayers: true, retaliationHits: 2, retaliationWindowMs: 10000, ...defense });
+  const combatReactor=createCombatReactor({ attackPlayers: true, retaliationHits: 2, retaliationWindowMs: 10000, pathRetreat:client.describe?.().skills?.includes('evade')??false, ...defense });
   if (atlas) {
     const observe = adapter.observe;
     adapter.observe = async context => { const o = await observe(context); atlas.observe(o, { getBlock: p => client.world.blockAt(p) }); return o; };

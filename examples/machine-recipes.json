@@ -1,0 +1,22 @@
+{
+  "schemaVersion":1,
+  "minecraftVersion":"1.21.1",
+  "source":"teaching-example",
+  "recipes":[
+    {
+      "id":"example:crush_iron",
+      "machine":"example:crusher",
+      "inputs":[{"id":"minecraft:raw_iron"}],
+      "outputs":[{"id":"example:iron_dust","amount":2}],
+      "energy":{"unit":"example:fe","amount":120},
+      "durationTicks":40
+    },
+    {
+      "id":"example:press_iron",
+      "machine":"example:press",
+      "inputs":[{"id":"example:iron_dust","amount":2}],
+      "outputs":[{"id":"example:iron_plate"}],
+      "durationTicks":20
+    }
+  ]
+}

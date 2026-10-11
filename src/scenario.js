@@ -3,7 +3,7 @@ import { createBlockTaxonomy } from './taxonomy.js';
 import { createResourceReactor, planExploration } from './exploration.js';
 import { createNetherPortalBlueprint, planNetherPortal, triangulateEyes, fortressEvidence, dragonDecision } from './endgame.js';
 import { blockKey } from './construction.js';
-const fields = { resources: ['targets'], navigate: ['position','range','bridge','excavate'], collect: ['item', 'count'], netherPortal: ['origin', 'axis'], travel: ['dimension'], blazeRods: ['count'], enderPearls: ['count'], eyes: ['count'], stronghold: [], endPortal: [], dragon: [] };
+const fields = { resources: ['targets'], swim:['position'], navigate: ['position','range','bridge','excavate'], collect: ['item', 'count'], netherPortal: ['origin', 'axis'], travel: ['dimension'], blazeRods: ['count'], enderPearls: ['count'], eyes: ['count'], stronghold: [], endPortal: [], dragon: [] };
 const namespaced = s => typeof s === 'string' && /^[a-z0-9_.-]+:[a-z0-9_./-]+$/.test(s);
 export function validateScenario(input) {
   const s = jsonCopy(input);
@@ -19,7 +19,7 @@ export function validateScenario(input) {
     if (step.type === 'resources') {
       if (!step.targets || typeof step.targets !== 'object' || Array.isArray(step.targets) || !Object.keys(step.targets).length || Object.keys(step.targets).length > 32 || Object.entries(step.targets).some(([k, n]) => !(namespaced(k) || /^#[a-z0-9_:.-]+$/.test(k)) || !Number.isInteger(n) || n < 1 || n > 4096)) throw new Error('resources.targets: ID/#класс и количество 1–4096.');
     }
-    if(step.type==='navigate'){
+    if(step.type==='navigate'||step.type==='swim'){
       keys(step.position,['x','y','z'],`steps.${step.id}.position`);
       if(!['x','y','z'].every(k=>Number.isInteger(step.position[k])&&Math.abs(step.position[k])<=30000000))throw new Error('navigate.position: целые координаты x, y, z в пределах мира.');
       if(step.range!==undefined&&(!Number.isInteger(step.range)||step.range<0||step.range>8))throw new Error('navigate.range: целое число 0–8.');
@@ -72,6 +72,12 @@ export function createScenario({ scenario, catalog, taxonomy = createBlockTaxono
     return explore(o);
   };
   const reactStep = (step, o) => {
+    if(step.type==='swim'){
+      const p=o.self?.position,target={x:step.position.x+.5,y:step.position.y+.05,z:step.position.z+.5};
+      if(!p)return idle('Для плавания нужна наблюдаемая позиция.');
+      if(Math.hypot(p.x-target.x,p.y-target.y,p.z-target.z)<.55)return null;
+      return act('swim',{position:step.position},'Пройти водный маршрут KudoVectorize с контролем воздуха.');
+    }
     const inv = o.inventory || {}, blocks = o.world?.sampledBlocks || [];
     if(step.type==='navigate'){
       if(!navigationFactory)return idle('Для этапа navigate подключи navigationFactory; createMinecraftAgent подключает её автоматически.');

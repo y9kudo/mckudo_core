@@ -12,11 +12,12 @@ export function defineMission(input, { name = 'План агента' } = {}) {
   return validateScenario({ schemaVersion:1, name, steps:steps.map((step, i) => {
     const path = `mission[${i}]`, id = 'step_' + (i + 1);
     if (!step || typeof step !== 'object' || Array.isArray(step)) throw new Error(`${path}: нужен объект { get: '#logs', count: 8 }.`);
-    const kinds = ['get','craft','go'].filter(k=>Object.hasOwn(step,k));
-    if (kinds.length !== 1) throw new Error(`${path}: выбери ровно одну команду get, craft или go.`);
-    const kind=kinds[0], allowed=kind==='go'?['go','range','bridge','excavate']: [kind,'count'];
+    const kinds = ['get','craft','go','swim'].filter(k=>Object.hasOwn(step,k));
+    if (kinds.length !== 1) throw new Error(`${path}: выбери ровно одну команду get, craft, go или swim.`);
+    const kind=kinds[0], allowed=kind==='swim'?['swim']:kind==='go'?['go','range','bridge','excavate']: [kind,'count'];
     const extra=Object.keys(step).find(k=>!allowed.includes(k));
     if(extra)throw new Error(`${path}.${extra}: неизвестное поле.`);
+    if(kind==='swim')return {id,type:'swim',position:step.swim};
     if(kind==='go')return {id,type:'navigate',position:step.go,...Object.fromEntries(['range','bridge','excavate'].filter(k=>Object.hasOwn(step,k)).map(k=>[k,step[k]]))};
     const target=item(step[kind],path+'.'+kind,kind==='get'), count=step.count??1;
     if(!Number.isInteger(count)||count<1||count>4096)throw new Error(`${path}.count: целое число от 1 до 4096.`);

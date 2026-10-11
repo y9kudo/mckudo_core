@@ -19,10 +19,12 @@ export function createCombatReactor(options = {}) {
       });
       const response = defense.react({ ...observation, entities });
       selected=response.action?{ skill: 'combat', args: { ...response.action.args, allowPlayer: options.attackPlayers === true, retreatHealth: options.retreatHealth ?? 8, durationMs: 400 } }:null;
+      const threat=selected&&entities?.find(e=>String(e.id)===String(selected.args.entityId));
+      if(options.pathRetreat===true&&threat?.position&&(observation.self?.health==null||observation.self.health<=(options.retreatHealth??8)||threat.name==='creeper'))selected={skill:'evade',args:{from:{...threat.position},entityId:String(threat.id)}};
       return selected?{ ...response, priority: 990, action:selected }:response;
     },
     recordResult(result,action=selected){
-      if(!action||action.skill!=='combat'||result.outcome!=='failure')return;
+      if(!action||!['combat','evade'].includes(action.skill)||result.outcome!=='failure')return;
       const entity=latest?.entities?.find(e=>String(e.id)===String(action.args.entityId));
       failed.set(String(action.args.entityId),{at:clock(),until:clock()+5000,dimension:latest?.dimension,self:latest?.self?.position?{...latest.self.position}:null,target:entity?.position?{...entity.position}:null});
       while(failed.size>64)failed.delete(failed.keys().next().value);

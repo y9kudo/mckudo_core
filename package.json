@@ -1,6 +1,6 @@
 {
   "name": "mckudo",
-  "version": "0.6.0",
+  "version": "0.7.0-dev.0",
   "description": "Reusable Minecraft automation kernel: catalogs, resource planning, construction and reactors",
   "author": "y9kudo",
   "license": "MIT",
@@ -31,7 +31,11 @@
     "./adapters/simulator": "./adapters/simulator.js",
     "./memory": "./src/file-memory.js",
     "./schema": "./schemas/agent.schema.json",
-    "./adapters/catalog-simulator": "./adapters/catalog-simulator.js"
+    "./adapters/catalog-simulator": "./adapters/catalog-simulator.js",
+    "./vectorize": {
+      "types": "./packages/kudoconnect/src/vectorize.d.ts",
+      "import": "./packages/kudoconnect/src/vectorize.js"
+    }
   },
   "files": [
     "mckudo_core.js",
@@ -92,7 +96,9 @@
     "test:live:pillar": "node examples/pillar-live.js",
     "test:live:learning": "node examples/learning-live.js",
     "test:live:recipes": "node examples/recipes-live.js",
-    "test:live:fleet-learning": "node examples/fleet-learning-live.js"
+    "test:live:fleet-learning": "node examples/fleet-learning-live.js",
+    "test:live:07": "node examples/v07-live.js",
+    "demo:machines": "node examples/machines.js"
   },
   "dependencies": {
     "minecraft-data": "^3.117.0",

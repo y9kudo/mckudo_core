@@ -33,7 +33,7 @@ export class KudoContainers {
     const rows = packet.inventoryType === 20 ? 3 : Number.isInteger(packet.inventoryType) && packet.inventoryType >= 0 && packet.inventoryType <= 5 ? packet.inventoryType + 1 : null;
     const workstations = {12:{slots:10,kind:'crafting'},14:{slots:3,kind:'furnace'},10:{slots:3,kind:'blast_furnace'},22:{slots:3,kind:'smoker'},21:{slots:4,kind:'smithing'},11:{slots:5,kind:'brewing'}};
     const station = workstations[packet.inventoryType];
-    this.current = { id: packet.windowId, type: packet.inventoryType, kind:station?.kind || (rows?'storage':'unsupported'), storageSlots: station?.slots ?? (rows ? rows * 9 : null), slots: [], stateId: null, ready: false }; this.revision++;
+    this.current = { id: packet.windowId, type: packet.inventoryType, title:structuredClone(packet.windowTitle??''), kind:station?.kind || (rows?'storage':'unsupported'), storageSlots: station?.slots ?? (rows ? rows * 9 : null), slots: [], stateId: null, ready: false }; this.revision++;
   }
   acceptState(next) {
     const previous = this.current?.stateId;
@@ -41,7 +41,10 @@ export class KudoContainers {
     this.current.stateId = next; return true;
   }
   updateWindow(packet) {
-    const w = this.current; if (!w || packet.windowId !== w.id || !w.storageSlots || packet.items.length !== w.storageSlots + 36 || !this.acceptState(packet.stateId)) return false;
+    const w = this.current; if (!w || packet.windowId !== w.id || !Array.isArray(packet.items)) return false;
+    // Unknown menu types can be observed, but never gain workstation semantics.
+    if(w.storageSlots===null&&packet.items.length>36&&packet.items.length<=126)w.storageSlots=packet.items.length-36;
+    if(!w.storageSlots || packet.items.length !== w.storageSlots + 36 || !this.acceptState(packet.stateId)) return false;
     w.slots = packet.items.map((s,i) => readSlot(s, this.registry, i));
     this.inventory.cursor = readSlot(packet.carriedItem, this.registry);
     for (let i = 0; i < 36; i++) { const item = w.slots[w.storageSlots + i]; this.inventory.slots[9 + i] = item ? { ...item, slot: 9 + i } : null; }

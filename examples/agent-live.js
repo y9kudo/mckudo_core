@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { createMinecraftAgent, createAgentMemory, createNeuralPlanner, createSpatialMemory } from '../mckudo_core.js';
+import { MCKUDO, createMinecraftAgent, createAgentMemory, createNeuralPlanner, createSpatialMemory } from '../mckudo_core.js';
 
 // This script supplies goals and records evidence. Resource choices belong to the core.
 const name=process.env.MC_USER||'AtlasCore',worldId=process.env.MC_WORLD||'local-survival';
@@ -13,7 +13,7 @@ const scenario={schemaVersion:1,name:'From empty inventory to stone tools',steps
   {id:'stone_pickaxe',type:'resources',targets:{'minecraft:stone_pickaxe':1}},
   {id:'furnace',type:'resources',targets:{'minecraft:furnace':1}}
 ]};
-const report={version:'0.6.0',name,worldId,startedAt:new Date().toISOString(),status:'incomplete',scenario,actions:[]};
+const report={version:MCKUDO.version,name,worldId,startedAt:new Date().toISOString(),status:'incomplete',scenario,actions:[]};
 const abort=new AbortController();const stop=()=>abort.abort(new Error('Live test stopped by user.'));
 process.once('SIGINT',stop);process.once('SIGTERM',stop);
 agent.client.on('action',e=>{

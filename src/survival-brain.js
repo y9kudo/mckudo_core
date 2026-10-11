@@ -3,6 +3,7 @@ import { createBlockTaxonomy, resourceSources } from './taxonomy.js';
 import { planExploration } from './exploration.js';
 import { isAir, isFullBlock, isHazard } from './navigation.js';
 import { itemValue } from './item-value.js';
+import {traceVisibility} from '../packages/kudoconnect/src/visibility.js';
 import { smeltingRecipe, fuelItems } from '../packages/kudoconnect/src/crafting.js';
 
 const key = p => `${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`;
@@ -221,6 +222,16 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       // Prefer extending a local mine over chasing an exposed cave face many
       // levels below the surface, for which ordinary walking cannot find a path.
       if(exploration&&digStaircase&&client?.world&&minTier>=0&&sources.length&&sources.every(s=>s.position.y<o.self.position.y-4))return explore(item,sources[0]);
+      // Basic building stone is under local soil: do not exhaust distant cave-face
+      // candidates before opening a short, supported mining staircase.
+      if(exploration&&digStaircase&&client?.world&&/^(minecraft:)?(cobblestone|cobbled_deepslate)$/.test(item)){
+        const eye={...o.self.position,y:o.self.position.y+1.62};
+        const immediate=sources.some(s=>{
+          const target={x:s.position.x+.5,y:s.position.y+.5,z:s.position.z+.5};
+          return distance(eye,target)<=4.3&&safeDig(s.position)&&traceVisibility({origin:eye,target,maxDistance:4.3,getBlock:p=>key(p)===key(s.position)?{shapes:[]}:getBlock(p)}).visible;
+        });
+        if(!immediate)return explore(item,sources[0]);
+      }
       for (const source of sources) {
         if (unreachable.has(key(source.position))) continue;
         const actual = getBlock(source.position);

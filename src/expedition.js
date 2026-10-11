@@ -5,6 +5,7 @@ import {createSurvivalReactor} from './survival-brain.js';
 import {isAir,isFullBlock,isHazard} from './navigation.js';
 import {createDragonPolicy} from './dragon-brain.js';
 import {createExplorationPlanner} from './exploration-planner.js';
+import {createCampaignJournal} from './campaign-journal.js';
 
 /** A reusable objective; the launcher only connects, records evidence and enforces a deadline. */
 export function endExpeditionScenario(){
@@ -60,11 +61,12 @@ export function createEndExpedition({client,worldId,scenario=endExpeditionScenar
   const catalog=catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}),failures=new Map(),dragonCombat=createDragonPolicy({client});
   const explorer=createExplorationPlanner({world:client.world,onReady:()=>client.emit('planningReady')});
   let brain;
+  const journal=createCampaignJournal({clock,objective:scenario.steps.some(s=>s.type==='dragon')?'defeat-dragon':'enter-end'});
   const controller=createScenario({scenario,catalog,getBlock:p=>client.world.blockAt(p),strongholdSearch:strongholdSearch(client),explorationPlanner:explorer,
     resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10,spatial:brain?.spatial,explorationPlanner:explorer}),dragonCombat});
   const react=controller.reactor.react;
   controller.reactor.react=o=>{
-    const decision=react(o);if(!decision.action)return decision;
+    const decision=react(o);journal.observe({scenario:controller.snapshot(),self:{...o.self,dimension:o.dimension},inventory:o.inventory,endgame:o.endgame});if(!decision.action)return decision;
     const failed=failures.get(JSON.stringify(decision.action));
     return failed&&failed.until>clock()?{action:null,reason:'Пауза после ошибки: '+failed.reason}:decision;
   };
@@ -80,5 +82,5 @@ export function createEndExpedition({client,worldId,scenario=endExpeditionScenar
     else if(e.outcome==='success')failures.delete(key);
     if(failures.size>256)failures.delete(failures.keys().next().value);current=null;
   });
-  return {brain,controller,snapshot:()=>({scenario:controller.snapshot(),dragon:dragonCombat.snapshot(),failures:[...failures].map(([action,result])=>({action:JSON.parse(action),...result}))})};
+  return {brain,controller,snapshot:()=>({scenario:controller.snapshot(),progress:journal.observe({scenario:controller.snapshot(),self:client.state,inventory:client.inventory.snapshot(),endgame:client.endgame}),dragon:dragonCombat.snapshot(),failures:[...failures].map(([action,result])=>({action:JSON.parse(action),...result}))})};
 }
