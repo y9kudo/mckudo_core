@@ -66,4 +66,3 @@ export function createNeuralPlanner({ worldId, memory, learningRate = .025, cloc
     export: () => jsonCopy({ schemaVersion: 1, architecture: '24-24-1', worldId, samples, updates, weights: { w, b, v, bias }, replay }, 'cognitionMemory', 2 * 1024 * 1024)
   };
 }
-

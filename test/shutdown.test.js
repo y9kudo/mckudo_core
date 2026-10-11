@@ -22,10 +22,11 @@ function fixture(memoryDirectory, names = ['Atlas']) {
 test('a memory write failure cannot leave a Minecraft connection open', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'mckudo-shutdown-'));
   const blocked = join(directory, 'not-a-directory');
-  await writeFile(blocked, 'A file prevents memory directory creation.');
   const { manager, counts } = fixture(blocked);
   try {
     await manager.execute('Atlas', 'start');
+    // Fail saving after a valid load; Linux and Windows differ on ENOTDIR/ENOENT.
+    await writeFile(blocked, 'A file prevents memory directory creation.');
     const closing = manager.close();
     assert.equal(manager.close(), closing);
     await assert.rejects(closing, error => error instanceof AggregateError && error.errors.length > 0);
