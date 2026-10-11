@@ -1,17 +1,31 @@
 import { createFleet, createKudoConnect } from '../kudoconnect/index.js';
 import { createMinecraftBrain } from './minecraft-brain.js';
+import {createTaskQueue,validateTasks} from './task-queue.js';
+import {createAgentMemory} from './agent-memory.js';
+import {createNeuralNavigator} from './neural-navigation.js';
+import {createNeuralPlanner} from './neural-planning.js';
+import {createSpatialMemory} from './spatial-memory.js';
+import {createScenario} from './scenario.js';
+import {createNavigationGoal} from './navigation-goal.js';
+import {catalogFromMinecraftData} from './catalog.js';
+import {createSurvivalReactor} from './survival-brain.js';
+import {createDragonPolicy} from './dragon-brain.js';
 import { runInteraction } from './interactions.js';
 import { runTrade } from './trade.js';
 import { equipmentTradeTargets } from './equipment-policy.js';
 import {proposeTeamTransfer,teamSupplyTargets} from './cooperation.js';
 
 /** Application-level lifecycle, independent of the HTTP presentation layer. */
-export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','Mason','Lucas','Ethan','James','Oliver','Henry','Logan'].slice(0,count), connection = {}, worldId = 'local-survival', createClient = createKudoConnect, createBrain = createMinecraftBrain } = {}) {
+export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','Mason','Lucas','Ethan','James','Oliver','Henry','Logan','Alice','Blake','Charlie','Dylan','Ella','Finn','Grace','Ivy','Jack','Kai'].slice(0,count), connection = {}, worldId = 'local-survival', createClient = createKudoConnect, createBrain = createMinecraftBrain, memoryDirectory, brainOptions = {} } = {}) {
+  if (!brainOptions || typeof brainOptions !== 'object' || Array.isArray(brainOptions)) throw new Error('brainOptions: объект параметров мозга.');
   const fleet = createFleet({count,names,connection,createClient}), entries = new Map(), log = [], blockedTrades=new Map();
-  let closed=false;
+  let closed=false, closing;const memory=memoryDirectory?createAgentMemory(memoryDirectory,worldId):null;
+  const retain=e=>{e.spatialMemory=e.brain?.spatial?.export()||e.spatialMemory;e.neuralMemory=e.brain?.neural?.export()||e.neuralMemory;e.cognitionMemory=e.brain?.cognition?.export()||e.cognitionMemory;e.taskState=e.queue?.snapshot()||e.taskState;};
+  const save=async(name,e)=>{retain(e);if(memory)await memory.save(name,{spatial:e.spatialMemory,neural:e.neuralMemory,cognition:e.cognitionMemory,tasks:e.tasks,taskState:e.taskState,goal:e.goal});};
+  const restore=async(name,e)=>{if(e.loaded)return;const m=await memory?.load(name);if(m){const tasks=validateTasks(m.tasks||[],{skills:e.client.describe().skills});if(m.spatial)createSpatialMemory({worldId,memory:m.spatial});e.spatialMemory=m.spatial;if(m.neural)createNeuralNavigator({worldId,memory:m.neural});if(m.cognition)createNeuralPlanner({worldId,memory:m.cognition});e.tasks=tasks;e.taskState=m.taskState;e.neuralMemory=m.neural;e.cognitionMemory=m.cognition;if(['wood','stone_tools','iron_pickaxe','diamond_set'].includes(m.goal))e.goal=m.goal;}e.loaded=true;};
   const note = (name,event,detail='') => {log.push({at:Date.now(),name,event,detail:String(detail).slice(0,500)});if(log.length>200)log.shift();};
   const wire = (name,client) => {
-    const old = entries.get(name), entry = {client,brain:null,busy:false,error:'',goal:old?.goal || 'diamond_set',survival:null};
+    const old = entries.get(name), entry = {client,brain:null,busy:false,error:'',goal:old?.goal || 'diamond_set',survival:null,tasks:old?.tasks||[],taskState:old?.taskState||[],queue:null,neuralMemory:old?.neuralMemory,cognitionMemory:old?.cognitionMemory,spatialMemory:old?.spatialMemory,loaded:old?.loaded||false};
     entries.set(name,entry);client.managedNames=new Set(names.map(n=>n.toLowerCase()));
     for(const event of ['warning','fault'])client.on(event,e=>{entry.error=String(e.message);note(name,event,e.message);});
     client.on('action',e=>note(name,e.skill,`${e.outcome} ${e.detail}`));
@@ -20,26 +34,42 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
     return entry;
   };
   for(const [name,client]of fleet.agents)wire(name,client);
-  const snapshot = () => ({worldId,agents:[...entries].map(([name,e])=>({name,busy:e.busy,error:e.error,goal:e.goal,state:e.client.snapshot(),inventory:e.client.inventory.items().map(i=>({item:i.item,name:i.name,count:i.count,slot:i.slot})),brain:e.brain?.snapshot() || null,survival:e.brain?.survival?.snapshot() || null,skills:e.client.describe().skills})),log:[...log]});
+  const snapshot = () => ({worldId,agents:[...entries].map(([name,e])=>({name,busy:e.busy,error:e.error,goal:e.goal,state:e.client.snapshot(),inventory:(e.client.dataLoaded===false?[]:e.client.inventory.items()).map(i=>({item:i.item,name:i.name,count:i.count,slot:i.slot})),brain:e.brain?.snapshot() || null,survival:e.brain?.survival?.snapshot() || null,skills:e.client.describe().skills,tasks:e.tasks,taskState:e.queue?.snapshot()||e.taskState,learning:e.brain?.neural?.snapshot()||null,cognition:e.brain?.cognition?.snapshot()||null,spatial:e.brain?.spatial?.snapshot()||null,recipes:e.client.dataLoaded===false?null:e.client.recipeBook?.snapshot()||null})),log:[...log]});
   const execute = async(name,command,args={}) => {
+    if(closed)throw new Error('Менеджер закрыт. Создай новый экземпляр.');
     let e=entries.get(name);if(!e)throw new Error('Неизвестный агент.');
     if(command==='pause'){await e.brain?.pause();e.client.pending?.abort.abort(new Error('Остановлено в панели.'));await e.client.pending?.promise.catch(()=>{});return snapshot();}
     if(e.busy)throw new Error('Предыдущее управление ещё выполняется.');e.busy=true;e.error='';
     try {
+      await ready;
+      if(closed)throw new Error('Менеджер закрывается.');
+      await restore(name,e);
       if(command==='connect') {
         if(e.client.state.status==='disconnected') {
-          if(e.client.connectedOnce){await e.brain?.stop();await e.client.close();e=wire(name,createClient({...connection,username:name}));e.busy=true;fleet.agents.set(name,e.client);}
+          if(e.client.connectedOnce){await e.brain?.stop();retain(e);await e.client.close();e=wire(name,createClient({...connection,username:name}));e.busy=true;fleet.agents.set(name,e.client);}
           await e.client.connect();note(name,'connected');
         }
       } else if(command==='disconnect'){await e.brain?.stop();await e.client.close();}
       else if(command==='respawn'){await e.brain?.stop();await e.client.respawn();note(name,'respawn');}
       else if(command==='start'){
         if(e.client.state.status!=='ready')throw new Error('Сначала подключи или возроди агента.');
-        if(!e.brain)e.brain=createBrain({client:e.client,worldId,storage:{maxStacks:54},survival:{target:e.goal,peer:fleet.peers.get(name)}});
+        if(!e.brain){
+          const catalog=e.tasks.length?catalogFromMinecraftData(e.client.registry,{recipeBook:e.client.recipeBook}):null;
+          const resourceFactory=targets=>createSurvivalReactor({client:e.client,catalog,targets,priority:20,spatial:e.brain?.spatial,explorationPlanner:e.brain?.computation});
+          e.queue=e.tasks.length?createTaskQueue({tasks:e.tasks,skills:e.client.describe().skills,resume:e.taskState,scenarioFactory:scenario=>createScenario({scenario,catalog,getBlock:p=>e.client.world.blockAt(p),explorationPlanner:e.brain?.computation,resourceFactory,
+            navigationFactory:step=>createNavigationGoal({client:e.client,catalog,...step,resourceFactory}),dragonCombat:createDragonPolicy({client:e.client})})}):null;
+          const modelOptions=(key,saved)=>brainOptions[key]===false?false:{...brainOptions[key],...(saved?{memory:saved}:{})};
+          e.brain=createBrain({...brainOptions,client:e.client,worldId,spatial:modelOptions('spatial',e.spatialMemory),neural:modelOptions('neural',e.neuralMemory),cognition:modelOptions('cognition',e.cognitionMemory),survival:e.queue?false:brainOptions.survival===false?false:{...brainOptions.survival,target:e.goal,peer:fleet.peers.get(name)},reactors:[...(e.queue?[e.queue.reactor]:[]),...(brainOptions.reactors||[])]});e.queue?.attach(e.brain);
+        }
         e.brain.start();
+      } else if(command==='tasks'){
+        const tasks=validateTasks(args.tasks,{skills:e.client.describe().skills});
+        await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.tasks=tasks;e.taskState=[];await save(name,e);note(name,'tasks',`Назначено задач: ${tasks.length}`);
+      } else if(command==='taskRetry'){
+        await e.brain?.pause();if(!e.queue)throw new Error('Сначала запусти очередь.');e.queue.retry(args.id);await save(name,e);
       } else if(command==='goal') {
         if(!['wood','stone_tools','iron_pickaxe','diamond_set'].includes(args.target))throw new Error('Цель: wood, stone_tools, iron_pickaxe, diamond_set.');
-        await e.brain?.stop();e.brain=null;e.goal=args.target;
+        await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.tasks=[];e.taskState=[];e.goal=args.target;await save(name,e);
       } else if(command==='action') {
         await e.brain?.pause();
         return await e.client.execute(args,{priority:500,signal:AbortSignal.timeout(60000)});
@@ -56,7 +86,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
     } catch(error){e.error=String(error.message);note(name,'error',e.error);throw error;}
     finally{e.busy=false;}
   };
-  const targets=e=>{const s=e.brain?.survival?.snapshot();return equipmentTradeTargets(e.client,{...s?.targets,...(s?.stage?{[s.stage.includes(':')?s.stage:'minecraft:'+s.stage]:1}:{})});};
+  const targets=e=>{const s=e.brain?.survival?.snapshot();return equipmentTradeTargets(e.client,{...s?.targets,...Object.fromEntries((s?.plan||[]).map(p=>[p.item,p.required])),...(s?.stage?{[s.stage.includes(':')?s.stage:'minecraft:'+s.stage]:1}:{})});};
   const timer=setInterval(async()=>{
     if(closed)return;
     const available=[...entries].filter(([,e])=>!e.busy&&e.client.state.status==='ready'&&e.brain?.snapshot().running);
@@ -72,5 +102,23 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
       return;
     }
   },4000);timer.unref();
-  return {fleet,entries,snapshot,execute,async close(){closed=true;clearInterval(timer);for(const e of entries.values())await e.brain?.stop();await fleet.close();}};
+  const persistence=setInterval(()=>{if(!closed&&memory)for(const [name,e]of entries)if(e.loaded)void save(name,e).catch(error=>note(name,'memory-error',error.message));},15000);persistence.unref();
+  const ready=Promise.all([...entries].map(async([name,e])=>{try{await restore(name,e);}catch(error){e.error=String(error.message);note(name,'memory-error',e.error);}}));
+  return {fleet,entries,snapshot,execute,ready,close(){
+    if(!closing){
+      closed=true;clearInterval(timer);clearInterval(persistence);
+      closing=(async()=>{
+        await ready;
+        const errors=[];
+        for(const [name,e]of entries){
+          try{await e.brain?.stop();}catch(error){errors.push(error);}
+          try{if(e.loaded)await save(name,e);}catch(error){errors.push(error);}
+        }
+        try{await fleet.close();}catch(error){errors.push(error);}
+        try{await memory?.flush();}catch(error){if(!errors.includes(error))errors.push(error);}
+        if(errors.length)throw new AggregateError(errors,'Клиенты закрыты, но завершение работы содержит ошибки.');
+      })();
+    }
+    return closing;
+  }};
 }

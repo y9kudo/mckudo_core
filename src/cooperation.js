@@ -37,7 +37,7 @@ export function proposeTeamTransfer({clients,targets=()=>({}),maxDistance=16}={}
 
 /** Bounded, acknowledged physical transfers. Stop on partial delivery, never replay it. */
 export async function shareTeamSupplies({clients,targets,peers,signal,maxTransfers=12,deliver}={}){
-  if(!Array.isArray(clients)||clients.length<2||clients.length>10||!Number.isInteger(maxTransfers)||maxTransfers<1||maxTransfers>64)throw new Error('Обмен команды: 2–10 клиентов, maxTransfers 1–64.');
+  if(!Array.isArray(clients)||clients.length<2||clients.length>20||!Number.isInteger(maxTransfers)||maxTransfers<1||maxTransfers>64)throw new Error('Обмен команды: 2–20 клиентов, maxTransfers 1–64.');
   const transfers=[];
   for(let i=0;i<maxTransfers;i++){
     signal?.throwIfAborted();const next=proposeTeamTransfer({clients,targets});

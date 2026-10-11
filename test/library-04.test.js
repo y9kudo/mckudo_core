@@ -76,6 +76,13 @@ test('defense attacks known mobs, retreats from creepers or low health and respe
   assert.equal(defense.react(world({entities:[{...world().entities[0],name:'creeper'}]})).action.skill,'flee');
   assert.equal(defense.react(world({entities:[{...world().entities[0],position:{x:100,y:64,z:0}}]})).action,null);
 });
+
+test('a mob behind observed cover does not interrupt mining, but attributed damage remains a threat',()=>{
+  const o=world({entities:[{...world().entities[0],visible:false}]});
+  const defense=createDefenseReactor({clock:()=>2000});assert.equal(defense.react(o).action,null);
+  o.entities[0].visible=true;assert.equal(defense.react(o).action.skill,'attack');
+  o.entities[0].visible=false;o.combat={attackers:[{entityId:'1',hits:1,lastHitAt:1000}]};assert.equal(defense.react(o).action.skill,'attack');
+});
 test('PvP needs enabled policy and attributed repeated hits, expires and trusts configured players',()=>{
   const o=world({entities:[{id:'2',name:'player',kind:'player',username:'Friend',position:{x:2,y:64,z:0}}],combat:{attackers:[{entityId:'2',hits:2,lastHitAt:1000}]}});
   assert.equal(createDefenseReactor({clock:()=>2000}).react(o).action,null);

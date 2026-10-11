@@ -6,6 +6,7 @@ import { createAgentManager } from './agent-manager.js';
 /** Local dashboard. No shell commands, arbitrary file access or remote bind option. */
 export async function startDashboard({ port = 4180, manager = createAgentManager() } = {}) {
   if(!Number.isInteger(port)||port<0||port>65535)throw new Error('Неверный порт панели.');
+  await manager.ready;
   const token=randomBytes(32).toString('hex'),files={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css']};
   let origin;
   const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
@@ -25,5 +26,9 @@ export async function startDashboard({ port = 4180, manager = createAgentManager
   });
   server.requestTimeout=65000;server.headersTimeout=5000;
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});origin=`http://127.0.0.1:${server.address().port}`;
-  return {url:origin,manager,server,async close(){await manager.close();await new Promise(resolve=>server.close(resolve));}};
+  let closing;
+  return {url:origin,manager,server,close(){
+    if(!closing)closing=(async()=>{try{await manager.close();}finally{await new Promise(resolve=>server.close(resolve));}})();
+    return closing;
+  }};
 }

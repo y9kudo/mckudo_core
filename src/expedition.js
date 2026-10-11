@@ -3,6 +3,8 @@ import {catalogFromMinecraftData} from './catalog.js';
 import {createMinecraftBrain} from './minecraft-brain.js';
 import {createSurvivalReactor} from './survival-brain.js';
 import {isAir,isFullBlock,isHazard} from './navigation.js';
+import {createDragonPolicy} from './dragon-brain.js';
+import {createExplorationPlanner} from './exploration-planner.js';
 
 /** A reusable objective; the launcher only connects, records evidence and enforces a deadline. */
 export function endExpeditionScenario(){
@@ -20,6 +22,13 @@ export function endExpeditionScenario(){
     {id:'activate-end-portal',type:'endPortal'},
     {id:'enter-end',type:'travel',dimension:'minecraft:the_end'}
   ]};
+}
+
+export function dragonExpeditionScenario(){
+  const scenario=endExpeditionScenario();scenario.name='From an empty inventory to the Ender Dragon';
+  const prepare=scenario.steps.findIndex(s=>s.id==='build-nether-portal');
+  scenario.steps.splice(prepare,0,{id:'dragon-supplies',type:'resources',targets:{'minecraft:iron_helmet':1,'minecraft:iron_leggings':1,'minecraft:iron_boots':1,'minecraft:shield':1,'minecraft:bow':1,'minecraft:arrow':128,'minecraft:cobblestone':128}});
+  scenario.steps.push({id:'defeat-dragon',type:'dragon'});return scenario;
 }
 
 /** Bounded excavation near a measured stronghold area, with no hidden coordinates. */
@@ -48,17 +57,19 @@ function strongholdSearch(client){
 
 export function createEndExpedition({client,worldId,scenario=endExpeditionScenario(),config={},clock=Date.now}={}){
   if(!client?.registry)throw new Error('Экспедиции нужен клиент KudoConnect.');
-  const catalog=catalogFromMinecraftData(client.registry),failures=new Map();
-  const controller=createScenario({scenario,catalog,getBlock:p=>client.world.blockAt(p),strongholdSearch:strongholdSearch(client),
-    resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10})});
+  const catalog=catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}),failures=new Map(),dragonCombat=createDragonPolicy({client});
+  const explorer=createExplorationPlanner({world:client.world,onReady:()=>client.emit('planningReady')});
+  let brain;
+  const controller=createScenario({scenario,catalog,getBlock:p=>client.world.blockAt(p),strongholdSearch:strongholdSearch(client),explorationPlanner:explorer,
+    resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10,spatial:brain?.spatial,explorationPlanner:explorer}),dragonCombat});
   const react=controller.reactor.react;
   controller.reactor.react=o=>{
     const decision=react(o);if(!decision.action)return decision;
     const failed=failures.get(JSON.stringify(decision.action));
     return failed&&failed.until>clock()?{action:null,reason:'Пауза после ошибки: '+failed.reason}:decision;
   };
-  const brain=createMinecraftBrain({client,worldId,config:{actionTimeoutMs:60000,...config},survival:false,storage:false,night:false,
-    defense:{attackPlayers:false},hunting:{foodReserve:12,targets:{},prepareWool:false},reactors:[controller.reactor],
+  brain=createMinecraftBrain({client,worldId,computation:{planner:explorer},config:{actionTimeoutMs:60000,...config},survival:false,storage:false,night:false,
+    defense:{attackPlayers:false},hunting:{foodReserve:6,radius:16,targets:{},prepareWool:false},reactors:[controller.reactor],
     adapterOptions:{trackedBlocks:['#logs','#ores','#workstations','#crops','stone','cobblestone','deepslate','cobbled_deepslate','blackstone','obsidian','gravel','nether_portal','end_portal','end_portal_frame','nether_bricks','nether_brick_fence']}});
   let current=null;
   brain.on('action:start',e=>{current=e.id===controller.reactor.id?e.action:null;});
@@ -69,5 +80,5 @@ export function createEndExpedition({client,worldId,scenario=endExpeditionScenar
     else if(e.outcome==='success')failures.delete(key);
     if(failures.size>256)failures.delete(failures.keys().next().value);current=null;
   });
-  return {brain,controller,snapshot:()=>({scenario:controller.snapshot(),failures:[...failures].map(([action,result])=>({action:JSON.parse(action),...result}))})};
+  return {brain,controller,snapshot:()=>({scenario:controller.snapshot(),dragon:dragonCombat.snapshot(),failures:[...failures].map(([action,result])=>({action:JSON.parse(action),...result}))})};
 }

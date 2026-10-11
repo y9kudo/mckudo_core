@@ -4,7 +4,7 @@ import { planResourceClasses } from './resources.js';
 const key = p => `${p.x},${p.y},${p.z}`;
 
 /** Choose reachable observation points. Ore exploration prefers accessible lower terrain/caves. */
-export function planExploration({ position, getBlock, mode = 'surface', visited = [], radius = 32, maxCandidates = 16, maxNodes = 1500 }) {
+export function explorationCandidates({ position, getBlock, mode = 'surface', visited = [], radius = 32, maxCandidates = 16, maxNodes = 1500, candidateCost = () => 0 }) {
   if (!position || !['x', 'y', 'z'].every(k => Number.isFinite(position[k])) || typeof getBlock !== 'function' || !['surface', 'ores'].includes(mode)) throw new Error('Исследование: нужны position, getBlock и mode surface/ores.');
   if (!Number.isInteger(radius) || radius < 4 || radius > 128 || !Number.isInteger(maxCandidates) || maxCandidates < 1 || maxCandidates > 64 || !Number.isInteger(maxNodes) || maxNodes < 1 || maxNodes > 100000 || !Array.isArray(visited) || visited.length > 1024) throw new Error('Неверные бюджеты исследования.');
   const start = Object.fromEntries(['x', 'y', 'z'].map(k => [k, Math.floor(position[k])])), seen = new Set(visited.map(key)), candidates = [];
@@ -14,13 +14,20 @@ export function planExploration({ position, getBlock, mode = 'surface', visited 
       const p = { x, y, z };
       if (seen.has(key(p)) || !isAir(getBlock(p)) || !isAir(getBlock({ ...p, y: y + 1 })) || !isFullBlock(getBlock({ ...p, y: y - 1 }))) continue;
       const frontier = [[4, 0], [-4, 0], [0, 4], [0, -4]].some(([dx, dz]) => !getBlock({ x: x + dx, y, z: z + dz }));
-      const score = (frontier ? 20 : 0) + (mode === 'ores' ? (start.y - y) * 3 : 0) - r * 0.2;
+      const learned = candidateCost(p);if(!Number.isFinite(learned)||learned<0||learned>1000)throw new Error('candidateCost: число 0–1000.');
+      const revisits = visited.slice(-64).reduce((n,v)=>n+Math.max(0,1-Math.hypot(v.x-x,v.y-y,v.z-z)/8),0);
+      const score = (frontier ? 20 : 0) + (mode === 'ores' ? (start.y - y) * 3 : 0) - r * 0.2 - Math.min(30,revisits*3) - learned;
       candidates.push({ p, score });
     }
   }
-  const unique = [...new Map(candidates.sort((a, b) => b.score - a.score).map(c => [key(c.p), c])).values()];
+  return [...new Map(candidates.sort((a, b) => b.score - a.score).map(c => [key(c.p), c])).values()].slice(0, maxCandidates);
+}
+
+export function planExploration(options) {
+  const { position, getBlock, mode = 'surface', radius = 32, maxNodes = 1500 } = options;
+  const start = Object.fromEntries(['x', 'y', 'z'].map(k => [k, Math.floor(position[k])])), unique = explorationCandidates(options);
   let attempts = 0;
-  for (const c of unique.slice(0, maxCandidates)) {
+  for (const c of unique) {
     attempts++;
     const route = planRoute({ start, goal: c.p, getBlock, maxDistance: radius, maxNodes });
     if (route.status === 'planned') return { status: 'planned', reason: mode === 'ores' ? 'Исследовать доступное углубление или новую область для поиска руды.' : 'Расширить наблюдаемую область.', target: c.p, route, attempts };

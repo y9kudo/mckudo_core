@@ -13,7 +13,7 @@ export { planResources, planResourceClasses, resourceWorkflow } from './src/reso
 export { createShelterBlueprint, validateBlueprint, billOfMaterials, planConstruction, createConstructionReactor, blockKey } from './src/construction.js';
 export { createSurvivalProgression, survivalStages, createDefenseReactor } from './src/survival.js';
 export { createBlockTaxonomy, resourceSources } from './src/taxonomy.js';
-export { planRoute } from './src/navigation.js';
+export { planRoute, planRouteAsync } from './src/navigation.js';
 export { createFoodReactor } from './src/food.js';
 export { readJavaDataArchive } from './src/java-data.js';
 export { planExploration, createResourceReactor } from './src/exploration.js';
@@ -27,6 +27,8 @@ export { createMinecraftBrain, createStorageReactor } from './src/minecraft-brai
 export { createSurvivalReactor, createLootReactor, diamondSetTargets, diamondSetCondition } from './src/survival-brain.js';
 export { itemValue, inventoryValue, survivalReserves, proposeTrade } from './src/item-value.js';
 export { createAgentManager } from './src/agent-manager.js';
+export { createMinecraftAgent } from './src/agent.js';
+export { defineMission } from './src/mission.js';
 export { runTrade } from './src/trade.js';
 export {teamSupplyTargets,proposeTeamTransfer,shareTeamSupplies} from './src/cooperation.js';
 export { createEquipmentReactor } from './src/equipment-policy.js';
@@ -34,4 +36,14 @@ export { createNightReactor } from './src/rest-policy.js';
 export { createHuntingReactor } from './src/hunting.js';
 export { startDashboard } from './src/dashboard.js';
 export {assessFall} from './packages/kudoconnect/src/fall.js';
-export {createEndExpedition,endExpeditionScenario} from './src/expedition.js';
+export {createEndExpedition,endExpeditionScenario,dragonExpeditionScenario} from './src/expedition.js';
+export {createDragonPolicy} from './src/dragon-brain.js';
+export {createNeuralNavigator,attachNeuralNavigation} from './src/neural-navigation.js';
+export {createNeuralPlanner} from './src/neural-planning.js';
+export {createTaskQueue,validateTasks} from './src/task-queue.js';
+export {createAgentMemory} from './src/agent-memory.js';
+export {brewingRecipes,planBrewing,planNetheriteUpgrade,dimensionTravelPolicy} from './src/mechanics.js';
+
+export {createSpatialMemory} from './src/spatial-memory.js';
+export {createCpuPool} from './src/cpu-pool.js';
+export {createExplorationPlanner} from './src/exploration-planner.js';

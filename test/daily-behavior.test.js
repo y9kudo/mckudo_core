@@ -52,6 +52,13 @@ test('hunting paths to distant prey and yields after an unreachable route',()=>{
   core.emit('action:start',{id:r.id,action:decision.action});core.emit('action:finish',{rule:r.id,outcome:'failure'});
   assert.equal(r.react(o).action,null);now=10001;assert.equal(r.react(o).action.skill,'navigate');
 });
+
+test('hunting has a pursuit deadline and does not chase animals behind observed cover',()=>{
+  let now=0;const r=createHuntingReactor({targets:{leather:1},foodReserve:0,prepareWool:false,maxPursuitMs:2000,clock:()=>now}),o=base();
+  o.entities=[{id:'7',name:'cow',kind:'entity',position:{x:2,y:1,z:0},visible:false}];assert.equal(r.react(o).action,null);
+  o.entities[0].visible=true;assert.equal(r.react(o).action.skill,'combat');now=2001;assert.equal(r.react(o).action,null);
+  now=17002;assert.equal(r.react(o).action.skill,'combat');
+});
 test('night prepares only a bed or three matching wool; hunting excludes children, named and sheared wool sources',()=>{
   const o=base(),night=createNightReactor();o.inventory={'minecraft:white_wool':2,'minecraft:black_wool':1};assert.equal(night.react(o).action,null);o.inventory['minecraft:white_wool']=3;assert.equal(night.react(o).action.skill,'prepareBed');
   const hunt=createHuntingReactor({targets:{leather:1},foodReserve:0,prepareWool:false});o.entities=[{id:'1',name:'cow',kind:'entity',position:{x:2,y:1,z:0},isBaby:true},{id:'2',name:'cow',kind:'entity',position:{x:3,y:1,z:0},named:true},{id:'3',name:'cow',kind:'entity',position:{x:3,y:1,z:0}}];assert.equal(hunt.react(o).action.args.entityId,'3');o.inventory['minecraft:leather']=1;assert.equal(hunt.react(o).action,null);

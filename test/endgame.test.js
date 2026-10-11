@@ -70,3 +70,26 @@ test('scenario advances only from observed resources and completed dragon death,
   o.inventory['minecraft:oak_log'] = 1; controller.reactor.react(o); assert.equal(controller.snapshot().current, 'dragon'); assert.equal(controller.snapshot().status, 'blocked');
   o.endgame = { dragonDeath: { confirmed: true } }; controller.reactor.react(o); assert.equal(controller.snapshot().status, 'completed');
 });
+
+test('expedition remembers return portals by dimension and revalidates them before entry',()=>{
+  const at=p(4,0),known=new Map(),getBlock=q=>known.get(blockKey(q))||null;
+  const controller=createScenario({catalog:sampleCatalog(),getBlock,scenario:{schemaVersion:1,name:'Round trip',steps:[{id:'enter',type:'travel',dimension:'minecraft:the_nether'},{id:'rods',type:'blazeRods',count:1},{id:'return',type:'travel',dimension:'minecraft:overworld'}]}});
+  const o={dimension:'minecraft:overworld',self:{health:20,position:p(0,0)},inventory:{},world:{sampledBlocks:[{name:'minecraft:nether_portal',position:at}]},entities:[]};
+  assert.equal(controller.reactor.react(o).action.skill,'enterPortal');
+  o.dimension='minecraft:the_nether';known.set(blockKey(at),{name:'nether_portal'});controller.reactor.react(o);
+  o.world.sampledBlocks=[];o.inventory['minecraft:blaze_rod']=1;
+  const back=controller.reactor.react(o);assert.equal(back.action.skill,'enterPortal');assert.equal(back.action.args.dimension,'minecraft:overworld');
+  assert.equal(controller.snapshot().current,'return');
+  known.set(blockKey(at),{name:'air'});assert.equal(controller.reactor.react(o).action,null);
+  assert.notEqual(controller.snapshot().status,'completed');
+});
+
+test('unloaded portal memory guides exploration without pretending the portal is still active',()=>{
+  let requested;
+  const planner={poll:args=>{requested=args;return {status:'planned',target:p(8,0),reason:'Observed safe waypoint'};}};
+  const controller=createScenario({catalog:sampleCatalog(),getBlock:()=>null,explorationPlanner:planner,scenario:{schemaVersion:1,name:'Return',steps:[{id:'rods',type:'blazeRods',count:1},{id:'return',type:'travel',dimension:'minecraft:overworld'}]}});
+  const o={dimension:'minecraft:the_nether',self:{health:20,position:p(0,0)},inventory:{},world:{sampledBlocks:[{name:'minecraft:nether_portal',position:p(30,0)}]},entities:[]};
+  controller.reactor.react(o);o.inventory['minecraft:blaze_rod']=1;o.world.sampledBlocks=[];
+  assert.equal(controller.reactor.react(o).action.skill,'navigate');
+  assert.ok(requested.candidateCost(p(8,0))<requested.candidateCost(p(-8,0)));
+});

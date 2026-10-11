@@ -35,7 +35,7 @@ export function createDefenseReactor({ attackPlayers = false, retaliationHits = 
       const p = observation.self?.position;
       if (!p || !Array.isArray(observation.entities)) return { action: null, reason: 'Недостаточно наблюдений для оценки угроз.' };
       const threats = observation.entities.map(e => ({ ...e, distance: e.position ? Math.hypot(e.position.x - p.x, e.position.y - p.y, e.position.z - p.z) : Infinity }))
-        .filter(e => e.distance <= maxChaseDistance && (e.kind !== 'player' && e.hostile === true && e.distance <= dangerRadius || (e.kind !== 'player' || attackPlayers && !trusted.has(e.username?.toLowerCase())) &&
+        .filter(e => e.distance <= maxChaseDistance && (e.kind !== 'player' && e.hostile === true && e.visible !== false && e.distance <= dangerRadius || (e.kind !== 'player' || attackPlayers && !trusted.has(e.username?.toLowerCase())) &&
           (observation.combat?.attackers || []).some(a => a.entityId === e.id && recentHits(a) >= (e.kind === 'player' ? retaliationHits : 1) && clock() - a.lastHitAt >= 0 && clock() - a.lastHitAt <= retaliationWindowMs)))
         .sort((a, b) => a.distance - b.distance);
       const target = threats[0];

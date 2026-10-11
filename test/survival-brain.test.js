@@ -7,6 +7,7 @@ import { resourceSources } from '../src/taxonomy.js';
 import { createLootReactor, createSurvivalReactor, diamondSetTargets, diamondSetCondition } from '../src/survival-brain.js';
 import { itemValue, proposeTrade, survivalReserves } from '../src/item-value.js';
 import { matches } from '../src/conditions.js';
+import {KudoProtection} from '../packages/kudoconnect/index.js';
 
 const registry = minecraftData('1.21.1'), catalog = catalogFromMinecraftData(registry);
 const rid = n => n.startsWith('minecraft:') ? n : 'minecraft:' + n;
@@ -14,6 +15,15 @@ const key = p => `${p.x},${p.y},${p.z}`;
 const p = { x: 0, y: 64, z: 0 };
 const observation = (inventory = {}, sampledBlocks = []) => ({ dimension: 'minecraft:overworld', self: { position: p, health: 20, food: 20, freeInventorySlots: 36 }, inventory, world: { sampledBlocks }, drops: [] });
 const block = (name, position) => ({ ...registry.blocksByName[name], position });
+
+test('tree-class planning skips protected house beams and selects a nearby natural species',()=>{
+  const beam={x:2,y:64,z:0},tree={x:8,y:64,z:0};
+  const world={blockAt:q=>block(q.x===2&&q.y===64&&q.z===0?'oak_log':q.x===3&&q.y===64&&q.z===0?'oak_planks':q.x===8&&q.y===64&&q.z===0?'birch_log':q.y<64?'stone':'air',q)};
+  const client={world,protection:new KudoProtection()};
+  const r=createSurvivalReactor({catalog,client,targets:{'#logs':1},exploration:false});
+  const next=r.react(observation({},[{name:rid('oak_log'),position:beam},{name:rid('birch_log'),position:tree}]));
+  assert.equal(next.action.skill,'dig');assert.equal(next.action.args.block,rid('birch_log'));assert.equal(next.action.args.x,8);
+});
 
 test('core-owned survival starts by mining the nearest usable tree class and replans crafting from inventory', () => {
   const r = createSurvivalReactor({ catalog, target: 'wood', exploration: false });
@@ -25,6 +35,16 @@ test('core-owned survival starts by mining the nearest usable tree class and rep
   assert.notEqual(r.snapshot().status, 'completed');
   o.inventory = { [rid('crafting_table')]: 1 }; assert.equal(r.react(o).action, null); assert.equal(r.snapshot().status, 'completed');
   o.inventory = {}; r.react(o); assert.notEqual(r.snapshot().status, 'completed');
+});
+
+test('explicit class goals combine species and select the nearest remaining resource',()=>{
+  const r=createSurvivalReactor({catalog,targets:{'#logs':4},exploration:false}),o=observation({'minecraft:oak_log':2},[{name:'minecraft:birch_log',position:{x:2,y:64,z:0}},{name:'minecraft:oak_log',position:{x:15,y:64,z:0}}]);
+  assert.equal(r.react(o).action.args.block,'minecraft:birch_log');o.inventory['minecraft:birch_log']=2;assert.equal(r.react(o).action,null);assert.equal(r.snapshot().status,'completed');
+});
+test('an explicit crafting goal does not progress to unrelated stone or iron tools',()=>{
+  const r=createSurvivalReactor({catalog,targets:{'minecraft:crafting_table':1},exploration:false});
+  const next=r.react(observation({'minecraft:birch_planks':4},[{name:'minecraft:crafting_table',position:{x:20,y:64,z:0}}]));
+  assert.ok(next.action.skill==='craft'&&next.action.args.item==='minecraft:crafting_table'||next.action.skill==='dig'&&next.action.args.block==='minecraft:crafting_table');
 });
 
 test('deepslate diamonds require an iron-tier pickaxe; missing source is explicitly blocked', () => {
@@ -42,6 +62,57 @@ test('failed mining changes candidate and never retries the same coordinate duri
   const second = r.react(o); assert.equal(second.action.args.x, 2); assert.equal(r.snapshot().lastFailure.attempts, 1);
 });
 
+test('an unreachable source stays excluded after timer expiry until the agent changes position',()=>{
+  let now=1000;const world={blockAt:q=>block(q.x===2&&q.y===64&&q.z===0?'oak_log':q.x===4&&q.y===64&&q.z===0?'birch_log':q.y<64?'stone':'air',q)};
+  const r=createSurvivalReactor({catalog,client:{world},target:'wood',exploration:false,clock:()=>now});
+  const o=observation({},[{name:rid('oak_log'),position:{x:2,y:64,z:0}},{name:rid('birch_log'),position:{x:4,y:64,z:0}}]);
+  const first=r.react(o);assert.equal(first.action.args.x,2);r.recordResult({outcome:'failure',detail:'Нет достижимой позиции с видимостью целевого блока.'},first.action);
+  now+=300000;assert.notEqual(r.react(o).action?.args.x,2);
+  o.self.position={x:0,y:64,z:3};assert.equal(r.react(o).action.args.x,2);
+});
+
+test('missing recipe ingredients are collected before returning to a distant table',()=>{
+  const r=createSurvivalReactor({catalog,targets:{stone_pickaxe:1},exploration:false});
+  const o=observation({'minecraft:crafting_table':1,'minecraft:wooden_pickaxe':1,'minecraft:stick':2},[{name:rid('stone'),position:{x:2,y:63,z:0}}]);
+  assert.equal(r.react(o).action.skill,'dig');
+});
+
+test('resource planning prepares cooked food, gold and netherite scrap through the furnace executor',()=>{
+  for(const [output,input]of [['cooked_beef','beef'],['gold_ingot','raw_gold'],['netherite_scrap','ancient_debris']]){
+    const r=createSurvivalReactor({client:{registry},catalog,targets:{[output]:2},exploration:false});
+    const o=observation({[rid(input)]:2,'minecraft:coal':1},[{name:'minecraft:furnace',position:{x:2,y:64,z:0}}]);
+    const next=r.react(o);assert.equal(next.action.skill,'smelt');assert.equal(next.action.args.item,rid(output));assert.equal(next.action.args.input,rid(input));
+    assert.notEqual(r.snapshot().status,'completed');o.inventory[rid(output)]=2;assert.equal(r.react(o).action,null);
+  }
+});
+
+test('CPU exploration pending does not block the synchronous reactor and is invalidated after failed navigation',()=>{
+  let invalidated=0;
+  const planner={poll:()=>({status:'pending',reason:'worker running'}),invalidate:()=>invalidated++};
+  const r=createSurvivalReactor({client:{world:{minY:-64,blockAt:()=>null}},catalog,targets:{'#logs':1},explorationPlanner:planner});
+  const next=r.react(observation());assert.equal(next.action,null);assert.match(next.reason,/worker running/);
+  r.recordResult({outcome:'failure',detail:'unreachable'},{skill:'navigate',args:p});assert.equal(invalidated,1);
+});
+
+test('ore exploration backtracks up a known stair when every deeper support becomes unknown',()=>{
+  let deadEnd=false,feet={x:0,y:64,z:0};
+  const air={name:'air',boundingBox:'empty',shapes:[],diggable:false},stone={...registry.blocksByName.stone,name:'stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]};
+  const client={options:{username:'A'},world:{minY:-64,blockAt:q=>deadEnd&&q.y<=62&&!(q.x===feet.x&&q.z===feet.z&&q.y===62)?null:deadEnd&&q.x===feet.x&&q.z===feet.z&&q.y>=feet.y?air:q.y<64?stone:air}};
+  const r=createSurvivalReactor({client,catalog,targets:{raw_iron:1}}),o=observation({'minecraft:stone_pickaxe':1});
+  const first=r.react(o);assert.equal(first.action.skill,'dig');
+  feet=o.self.position={x:first.action.args.x,y:63,z:first.action.args.z};deadEnd=true;
+  const recovery=r.react(o);assert.equal(recovery.action.skill,'navigate');assert.equal(recovery.action.args.y,64);assert.equal(recovery.action.args.excavate,true);assert.equal(recovery.action.args.bridge,false);
+});
+
+test('ore exploration opens a supported horizontal branch before abandoning a blocked descent',()=>{
+  let blockedDescent=false;
+  const air={name:'air',boundingBox:'empty',shapes:[],diggable:false},stone={...registry.blocksByName.stone,name:'stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]};
+  const client={options:{username:'A'},world:{minY:-64,blockAt:q=>blockedDescent&&q.y<62?null:q.y<64?stone:air}};
+  const r=createSurvivalReactor({client,catalog,targets:{raw_iron:1}}),o=observation({'minecraft:stone_pickaxe':1}),first=r.react(o);
+  o.self.position={x:first.action.args.x,y:63,z:first.action.args.z};blockedDescent=true;
+  const branch=r.react(o);assert.equal(branch.action.skill,'dig');assert.ok(branch.action.args.y>=o.self.position.y);
+});
+
 test('loot outranks crafting, tracks current drop origin, and backs off failed drops', () => {
   const r = createLootReactor({ clock: () => 1000 }), o = observation();
   o.drops = [{ id: '1', name: 'diamond', count: 1, position: { x: 2, y: 65, z: 0 } }];
@@ -50,12 +121,23 @@ test('loot outranks crafting, tracks current drop origin, and backs off failed d
   r.recordResult({ outcome: 'failure' }); assert.equal(r.react(o).action, null);
 });
 
+test('loot failure is attributed to the executed entity even after a new observation', () => {
+  const r = createLootReactor({ clock: () => 1000 }), o = observation();
+  o.drops = [{ id: '1', name: 'diamond', count: 1, position: { x: 2, y: 65, z: 0 } }];
+  const action = r.react(o).action;
+  o.drops = [{ id: '2', name: 'diamond', count: 1, position: { x: 2, y: 65, z: 0 } }];
+  r.react(o); r.recordResult({ outcome: 'failure' }, action);
+  assert.equal(r.react(o).action.args.entityId, '2');
+  o.drops[0].id = '1'; assert.equal(r.react(o).action, null);
+});
+
 test('safe staircase mines adjacent cells and rejects unknown support or liquids', () => {
   const world = { blockAt: q => block(q.y <= 63 ? 'stone' : 'air', q) };
   const client = { world, options: { username: 'Miner' } }, r = createSurvivalReactor({ client, catalog });
   const o = observation(Object.fromEntries(['crafting_table', 'wooden_pickaxe', 'stone_pickaxe', 'furnace', 'iron_pickaxe'].map(n => [rid(n), 1])));
   o.world.sampledBlocks=[{name:rid('crafting_table'),position:{x:3,y:64,z:0}},{name:rid('furnace'),position:{x:4,y:64,z:0}}];
   const step = r.react(o); assert.equal(step.action.skill, 'dig'); assert.equal(step.action.args.y, 63); assert.notEqual(`${step.action.args.x},${step.action.args.z}`, '0,0');
+  assert.ok(step.priority>80,'excavation must finish before opportunistic loot moves onto its support');
   const unknown = createSurvivalReactor({ catalog, client: { ...client, world: { blockAt: () => null } } });
   assert.equal(unknown.react(o).action, null);
   const flooded = createSurvivalReactor({ catalog, client: { ...client, world: { blockAt: q => block(q.y < 64 ? 'lava' : 'air', q) } } });

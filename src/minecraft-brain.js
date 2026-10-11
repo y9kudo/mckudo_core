@@ -7,6 +7,10 @@ import { createNeedsReactor } from './needs.js';
 import { createEquipmentReactor } from './equipment-policy.js';
 import { createNightReactor } from './rest-policy.js';
 import { createHuntingReactor } from './hunting.js';
+import {createNeuralNavigator,attachNeuralNavigation} from './neural-navigation.js';
+import {createNeuralPlanner} from './neural-planning.js';
+import {createSpatialMemory} from './spatial-memory.js';
+import {createExplorationPlanner} from './exploration-planner.js';
 
 /** Policy belongs to MCKudo; the transport only executes confirmed storage operations. */
 export function createStorageReactor({ radius = 16, recheckMs = 60000, maxStacks = 54, items, clock = Date.now } = {}) {
@@ -25,22 +29,43 @@ export function createStorageReactor({ radius = 16, recheckMs = 60000, maxStacks
 }
 
 /** Ready-to-use policy profile, still an ordinary extensible MckudoCore instance. */
-export function createMinecraftBrain({ client, worldId, config = {}, defense = {}, storage = {}, survival = {}, loot = {}, needs = {}, night = {}, hunting = {}, equipment = true, reactors = [], adapterOptions = {}, ...options } = {}) {
+export function createMinecraftBrain({ client, worldId, config = {}, defense = {}, storage = {}, survival = {}, loot = {}, needs = {}, night = {}, hunting = {}, equipment = true, neural = {}, cognition = {}, spatial = {}, computation = {}, reactors = [], adapterOptions = {}, ...options } = {}) {
   if (!client || typeof worldId !== 'string' || !worldId.trim()) throw new Error('Нужны клиент KudoConnect и постоянный worldId.');
   if (storage !== false && (!storage || typeof storage !== 'object' || Array.isArray(storage))) throw new Error('storage: параметры или false.');
+  const thinking = cognition === false ? null : cognition.model || createNeuralPlanner({worldId,memory:cognition.memory});
+  if (thinking && thinking.worldId !== worldId) throw new Error('Планировщик принадлежит другому миру.');
+  client.planningPolicy = thinking;
+  const atlas = spatial === false ? null : spatial.model || createSpatialMemory({ ...spatial, worldId });
+  if (atlas && atlas.worldId !== worldId) throw new Error('Пространственная память принадлежит другому миру.');
+  const previousLearning = options.learning ?? options.planning?.experience;
+  const learning = thinking && previousLearning ? {worldId,assess:(...args)=>previousLearning.assess(...args),record:e=>{previousLearning.record(e);thinking.record(e);}} : thinking || previousLearning;
   const storageNames = client.registry.blocksArray.filter(b=>isStorageBlock(b.name)).map(b=>'minecraft:'+b.name);
   const trackedBlocks = [...new Set([...(adapterOptions.trackedBlocks || ['#logs', '#ores', '#workstations', '#crops','#beds','stone','cobblestone','deepslate','cobbled_deepslate','blackstone']), ...(storage === false ? [] : storageNames)])];
-  const survivalReactor = survival===false ? null:createSurvivalReactor({client,...survival});
+  const explorer = computation === false ? null : computation.planner || createExplorationPlanner({ world: client.world, pool: computation.pool, onReady: () => client.emit('planningReady') });
+  if (explorer) client.once('end', () => explorer.close());
+  const survivalReactor = survival===false ? null:createSurvivalReactor({client,spatial:atlas,explorationPlanner:explorer,...survival});
   const lootReactor = loot===false ? null:createLootReactor({peer:survival?.peer,...loot});
   const nightReactor=night===false?null:createNightReactor(night);
   const huntingReactor=hunting===false?null:createHuntingReactor(hunting);
-  const brain = createCore({ ...options,
+  const adapter = createKudoAdapter(client, { ...adapterOptions, trackedBlocks });
+  const combatReactor=createCombatReactor({ attackPlayers: true, retaliationHits: 2, retaliationWindowMs: 10000, ...defense });
+  if (atlas) {
+    const observe = adapter.observe;
+    adapter.observe = async context => { const o = await observe(context); atlas.observe(o, { getBlock: p => client.world.blockAt(p) }); return o; };
+  }
+  const brain = createCore({ ...options, learning,
     config: { schemaVersion: 4, name: client.options.username, tickIntervalMs: 100, actionTimeoutMs: 30000, ...config, worldId },
-    adapter: createKudoAdapter(client, { ...adapterOptions, trackedBlocks }),
-    reactors: [createCombatReactor({ attackPlayers: true, retaliationHits: 2, retaliationWindowMs: 10000, ...defense }), ...(equipment?[createEquipmentReactor()]:[]), ...(nightReactor?[nightReactor]:[]),...(huntingReactor?[huntingReactor]:[]), ...(storage === false ? [] : [createStorageReactor(storage)]), ...(lootReactor?[lootReactor]:[]),...(needs===false?[]:[createNeedsReactor(needs)]),...(survivalReactor?[survivalReactor]:[]), ...reactors]
+    adapter,
+    reactors: [combatReactor, ...(equipment?[createEquipmentReactor()]:[]), ...(nightReactor?[nightReactor]:[]),...(huntingReactor?[huntingReactor]:[]), ...(storage === false ? [] : [createStorageReactor(storage)]), ...(lootReactor?[lootReactor]:[]),...(needs===false?[]:[createNeedsReactor(needs)]),...(survivalReactor?[survivalReactor]:[]), ...reactors]
   });
+  combatReactor.attach(brain);
   survivalReactor?.attach(brain);lootReactor?.attach(brain);
   nightReactor?.attach(brain);
   huntingReactor?.attach(brain);
-  brain.survival=survivalReactor;brain.loot=lootReactor;return brain;
+  if(neural!==false){
+    const model=neural.model||createNeuralNavigator({worldId,memory:neural.memory});
+    if(model.worldId!==worldId)throw new Error('Нейросеть принадлежит другому миру.');
+    client.detachNeuralNavigation?.();client.detachNeuralNavigation=attachNeuralNavigation(client,model);brain.neural=model;
+  }
+  brain.computation=explorer;brain.spatial=atlas;brain.cognition=thinking;brain.survival=survivalReactor;brain.loot=lootReactor;return brain;
 }

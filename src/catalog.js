@@ -94,13 +94,19 @@ export function createCatalog({ version, items, blocks, recipes = [] }) {
 }
 
 /** Adapter-side import: the caller supplies minecraft-data or bot.registry. No dependency in the kernel. */
-export function catalogFromMinecraftData(data, { vanillaRecipes, tags } = {}) {
+export function catalogFromMinecraftData(data, { vanillaRecipes, tags, recipeBook } = {}) {
   const itemNames = new Map(data.itemsArray.map(i => [i.id, resourceId(i.name)]));
   const items = data.itemsArray.map(i => ({ id: resourceId(i.name), numericId: i.id, displayName: i.displayName, stackSize: i.stackSize ?? 64, maxDurability: i.maxDurability ?? null }));
   const blocks = data.blocksArray.map(b => ({ id: resourceId(b.name), numericId: b.id, displayName: b.displayName, hardness: b.hardness ?? null,
     diggable: b.diggable ?? false, boundingBox: b.boundingBox ?? null, drops: (b.drops || []).map(id => itemNames.get(typeof id === 'object' ? id.id : id)).filter(Boolean),
     harvestTools: Object.keys(b.harvestTools || {}).map(id => itemNames.get(Number(id))).filter(Boolean), states: b.states || [] }));
   let recipes;
+  if(recipeBook){
+    const base=createCatalog({version:data.version.minecraftVersion,items,blocks,recipes:[]});
+    return Object.freeze({...base,recipesFor:name=>recipeBook.recipesFor(resourceId(name)),
+      recipes:()=>{throw new Error('Книга мира индексируется по запросу: используй recipesFor(item).');},
+      summary:()=>({...base.summary(),recipeBook:recipeBook.snapshot()})});
+  }
   if (vanillaRecipes) recipes = importVanillaRecipes(vanillaRecipes, tags);
   else recipes = Object.entries(data.recipes || {}).flatMap(([out, variants]) => variants.map((r, n) => {
     const counts = new Map();

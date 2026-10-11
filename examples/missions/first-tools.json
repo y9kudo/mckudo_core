@@ -1,0 +1,6 @@
+[
+  { "get": "#logs", "count": 3 },
+  { "craft": "crafting_table" },
+  { "craft": "stone_pickaxe" },
+  { "craft": "furnace" }
+]
