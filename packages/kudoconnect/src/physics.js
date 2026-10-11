@@ -2,6 +2,30 @@ import { environmentAt } from './environment.js';
 const bounds = p => ({ minX: p.x - 0.3, maxX: p.x + 0.3, minY: p.y, maxY: p.y + 1.8, minZ: p.z - 0.3, maxZ: p.z + 0.3 });
 const shift = (b, axis, v) => { b['min' + axis] += v; b['max' + axis] += v; };
 const intersects = (a, b, k) => ['X', 'Y', 'Z'].filter(n => n !== k).every(n => a['max' + n] > b['min' + n] + 1e-7 && a['min' + n] < b['max' + n] - 1e-7);
+// Grounded sneaking clips horizontal motion to observed collision support. An
+// unloaded cell is not evidence of a ledge on which the player can stand.
+function holdEdge(box, velocity, getBlock) {
+  const supported = (dx, dz) => {
+    const b = { ...box }; shift(b, 'X', dx); shift(b, 'Z', dz); shift(b, 'Y', -.5);
+    for (let y = Math.floor(b.minY); y <= Math.floor(box.minY); y++)
+      for (let z = Math.floor(b.minZ); z <= Math.floor(b.maxZ - 1e-7); z++)
+        for (let x = Math.floor(b.minX); x <= Math.floor(b.maxX - 1e-7); x++) {
+          const block = getBlock({ x, y, z });
+          if (!block) continue;
+          for (const s of block.shapes || (block.boundingBox === 'block' ? [[0,0,0,1,1,1]] : [])) {
+            const shape = { minX:x+s[0],minY:y+s[1],minZ:z+s[2],maxX:x+s[3],maxY:y+s[4],maxZ:z+s[5] };
+            if (intersects(b, shape, 'Y') && b.minY < shape.maxY - 1e-7 && box.minY >= shape.maxY - 1e-7) return true;
+          }
+        }
+    return false;
+  };
+  const reduce = v => Math.abs(v) <= .05 ? 0 : v - Math.sign(v) * .05;
+  let x = velocity.x, z = velocity.z;
+  while (x && !supported(x, 0)) x = reduce(x);
+  while (z && !supported(0, z)) z = reduce(z);
+  while ((x || z) && !supported(x, z)) { x = reduce(x); z = reduce(z); }
+  velocity.x = x; velocity.z = z;
+}
 /** Standing-player baseline for Java 1.21.1; one call = one 50 ms tick. Health is server-owned. */
 export function stepPhysics(state, control, getBlock) {
   if (!state?.position || !state.velocity || [...Object.values(state.position), ...Object.values(state.velocity)].some(v => !Number.isFinite(v)) || Object.values(state.velocity).some(v => Math.abs(v) > 16)) throw new Error('Physics: неверное состояние или скорость вне бюджета.');
@@ -26,6 +50,7 @@ export function stepPhysics(state, control, getBlock) {
   const climbing = environment.contacts.some(n => ['ladder', 'vine', 'scaffolding'].includes(n));
   if (climbing) { velocity.x = Math.max(-.15, Math.min(.15, velocity.x)); velocity.z = Math.max(-.15, Math.min(.15, velocity.z)); velocity.y = control.jump || state.horizontalCollision ? .2 : Math.max(control.sneak ? 0 : -.15, velocity.y); }
   if (web) { velocity.x *= .25; velocity.z *= .25; velocity.y *= .05; }
+  if (control.sneak && state.onGround && !control.jump && !liquid && !climbing) holdEdge(box, velocity, getBlock);
   const obstacles = [];
   for (let y = Math.floor(box.minY + Math.min(0, velocity.y)) - 1; y <= Math.floor(box.maxY + Math.max(0, velocity.y)); y++)
     for (let z = Math.floor(box.minZ + Math.min(0, velocity.z)); z <= Math.floor(box.maxZ + Math.max(0, velocity.z)); z++)
@@ -59,5 +84,5 @@ export function stepPhysics(state, control, getBlock) {
   velocity.x *= friction; velocity.z *= friction;
   if (['honey_block', 'soul_sand'].includes(after.support)) { velocity.x *= .4; velocity.z *= .4; }
   if (Math.abs(velocity.x) < 0.003) velocity.x = 0; if (Math.abs(velocity.z) < 0.003) velocity.z = 0;
-  return { ...state, position: p, velocity, onGround, horizontalCollision, sprinting, frozen: false, environment: after };
+  return { ...state, position: p, velocity, onGround, horizontalCollision, sprinting, sneaking: Boolean(control.sneak), frozen: false, environment: after };
 }

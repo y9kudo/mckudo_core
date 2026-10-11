@@ -11,31 +11,44 @@ import { KudoPlayers, KudoAttention } from './players.js';
 import { KudoContainers, findStorages } from './containers.js';
 import { SmoothLook, waitForLook } from './movement.js';
 import { recipeProtocol } from './protocol-compat.js';
+import { installEndEvidence } from './end-evidence.js';
+import {WorldRecipeBook} from './recipes.js';
+import {NATIVE_VERSIONS} from './versions.js';
+import { TickTiming, createTickLoop } from './timing.js';
+import { navigationScheduler } from './scheduler.js';
+import { KudoProtection } from './protection.js';
 
-export const KUDOCONNECT = Object.freeze({ name: 'KudoConnect', version: '0.5.0', author: 'y9kudo', apiVersion: 1, minecraftVersions: ['1.21.1'], authentication: ['offline'] });
+export const KUDOCONNECT = Object.freeze({ name: 'KudoConnect', version: '0.6.0', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline'] });
 export class KudoConnect extends EventEmitter {
   constructor(options = {}, { createProtocolClient = options => protocol.createClient(options), physics = stepPhysics } = {}) {
     super();
     if (typeof createProtocolClient !== 'function' || typeof physics !== 'function') throw new Error('Компоненты: createProtocolClient и physics должны быть функциями.');
     this.createProtocolClient = createProtocolClient; this.physics = physics; this.skills = new Map(); this.trace = [];
     this.options = { host: '127.0.0.1', port: 25565, username: 'Alice', version: '1.21.1', auth: 'offline', viewDistance: 16, connectTimeoutMs: 20000, ...options };
+    this.protection = new KudoProtection(this.options.protection);
     const o = this.options;
     if (o.maxDrop !== undefined && (!Number.isInteger(o.maxDrop) || o.maxDrop < 1 || o.maxDrop > 32)) throw new Error('maxDrop: 1–32.');
     for (const key of ['fallHealthReserve', 'maxFallDamage']) if (o[key] !== undefined && (!Number.isFinite(o[key]) || o[key] < 0 || o[key] > 20)) throw new Error(`${key}: 0–20.`);
-    if (o.version !== '1.21.1' || o.auth !== 'offline') throw new Error('KudoConnect: сейчас поддерживаются Java 1.21.1 и auth offline.');
+    if (!NATIVE_VERSIONS.includes(o.version) || o.auth !== 'offline') throw new Error('KudoConnect: нативный профиль Java 1.21/1.21.1, auth offline. Проверь versionSupport() для других версий.');
     if (typeof o.host !== 'string' || !o.host || !Number.isInteger(o.port) || o.port < 1 || o.port > 65535 || !/^[A-Za-z0-9_]{1,16}$/.test(o.username) || !Number.isInteger(o.viewDistance) || o.viewDistance < 2 || o.viewDistance > 32 || !Number.isInteger(o.connectTimeoutMs) || o.connectTimeoutMs < 1000 || o.connectTimeoutMs > 60000) throw new Error('KudoConnect: неверные параметры подключения.');
-    this.registry = minecraftData(o.version); this.world = new KudoWorld(this.registry); this.inventory = new KudoInventory(this.registry);
-    this.containers = new KudoContainers(this.inventory, this.registry); this.containerRequest=false;
+    // No world catalog or recipe index for disconnected, unused clients.
+    this.dataLoaded=false;
+    const initialize=()=>{if(this.dataLoaded)return;this.dataLoaded=true;const registry=minecraftData(o.version),inventory=new KudoInventory(registry);this._data={registry,inventory,world:new KudoWorld(registry),recipeBook:new WorldRecipeBook(registry),containers:new KudoContainers(inventory,registry)};};
+    for(const key of ['registry','world','inventory','recipeBook','containers'])Object.defineProperty(this,key,{get:()=>{initialize();return this._data[key];},set:value=>{initialize();this._data[key]=value;},configurable:true});
+    this.containerRequest=false;
     this.entities = new Map(); this.state = { status: 'disconnected', entityId: null, position: null, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, onGround: false, health: null, food: null, dimension: null, gameMode: null };
     this.time={timeOfDay:null,isDay:null,age:null};this.selfMetadata={};this.endgame={eyes:[]};this.dimensionRequested=null;
+    installEndEvidence(this);
     this.players = new KudoPlayers(this); this.attention = new KudoAttention(this); this.managedNames = new Set();
     this.control = { x: 0, z: 0, jump: false, sprint: false }; this.look = new SmoothLook(); this.sprintSent = false; this.sequence = 0; this.pending = null; this.connectionAbort = new AbortController(); this.attackers = new Map();
     this.metrics = { packetsSent: 0, corrections: 0, actions: 0, failures: 0, maxTickMs: 0, decoderWarnings: [], reactions: [] };
+    this.tickTiming = new TickTiming();
     this.client = null; this.timer = null; this.lastTick = 0; this.connectedOnce = false; this.guarding = false;
   }
   async connect() {
     if (this.connectedOnce) throw new Error('Создай новый экземпляр KudoConnect для следующего подключения.');
     this.connectedOnce = true; this.state.status = 'connecting';
+    void this.registry;
     const c = this.client = this.createProtocolClient({ ...this.options, clientSettings: { locale: 'ru_ru', viewDistance: this.options.viewDistance, chatFlags: 0, chatColors: true, skinParts: 127, mainHand: 1 }, hideErrors: true });
     const warn = error => { this.metrics.decoderWarnings.push({ message: String(error.message).slice(0, 200), at: Date.now() }); this.metrics.decoderWarnings = this.metrics.decoderWarnings.slice(-20); this.emit('warning', error); };
     c.on('state', () => {
@@ -67,7 +80,7 @@ export class KudoConnect extends EventEmitter {
     c.on('respawn', p => {
       const changedDimension = this.state.dimension !== p.worldState?.name && this.state.health > 0;
       const expected = changedDimension && this.dimensionRequested === p.worldState?.name;
-      clearInterval(this.timer); this.timer = null; this.stopMovement(); this.attention.clear(); this.entities.clear(); this.attackers.clear();
+      this.stopClock(); this.stopMovement(); this.attention.clear(); this.entities.clear(); this.attackers.clear();
       if (!this.respawnRequested && !expected) this.pending?.abort.abort(new Error('Сервер переместил агента; нужно новое наблюдение.'));
       this.state.status = 'connecting'; this.state.position = null; if (!changedDimension) this.state.health = null; this.state.onGround = false;
       this.state.sleeping = false; this.selfMetadata = {}; this.state.velocity = {x:0,y:0,z:0};
@@ -85,17 +98,18 @@ export class KudoConnect extends EventEmitter {
     });
     c.on('map_chunk', p => { try { this.world.load(p); this.checkReady(); } catch (e) { warn(e); this.connectionAbort.abort(e); } });
     c.on('unload_chunk', p => this.world.unload(p.chunkX, p.chunkZ));
-    c.on('block_change', p => { const old = this.world.blockAt(p.location); this.world.update(p.location, p.type); this.emit('block', { position: p.location, old: old?.stateId, stateId: p.type }); });
+    c.on('block_change', p => { const old = this.world.blockAt(p.location); this.protection.forget(this.state.dimension,p.location); this.world.update(p.location, p.type); this.emit('block', { position: p.location, old: old?.stateId, stateId: p.type }); });
     c.on('multi_block_change', p => {
       for (const record of p.records) {
         const position = { x: p.chunkCoordinates.x * 16 + (record >> 8 & 15), y: p.chunkCoordinates.y * 16 + (record & 15), z: p.chunkCoordinates.z * 16 + (record >> 4 & 15) }, stateId = Math.floor(record / 4096);
-        const old = this.world.stateAt(position); this.world.update(position, stateId); this.emit('block', { position, old, stateId });
+        const old = this.world.stateAt(position); this.protection.forget(this.state.dimension,position); this.world.update(position, stateId); this.emit('block', { position, old, stateId });
       }
     });
     c.on('chunk_batch_finished', () => this.write('chunk_batch_received', { chunksPerTick: 10 }));
+    c.on('declare_recipes',p=>{try{this.recipeBook.ingest(p);this.emit('recipes',this.recipeBook.snapshot());}catch(error){warn(error);this.connectionAbort.abort(error);}});
     c.on('update_health', p => {
       Object.assign(this.state, { health: p.health, food: p.food });
-      if (p.health <= 0) { const wasDead=this.state.status==='dead';this.state.status='dead';this.connectionAbort.abort(new Error('Агент погиб.'));this.stopMovement();clearInterval(this.timer);this.timer=null;if(!wasDead)this.emit('death');this.emit('session'); }
+      if (p.health <= 0) { const wasDead=this.state.status==='dead';this.state.status='dead';this.connectionAbort.abort(new Error('Агент погиб.'));this.stopMovement();this.stopClock();if(!wasDead)this.emit('death');this.emit('session'); }
       else this.checkReady();
       this.emit('health', {health:p.health,food:p.food});
     });
@@ -104,6 +118,7 @@ export class KudoConnect extends EventEmitter {
     c.on('window_items', p => { if (this.inventory.updateWindow(p) || this.containers.updateWindow(p)) { this.emit('inventory', this.inventory.snapshot()); this.emit('container'); } });
     c.on('set_slot', p => { if (this.inventory.updateSlot(p) || this.containers.updateSlot(p)) { this.emit('inventory', this.inventory.snapshot()); this.emit('container'); } });
     c.on('held_item_slot', p => { this.inventory.selected = p.slot; });
+    c.on('set_cooldown', p => { if(this.registry.items[p.itemID]?.name==='shield')this.shieldDisabledUntil=performance.now()+Math.max(0,p.cooldownTicks)*50; });
     c.on('update_time',p=>{const long=n=>typeof n==='bigint'?n:Array.isArray(n)?BigInt.asIntN(64,(BigInt(n[0])<<32n)|BigInt(n[1]>>>0)):BigInt(n);const raw=long(p.time),ticks=Number((raw<0n?-raw:raw)%24000n);this.time={timeOfDay:ticks,isDay:ticks<13000,age:Number(long(p.age))};this.emit('time',this.time);});
     c.on('animation',p=>{if(p.entityId===this.state.entityId&&p.animation===2){this.state.sleeping=false;this.selfMetadata={};this.emit('wake');}});
     c.on('player_info', p => this.players.update(p));
@@ -135,12 +150,16 @@ export class KudoConnect extends EventEmitter {
         this.attackers.set(e.id, { entityId: e.id, hits: hitTimes.length, hitTimes, lastHitAt: now });
         if (this.attackers.size > 128) this.attackers.delete(this.attackers.keys().next().value);
       }
-      this.emit('damage', { entityId: String(p.entityId), sourceId: e?.id || null, receivedAt: at });
+      this.emit('damage', { entityId: String(p.entityId), sourceId: p.sourceCauseId-1===this.state.entityId ? String(this.state.entityId) : e?.id || null, receivedAt: at });
+    });
+    c.on('explosion',p=>{
+      for(const [axis,field] of [['x','playerMotionX'],['y','playerMotionY'],['z','playerMotionZ']]) if(Number.isFinite(p[field]))this.state.velocity[axis]+=p[field];
+      this.emit('explosion',{position:{x:p.x,y:p.y,z:p.z},radius:p.radius});
     });
     c.on('entity_status', p => { if (p.entityStatus === 3) this.emit('entityDead', this.entities.get(p.entityId)); });
     c.on('error', e => { warn(e); this.connectionAbort.abort(e); this.emit('fault', e); });
     c.on('disconnect', p => { this.emit('kicked', p.reason); this.connectionAbort.abort(new Error(`Сервер отключил клиента: ${JSON.stringify(p.reason).slice(0, 500)}`)); });
-    c.on('end', reason => { clearInterval(this.timer); this.state.status = 'disconnected'; this.connectionAbort.abort(new Error('Соединение закрыто.')); this.emit('end', reason); });
+    c.on('end', reason => { this.stopClock(); this.state.status = 'disconnected'; this.connectionAbort.abort(new Error('Соединение закрыто.')); this.emit('end', reason); });
     const timeout = AbortSignal.timeout(this.options.connectTimeoutMs);
     try { await this.waitFor(() => ['ready','dead'].includes(this.state.status), { signal: AbortSignal.any([timeout,this.connectionAbort.signal]), event: 'session', timeoutMs: this.options.connectTimeoutMs }); }
     catch (error) { if(this.state.status!=='dead'){await this.close();throw error;} }
@@ -174,16 +193,19 @@ export class KudoConnect extends EventEmitter {
   checkReady() {
     if (this.connectionAbort.signal.aborted || this.state.status === 'ready' || !this.state.position || !(this.state.health > 0) || !this.world.columnAt(this.state.position)) return;
     this.state.status = 'ready'; this.lastTick = performance.now();
-    this.timer = setInterval(() => {
+    this.tickTiming.reset();
+    this.timer = createTickLoop(() => {
+      this.tickTiming.mark(performance.now());
       if (this.client?.state !== 'play' || this.state.health <= 0 || this.connectionAbort.signal.aborted || this.state.sleeping) return;
       const before = performance.now();
       try { this.state = this.physics(this.state, { ...this.control, usingItem: this.guarding }, p => this.world.blockAt(p)); this.world.focus = this.state.position; this.attention.tick(); this.tickLook(); this.sendPosition(); }
-      catch (error) { this.connectionAbort.abort(error); clearInterval(this.timer); this.emit('warning', error); return; }
+      catch (error) { this.connectionAbort.abort(error); this.stopClock(); this.emit('warning', error); return; }
       this.metrics.maxTickMs = Math.max(this.metrics.maxTickMs, performance.now() - before); this.emit('physics', this.state.position);
-    }, 50);
+    });
     this.emit('ready'); this.emit('session');
   }
   packetVelocity(v) { return { x: (v?.x || 0) / 8000, y: (v?.y || 0) / 8000, z: (v?.z || 0) / 8000 }; }
+  stopClock() { if(this.timer?.stop)this.timer.stop();else clearInterval(this.timer);this.timer=null; }
   write(name, packet) { if (this.client?.state !== 'play') throw new Error('KudoConnect не находится в игровом состоянии.'); this.client.write(name, packet); this.metrics.packetsSent++; }
   syncSprint() {
     const sprinting = Boolean(this.state.sprinting && this.control.sprint && !this.guarding && this.state.health > 0 && !this.state.frozen);
@@ -191,12 +213,18 @@ export class KudoConnect extends EventEmitter {
       this.write('entity_action', { entityId: this.state.entityId, actionId: sprinting ? 'start_sprinting' : 'stop_sprinting', jumpBoost: 0 }); this.sprintSent = sprinting;
     }
   }
-  sendPosition() { if (this.state.position) { this.syncSprint(); this.write('position_look', { ...this.state.position, yaw: this.state.yaw, pitch: this.state.pitch, onGround: this.state.onGround }); } }
+  syncSneak() {
+    const sneaking = Boolean(this.control.sneak && this.state.health > 0 && !this.state.frozen);
+    if (sneaking !== Boolean(this.sneakSent) && this.state.entityId !== null && this.client?.state === 'play') {
+      this.write('entity_action', { entityId: this.state.entityId, actionId: sneaking ? 'start_sneaking' : 'stop_sneaking', jumpBoost: 0 }); this.sneakSent = sneaking;
+    }
+  }
+  sendPosition() { if (this.state.position) { this.syncSprint(); this.syncSneak(); this.write('position_look', { ...this.state.position, yaw: this.state.yaw, pitch: this.state.pitch, onGround: this.state.onGround }); } }
   lookAt(p, options = {}) { this.look.set(this.state, p, { signal: this.pending?.signal, ...options }); if (options.immediate) this.sendPosition(); }
   tickLook(dt = .05) { this.look.tick(this.state, dt); }
   waitForLook(options = {}) { return waitForLook(this, options); }
   cancelLook() { this.look.clear(); }
-  stopMovement() { this.control = { x: 0, z: 0, jump: false, sprint: false }; this.state.sprinting = false; this.syncSprint(); }
+  stopMovement({ sneak = false } = {}) { this.control = { x: 0, z: 0, jump: false, sprint: false, sneak }; this.state.sprinting = false; this.state.sneaking = sneak; this.syncSprint(); this.syncSneak(); }
   async waitFor(predicate, { signal, event = 'physics', timeoutMs = 10000 } = {}) {
     if (predicate()) return;
     signal?.throwIfAborted();
@@ -234,9 +262,9 @@ export class KudoConnect extends EventEmitter {
       });
     return job.promise;
   }
-  snapshot() { return { identity: KUDOCONNECT, ...structuredClone(this.state), time:structuredClone(this.time), inventory: this.inventory.snapshot(), equipment:this.inventory.equipment(), loadedChunks: this.world.columns.size, metrics: structuredClone(this.metrics) }; }
+  snapshot() { return { identity: KUDOCONNECT, ...structuredClone(this.state), time:structuredClone(this.time), inventory: this.dataLoaded?this.inventory.snapshot():{}, equipment:this.dataLoaded?this.inventory.equipment():{}, loadedChunks: this.dataLoaded?this.world.columns.size:0, metrics: { ...structuredClone(this.metrics), timing: this.tickTiming.snapshot(), navigation: navigationScheduler.snapshot() } }; }
   async close() {
-    this.connectionAbort.abort(new Error('Клиент остановлен.')); this.stopMovement(); this.attention.clear(); clearInterval(this.timer); await this.pending?.promise.catch(() => {});
+    this.connectionAbort.abort(new Error('Клиент остановлен.')); this.stopMovement(); this.attention.clear(); this.stopClock(); await this.pending?.promise.catch(() => {});
     if (!this.client?.socket?.destroyed) this.client?.end('KudoConnect stopped');
     const socket = this.client?.socket;
     if (socket && !socket.destroyed) await new Promise(resolve => {

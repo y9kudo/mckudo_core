@@ -1,7 +1,21 @@
 import { setTimeout as delay } from 'node:timers/promises';
-import { planRoute, isAir, isFullBlock, isHazard } from './navigation.js';
+import { planRouteAsync, readRouteWorld, isAir, isFullBlock, isHazard } from './navigation.js';
 import { gazeAngles } from './players.js';
 import {assessFall} from './fall.js';
+import {chooseMiningTool} from './equipment.js';
+import {editDecision} from './protection.js';
+
+/** Deliberate route excavation only consumes common terrain with an appropriate tool. */
+export const routeCanDig = c => {
+  let revision, protectionRevision; const decisions = new Map();
+  return (block, position) => {
+    if (!/^(?:minecraft:)?(?:stone|deepslate|cobblestone|cobbled_deepslate|dirt|grass_block|coarse_dirt|rooted_dirt|podzol|mycelium|netherrack|tuff|granite|diorite|andesite)$/.test(block.name||block.id) || block.diggable === false || block.hardness < 0 || !chooseMiningTool(c.registry, block, c.inventory.items(), {held:c.inventory.held(),onGround:true})) return false;
+    if (revision !== c.world.revision || protectionRevision !== c.protection?.revision) { decisions.clear(); revision = c.world.revision; protectionRevision = c.protection?.revision; }
+    const id = `${position.x},${position.y},${position.z}`;
+    if (!decisions.has(id)) { if (decisions.size >= 4096) decisions.clear(); decisions.set(id, editDecision(c, 'dig', position).allowed); }
+    return decisions.get(id);
+  };
+};
 
 const floor = p => ({ x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) });
 const validPoint = p => p && ['x', 'y', 'z'].every(k => Number.isFinite(p[k]) && Math.abs(p[k]) <= 30000000);
@@ -73,7 +87,8 @@ export function safeCorridor(position, direction, length, getBlock, { headroom =
   const size = Math.hypot(direction.x, direction.z); if (!size) return false;
   const y = Math.round(position.y); if (Math.abs(position.y - y) > .08) return false;
   const seen = new Set();
-  for (let t = 0; t <= length + .001; t += .2) {
+  for (let sample = 0; sample <= Math.ceil(length / .2); sample++) {
+    const t = Math.min(length, sample * .2);
     const x = position.x + direction.x / size * Math.min(t, length), z = position.z + direction.z / size * Math.min(t, length);
     for (const ox of [-.3, .3]) for (const oz of [-.3, .3]) {
       const p = { x: Math.floor(x + ox), y, z: Math.floor(z + oz) }, id = p.x + ',' + p.z;
@@ -113,17 +128,19 @@ export function combatControl(state, target, mode, getBlock, { guarding = false,
   return { x: 0, z: 0, jump: false, sprint: false };
 }
 
-export function personalSpaceControl(state,control,entities,getBlock,ownId,{canMove}={}){
+export function personalSpaceControl(state,control,entities,getBlock,ownId,{canMove,lookAhead=1.2}={}){
+  if(!Number.isFinite(lookAhead)||lookAhead<0||lookAhead>1.2)throw new Error('lookAhead: 0–1.2.');
   if(!state.onGround)return control;
-  const peers=entities.filter(e=>e.kind==='player'&&String(e.id)!==String(ownId)&&e.position&&Math.abs(e.position.y-state.position.y)<1.8&&Math.hypot(e.position.x-state.position.x,e.position.z-state.position.z)<3);
+  const peers=entities.filter(e=>e.kind==='player'&&e.gameMode!==3&&String(e.id)!==String(ownId)&&e.position&&Math.abs(e.position.y-state.position.y)<1.8&&Math.hypot(e.position.x-state.position.x,e.position.z-state.position.z)<4.5);
   if(!peers.length)return control;
   let x=control.x,z=control.z;
   for(const e of peers){let dx=state.position.x-e.position.x,dz=state.position.z-e.position.z,d=Math.hypot(dx,dz);if(d<1){if(d<.01){dx=String(ownId)<String(e.id)?1:-1;dz=0;d=1;}const push=(1.1-Math.min(d,1))/.4;x+=dx/d*push;z+=dz/d*push;}}
   const size=Math.hypot(x,z);if(!size)return {...control,x:0,z:0,sprint:false,jump:false};
   for(const angle of [0,.7,-.7,1.4,-1.4,Math.PI]){
     const direction={x:(x*Math.cos(angle)-z*Math.sin(angle))/size,z:(x*Math.sin(angle)+z*Math.cos(angle))/size};
-    const threatened=peers.some(e=>{const dx=e.position.x-state.position.x,dz=e.position.z-state.position.z,t=Math.max(0,Math.min(1.2,dx*direction.x+dz*direction.z));return Math.hypot(dx-direction.x*t,dz-direction.z*t)<.75&&dx*direction.x+dz*direction.z>0;});
-    if(!threatened&&(canMove?canMove(direction):safeCorridor(state.position,direction,1.2,getBlock)))return {...control,x:direction.x*Math.min(1,size),z:direction.z*Math.min(1,size),sprint:false,jump:false};
+    // Anticipate crossing trajectories over four physics ticks; no position prediction is applied to the world.
+    const threatened=peers.some(e=>[0,2,4].some(ticks=>{const velocity=k=>Number.isFinite(e.velocity?.[k])?Math.max(-.8,Math.min(.8,e.velocity[k])):0;const dx=e.position.x+velocity('x')*ticks-state.position.x,dz=e.position.z+velocity('z')*ticks-state.position.z,t=Math.max(0,Math.min(lookAhead,dx*direction.x+dz*direction.z));return Math.hypot(dx-direction.x*t,dz-direction.z*t)<.75&&dx*direction.x+dz*direction.z>0;}));
+    if(!threatened&&(canMove?canMove(direction):safeCorridor(state.position,direction,lookAhead,getBlock)))return {...control,x:direction.x*Math.min(1,size),z:direction.z*Math.min(1,size),sprint:false,jump:Boolean(canMove&&control.jump)};
   }
   return {x:0,z:0,sprint:false,jump:false};
 }
@@ -134,24 +151,34 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
   if (!Number.isInteger(range) || range < 0 || range > 8) throw new Error('range: 0–8.');
   const alive = () => { signal.throwIfAborted(); if (c.state.health <= 0 || c.state.status !== 'ready') throw new Error('Агент недоступен.'); };
   alive();
+  c.stopMovement();
+  const start = floor(c.state.position), plannedCorrections = c.metrics.corrections;
   const materials = () => bridgeMaterials(c.registry, c.inventory.items(), { blockAtState: id => c.world.Block?.fromStateId(id, 0), itemValue: c.options?.bridgeItemValue || baseBridgeValue, reserve: c.options?.bridgeReserve ?? 0 });
   const blocks = args.bridge === false ? [] : materials(), budget = Math.min(256, blocks.reduce((sum, b) => sum + b.count, 0));
-  const occupied=p=>[...c.entities.values()].some(e=>e.kind==='player'&&Math.abs(e.position.y-p.y)<1.8&&Math.hypot(e.position.x-(p.x+.5),e.position.z-(p.z+.5))<.8);
+  const occupied=p=>[...c.entities.values()].some(e=>e.kind==='player'&&e.gameMode!==3&&String(e.id)!==String(c.state.entityId)&&Math.abs(e.position.y-p.y)<1.8&&Math.hypot(e.position.x-(p.x+.5),e.position.z-(p.z+.5))<.8);
   const fallPolicy={health:c.state.health,minHealthAfter:c.options?.fallHealthReserve??6,maxDamage:c.options?.maxFallDamage??6};
-  const route = planRoute({ start: floor(c.state.position), goal: floor(args), range, occupied, getBlock: p => c.world.blockAt(p), maxDistance: 128, maxNodes: 12000, maxDrop:args.maxDrop??c.options?.maxDrop??16,fallPolicy,
-    bridgeBudget: typeof place === 'function' ? budget : 0, bridgeBlock: blocks[0]?.block || 'minecraft:cobblestone' });
+  const dimensionDrop=c.state.dimension==='minecraft:overworld'?16:3;
+  const view = readRouteWorld(c.world);
+  const route = await planRouteAsync({ start, goal: floor(args), range, occupied, canDig:args.excavate===true?routeCanDig(c):()=>false, edgeCost:c.navigationPolicy?.cost, getBlock: view.getBlock, maxDistance: 128, maxNodes: 12000, maxDrop:args.maxDrop??c.options?.maxDrop??dimensionDrop,fallPolicy,
+    bridgeBudget: typeof place === 'function' ? budget : 0, bridgeBlock: blocks[0]?.block || 'minecraft:cobblestone', canPlace:p=>editDecision(c,'place',p).allowed, signal }, { getRevision: view.getRevision });
+  alive();
+  if (c.metrics.corrections !== plannedCorrections || ['x', 'y', 'z'].some(axis => Math.floor(c.state.position[axis]) !== start[axis])) throw new Error('Старт изменился во время поиска маршрута; нужно повторное планирование.');
   if (route.status !== 'planned') throw new Error(route.reason);
-  const corrections = c.metrics.corrections;
+  const corrections = c.metrics.corrections;let segment=null, bridgeWalk=false;
   try {
     for (let i = 0; i < route.steps.length; i++) {
       alive(); const step = route.steps[i];
       if (step.kind === 'bridge') {
-        c.stopMovement();
+        bridgeWalk=true; c.stopMovement({ sneak:true });
         // Wait for ordinary friction before opening a placement operation at an edge.
         await c.waitFor(() => Math.hypot(c.state.velocity.x, c.state.velocity.z) < .025 && c.state.onGround, { signal, timeoutMs: 2000 });
         const block = materials()[0]; if (!block || !place) throw new Error('Нет безопасных блоков для продолжения моста.');
+        const before = c.inventory.items().filter(i=>i.name===block.name).reduce((n,i)=>n+i.count,0);
         await place({ ...step.position, block: block.block }, signal);
         if (!isFullBlock(c.world.blockAt(step.position))) throw new Error('Сервер не подтвердил опору моста.');
+        await c.waitFor(()=>c.inventory.items().filter(i=>i.name===block.name).reduce((n,i)=>n+i.count,0)<before,{event:'inventory',signal,timeoutMs:2000});
+        alive();
+        if (!isFullBlock(c.world.blockAt(step.position))) throw new Error('Подтверждённая опора моста исчезла.');
         continue;
       }
       if (step.kind === 'dig') { if (!dig) throw new Error('Нет обработчика добычи маршрута.'); c.stopMovement(); await dig({ ...step.position, block: step.expected }, signal); continue; }
@@ -166,7 +193,9 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
           last++;
         }
       }
-      const endpoint = route.steps[last].position, target = { x: endpoint.x + .5, y: endpoint.y, z: endpoint.z + .5 }, until = Date.now() + 5000 + (last - i) * 700;
+      // Keep crouching across narrow spans; verified wide ground permits running.
+      const endpoint = route.steps[last].position, target = { x: endpoint.x + .5, y: endpoint.y, z: endpoint.z + .5 }, until = Date.now() + 5000 + (last - i) * (bridgeWalk ? 1200 : 700);
+      segment={from:floor(c.state.position),to:{...endpoint},kind:step.kind,dimension:c.state.dimension,health:c.state.health,food:c.state.food};
       while (Math.hypot(c.state.position.x - target.x, c.state.position.z - target.z) > .18 || Math.abs(c.state.position.y - target.y) > .12 || !c.state.onGround) {
         alive(); if (Date.now() > until) throw new Error('Истёк бюджет движения по шагу.');
         if (c.metrics.corrections - corrections > 2) throw new Error('Сервер несколько раз скорректировал движение; маршрут остановлен.');
@@ -181,8 +210,19 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
         }
         c.lookAt({ ...target, y: target.y + 1.62 }, { signal });
         const control = travelControl(c.state, target, p => c.world.blockAt(p), { sprint: args.sprint !== false, sprintJump: args.sprintJump !== false && last - i >= 7, guarding: c.guarding });
+        if (bridgeWalk && c.state.onGround) {
+          const foot=floor(c.state.position);
+          if([-1,0,1].every(dx=>[-1,0,1].every(dz=>isFullBlock(c.world.blockAt({x:foot.x+dx,y:foot.y-1,z:foot.z+dz})))))bridgeWalk=false;
+        }
+        if (bridgeWalk && step.kind==='walk') { control.sneak=true; control.sprint=false; control.jump=false; }
         if (step.kind === 'jump') control.jump = c.state.position.y < target.y - .15;
         let canMove;
+        if(step.kind==='jump'){
+          const dx=target.x-c.state.position.x,dz=target.z-c.state.position.z,d=Math.hypot(dx,dz)||1;
+          // Personal-space steering may preserve the validated jump direction;
+          // a flat-corridor check would veto every ascent near another player.
+          canMove=direction=>(direction.x*dx+direction.z*dz)/d>.98;
+        }
         if(step.kind==='drop'&&c.state.onGround&&c.state.position.y>target.y+.12){
           const assessment=assessFall({...fallPolicy,height:c.state.position.y-target.y,health:c.state.health,landing:c.world.blockAt({...endpoint,y:endpoint.y-1})});
           if(!assessment.allowed)throw new Error(assessment.reason);
@@ -191,14 +231,17 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
           canMove=direction=>(direction.x*dx+direction.z*dz)/d>.98;
           control.sprint=false;control.jump=false;
         }
-        c.control = personalSpaceControl(c.state,control,[...c.entities.values()],p=>c.world.blockAt(p),c.state.entityId,{canMove});
+        c.control = personalSpaceControl(c.state,control,[...c.entities.values()],p=>c.world.blockAt(p),c.state.entityId,{canMove,lookAhead:Math.min(1.2,Math.hypot(target.x-c.state.position.x,target.z-c.state.position.z))});
         await delay(25, undefined, { signal });
       }
-      c.stopMovement();
+      c.stopMovement({ sneak:bridgeWalk });
       // Absorb remaining inertia before turning or placing blocks at the next step.
       await c.waitFor(() => Math.hypot(c.state.velocity.x, c.state.velocity.z) < .04, { signal, timeoutMs: 2000 });
+      let previous=segment.from;
+      for(let learned=i;learned<=last;learned++){const current=route.steps[learned];c.emit('navigationStep',{...segment,from:previous,to:current.position,kind:current.kind,outcome:'success',healthAfter:learned===last?c.state.health:segment.health});previous=current.position;}segment=null;
       i = last;
     }
+  } catch(error){if(segment)c.emit('navigationStep',{...segment,outcome:signal.aborted?'cancelled':'failure',healthAfter:c.state.health,reason:error.message});throw error;
   } finally { c.stopMovement(); }
   return { ok: true, position: { ...c.state.position }, steps: route.steps.length, bridgeUsed: route.bridgeUsed || 0,estimatedFallDamage:route.fallDamage||0 };
 }

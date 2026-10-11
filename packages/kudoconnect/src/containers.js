@@ -31,7 +31,7 @@ export class KudoContainers {
   open(packet) {
     // Java 1.21.1: shulker_box menu 20 also has 27 storage + 36 player slots.
     const rows = packet.inventoryType === 20 ? 3 : Number.isInteger(packet.inventoryType) && packet.inventoryType >= 0 && packet.inventoryType <= 5 ? packet.inventoryType + 1 : null;
-    const workstations = {12:{slots:10,kind:'crafting'},14:{slots:3,kind:'furnace'},10:{slots:3,kind:'blast_furnace'},22:{slots:3,kind:'smoker'}};
+    const workstations = {12:{slots:10,kind:'crafting'},14:{slots:3,kind:'furnace'},10:{slots:3,kind:'blast_furnace'},22:{slots:3,kind:'smoker'},21:{slots:4,kind:'smithing'},11:{slots:5,kind:'brewing'}};
     const station = workstations[packet.inventoryType];
     this.current = { id: packet.windowId, type: packet.inventoryType, kind:station?.kind || (rows?'storage':'unsupported'), storageSlots: station?.slots ?? (rows ? rows * 9 : null), slots: [], stateId: null, ready: false }; this.revision++;
   }

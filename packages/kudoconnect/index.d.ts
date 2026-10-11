@@ -2,34 +2,57 @@ export type Json = null | boolean | number | string | Json[] | { [key: string]: 
 export interface Action { skill: string; args?: Record<string, Json>; }
 export interface Position { x: number; y: number; z: number; }
 export interface NavigationBlock { name?: string; id?: string; boundingBox?: string; shapes?: number[][]; diggable?: boolean; getProperties?(): Record<string, unknown>; }
-export interface KudoOptions { host?: string; port?: number; username?: string; version?: '1.21.1'; auth?: 'offline'; viewDistance?: number; connectTimeoutMs?: number; maxDrop?: number; fallHealthReserve?: number; maxFallDamage?: number; bridgeReserve?: number; bridgeItemValue?: (name: string,item: KudoItem) => number; }
-export interface KudoState { status: 'disconnected' | 'connecting' | 'ready' | 'dead'; entityId: number | null; position: Position | null; velocity: Position; yaw: number; pitch: number; onGround: boolean; health: number | null; food: number | null; dimension: string | null; gameMode: string | number | null; environment?: Environment; sleeping?: boolean; sprinting?: boolean; frozen?: boolean; horizontalCollision?: boolean; }
-export interface KudoMetrics { packetsSent: number; corrections: number; actions: number; failures: number; maxTickMs: number; decoderWarnings: { message: string; at: number }[]; reactions: unknown[]; }
+export declare function traceVisibility(options:{origin:Position;target:Position;getBlock:(position:Position)=>NavigationBlock|null;maxDistance?:number}):{visible:boolean;reason:'clear'|'blocked'|'unloaded'|'too-far';position:Position|null};
+export interface ProtectedRegion {id:string;dimension:string;min:Position;max:Position;}
+export interface ProtectionOptions {regions?:ProtectedRegion[];structures?:boolean;structureRadius?:number;}
+export interface EditDecision {allowed:boolean;reason:string;regionId?:string;evidence?:Position;}
+export declare function isStructureBlock(block:NavigationBlock|null):boolean;
+export declare class KudoProtection {
+  constructor(options?:ProtectionOptions);
+  readonly revision:number;
+  readonly regions:ProtectedRegion[];
+  add(region:ProtectedRegion):ProtectedRegion;
+  remove(id:string):boolean;
+  remember(dimension:string,position:Position,block:NavigationBlock & {stateId?:number}):void;
+  forget(dimension:string,position:Position):void;
+  check(options:{operation:'dig'|'place';dimension:string;position:Position;block?:NavigationBlock|null;getBlock?:(position:Position)=>NavigationBlock|null}):EditDecision;
+}
+export interface KudoOptions { host?: string; port?: number; username?: string; version?: '1.21' | '1.21.1'; auth?: 'offline'; viewDistance?: number; connectTimeoutMs?: number; maxDrop?: number; fallHealthReserve?: number; maxFallDamage?: number; bridgeReserve?: number; bridgeItemValue?: (name: string,item: KudoItem) => number; protection?:ProtectionOptions; }
+export interface KudoState { status: 'disconnected' | 'connecting' | 'ready' | 'dead'; entityId: number | null; position: Position | null; velocity: Position; yaw: number; pitch: number; onGround: boolean; health: number | null; food: number | null; dimension: string | null; gameMode: string | number | null; environment?: Environment; sleeping?: boolean; sprinting?: boolean; sneaking?:boolean; frozen?: boolean; horizontalCollision?: boolean; }
+export interface KudoMetrics { packetsSent: number; corrections: number; actions: number; failures: number; maxTickMs: number; timing?: TickTimingSnapshot; navigation?: WorkSchedulerSnapshot; decoderWarnings: { message: string; at: number }[]; reactions: unknown[]; }
 export interface KudoItem { name: string; item: string; type: number; count: number; slot: number; raw: any; }
 export interface KudoTime { timeOfDay:number|null; isDay:boolean|null; age:number|null; }
 export interface EyeFlight {entityId:string;dimension:string;launched:Position;origin:Position;end:Position;samples:number;at:number;}
+export interface EndEvidence {eyes:EyeFlight[];crystals:{entityId:string;position:Position;confirmed:true;evidence:'explosion-and-removal';at:number}[];ownDragonHits?:number;dragonDeath?:{entityId:string;confirmed:true;evidence:'entity-death-status'|'health-zero-and-dying-phase';ownDamageConfirmed:boolean;ownHitCount:number;at:number};}
+export interface PillarArgs {count?:number;block?:string;}
+export interface PillarResult {ok:true;serverConfirmed:true;placed:(Position & {block:string})[];position:Position;}
 export interface KudoSnapshot extends KudoState { time:KudoTime; equipment:ReturnType<KudoInventory["equipment"]>; identity: typeof KUDOCONNECT; inventory: Record<string, number>; loadedChunks: number; metrics: KudoMetrics; }
-export declare const KUDOCONNECT: Readonly<{ name: 'KudoConnect'; version: '0.5.0'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
+export declare const KUDOCONNECT: Readonly<{ name: 'KudoConnect'; version: '0.6.0'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
 export declare const KUDO_SKILLS: readonly string[];
 export interface FallPolicy { health?:number; minHealthAfter?:number; maxDamage?:number; slowFalling?:boolean; sneaking?:boolean; }
 export interface FallAssessment { height:number; landing:string|null; estimatedDamage:number|null; healthAfter:number|null; survivable:boolean; allowed:boolean; reason:string; }
 export declare function assessFall(options:FallPolicy & {height:number;landing:NavigationBlock|null}):FallAssessment;
 export interface RouteStep {kind:'dig'|'bridge'|'walk'|'jump'|'drop';position:Position;block?:string;expected?:string;fall?:FallAssessment;}
-export interface RoutePlan {status:'planned'|'blocked';reason:string;steps:RouteStep[];visited:number;unknown:Position[];cost?:number;bridgeUsed?:number;fallDamage?:number;}
-export declare function planRoute(options:{start:Position;goal:Position;getBlock:(position:Position)=>NavigationBlock|null;occupied?:(position:Position)=>boolean;range?:number;maxNodes?:number;maxDistance?:number;maxDrop?:number;fallPolicy?:FallPolicy;bridgeBudget?:number;bridgeBlock?:string;canDig?:(block:NavigationBlock,position:Position)=>boolean;signal?:AbortSignal}):RoutePlan;
+export interface RoutePlan {status:'planned'|'blocked';reason:string;steps:RouteStep[];visited:number;unknown:Position[];cost?:number;bridgeUsed?:number;fallDamage?:number;partial?:boolean;target?:Position;}
+export declare function planRoute(options:{start:Position;goal:Position;getBlock:(position:Position)=>NavigationBlock|null;occupied?:(position:Position)=>boolean;edgeCost?:(from:Position,to:Position,kind:RouteStep["kind"])=>number;range?:number;maxNodes?:number;maxDistance?:number;maxDrop?:number;fallPolicy?:FallPolicy;bridgeBudget?:number;bridgeBlock?:string;canDig?:(block:NavigationBlock,position:Position)=>boolean;canPlace?:(position:Position)=>boolean;allowPartial?:boolean;signal?:AbortSignal}):RoutePlan;
+export interface RouteScheduling {sliceMs?:number;nodesPerSlice?:number;getRevision?:()=>unknown;scheduler?:WorkScheduler;}
+export declare function planRouteAsync(options: Parameters<typeof planRoute>[0], scheduling?: RouteScheduling): Promise<RoutePlan>;
 export declare class KudoConnect {
   constructor(options?: KudoOptions, components?: { createProtocolClient?: (options: Record<string, unknown>) => any; physics?: typeof stepPhysics });
   readonly options: Required<KudoOptions>;
   readonly registry: any;
+  readonly dataLoaded: boolean;
+  readonly recipeBook: WorldRecipeBook;
   readonly world: KudoWorld;
   readonly inventory: KudoInventory;
   readonly players: KudoPlayers;
   readonly containers: KudoContainers;
+  readonly protection: KudoProtection;
   watchPlayer(username: string, options?: AttentionOptions): AttentionLease;
   findStorages(options?: StorageSearchOptions): Promise<StorageSearchResult>;
   readonly state: KudoState;
   readonly time: KudoTime;
-  readonly endgame: {eyes:EyeFlight[]};
+  readonly endgame: EndEvidence;
   readonly metrics: KudoMetrics;
   readonly trace: ActionTrace[];
   on(event: string, listener: (...args: any[]) => void): this;
@@ -61,6 +84,7 @@ export declare class KudoWorld {
   registerClass(name: string, members: string[]): void;
   resolveSelectors(selectors: string[]): string[];
   blockAt(position: Position): (NavigationBlock & { position: Position; stateId: number; getProperties(): Record<string, unknown> }) | null;
+  createReadView(): {blockAt(position:Position):NavigationBlock|null;isCurrent():boolean};
   stateAt(position: Position): number | null;
   findBlocks(options: { names?: string[]; classes?: string[]; properties?: Record<string, string | boolean | number>; position: Position; radius?: number; count?: number; maxVisited?: number; signal?: AbortSignal }): Promise<{ blocks: FoundBlock[]; visited: number; truncated: boolean; revision: number }>;
 }
@@ -78,7 +102,7 @@ export declare class KudoInventory {
   snapshot(): Record<string, number>;
 }
 export interface Environment { medium: 'air' | 'water' | 'lava'; contacts: string[]; support: string; flow: Position; unknown: boolean; hazardous: boolean; slipperiness: number; }
-export interface PhysicsState { position: Position; velocity: Position; onGround: boolean; horizontalCollision?: boolean; frozen?: boolean; environment?: Environment; }
+export interface PhysicsState { position: Position; velocity: Position; onGround: boolean; horizontalCollision?: boolean; frozen?: boolean; environment?: Environment; sneaking?:boolean; }
 export declare function stepPhysics(state: PhysicsState, control: { x?: number; z?: number; jump?: boolean; sneak?: boolean; sprint?: boolean; usingItem?: boolean }, getBlock: (p: Position) => NavigationBlock | null): PhysicsState;
 export declare function environmentAt(position: Position, getBlock: (p: Position) => NavigationBlock | null): Environment;
 export declare function fluidAt(block: NavigationBlock | null): { kind: 'water' | 'lava'; height: number; level: number; falling: boolean } | null;
@@ -136,13 +160,26 @@ export interface StorageSearchResult { storages: (FoundBlock & StorageIdentity)[
 export declare function isStorageBlock(name: string): boolean;
 export declare function storageIdentity(world: Pick<KudoWorld,'blockAt'>, position: Position): StorageIdentity | null;
 export declare function findStorages(client: KudoConnect, options?: StorageSearchOptions): Promise<StorageSearchResult>;
-export interface CraftRecipe { item:string;count:number;width:number;height:number;table:boolean;cells:{x:number;y:number;choices:string[]}[]; }
-export declare function craftingRecipes(registry:any,item:string):CraftRecipe[];
-export declare function chooseCraftingRecipe(registry:any,item:string,inventory:Record<string,number>,options?:{ingredients?:Record<string,number>}):(Omit<CraftRecipe,'cells'>&{cells:{x:number;y:number;item:string}[]})|null;
+export interface CraftRecipe { item:string;count:number;width?:number;height?:number;table:boolean;cells:{x:number;y:number;choices:string[]}[]; }
+export declare function craftingRecipes(registry:any,item:string,book?:WorldRecipeBook):CraftRecipe[];
+export declare function chooseCraftingRecipe(registry:any,item:string,inventory:Record<string,number>,options?:{ingredients?:Record<string,number>;recipeBook?:WorldRecipeBook}):(Omit<CraftRecipe,'cells'>&{cells:{x:number;y:number;item:string}[]})|null;
 export declare function smeltingRecipe(registry:any,item:string):{item:string;inputs:string[];ticks:number}|null;
 export declare function fuelItems(item:string):number;
 export declare function rotateToward(state:{yaw:number;pitch:number},angles:{yaw:number;pitch:number},options?:{turnSpeed?:number;dt?:number}):{yaw:number;pitch:number};
-export interface MovementControl { x:number;z:number;jump:boolean;sprint:boolean; }
+export interface MovementControl { x:number;z:number;jump:boolean;sprint:boolean;sneak?:boolean; }
 export declare function travelControl(state:KudoState&{position:Position},target:Position,getBlock:(p:Position)=>NavigationBlock|null,options?:{sprint?:boolean;sprintJump?:boolean;guarding?:boolean;longDistance?:number}):MovementControl;
 export declare function combatControl(state:KudoState&{position:Position},target:Position,mode:string,getBlock:(p:Position)=>NavigationBlock|null,options?:{guarding?:boolean;strafeSide?:number}):MovementControl;
 export declare function bridgeMaterials(registry:any,items:KudoItem[],options?:{blockAtState?:(stateId:number)=>NavigationBlock;itemValue?:(name:string,item:KudoItem)=>number;reserve?:number}):{name:string;block:string;count:number;value:number;slot:number}[];
+export interface RecipeBookSnapshot {source:'server'|'waiting';revision:number;announced:number;indexedOutputs:number;}
+export interface WorldRecipe {id:string;type:string;output:{item:string;count:number};ingredients:{choices:string[];count:number}[];station:string|null;executable:boolean;cells:{x:number;y:number;choices:string[]}[];reason:string;}
+export declare class WorldRecipeBook {constructor(registry:any);readonly received:boolean;readonly revision:number;ingest(packet:{recipes:any[]}):void;recipesFor(item:string):WorldRecipe[];snapshot():RecipeBookSnapshot;}
+export declare const NATIVE_VERSIONS:readonly string[];
+export interface VersionSupport {version:string;known:boolean;protocol:number|null;catalog:boolean;transport:boolean;native:boolean;liveTested:boolean;}
+export declare function versionSupport(version:string):VersionSupport;
+export declare function listVersionSupport():Pick<VersionSupport,'version'|'native'|'liveTested'|'transport'>[];
+
+export interface TickTimingSnapshot {ticks:number;samples:number;meanIntervalMs:number|null;p95IntervalMs:number|null;maxIntervalMs:number|null;delayedTicks:number;effectiveHz:number|null;}
+
+export interface WorkSchedulerSnapshot {completed:number;failed:number;cancelled:number;turns:number;maxTurnMs:number;pending:number;closed:boolean;budgetMs:number;maxJobs:number;}
+export interface WorkScheduler {submit<T>(iterator:Iterator<unknown,T>, options?:{signal?:AbortSignal;sliceMs?:number;nodesPerSlice?:number;validate?:()=>void}):Promise<T>;snapshot():WorkSchedulerSnapshot;close():void;}
+export declare function createWorkScheduler(options?:{budgetMs?:number;maxJobs?:number}):WorkScheduler;

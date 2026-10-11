@@ -28,6 +28,7 @@ export class KudoPlayers {
   enrich(e) {
     if (e.kind !== 'player') return e;
     const identity = this.directory.get(e.uuid); e.username = identity?.username ?? null; e.identityKnown = Boolean(e.username); e.eyeHeight ??= 1.62;
+    e.gameMode=identity?.gameMode??null;
     return e;
   }
   entity(selector) {

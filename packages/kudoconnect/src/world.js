@@ -9,7 +9,7 @@ export class KudoWorld extends EventEmitter {
     super();
     this.registry = registry; this.Chunk = chunkLoader(registry); this.Block = blockLoader(registry);
     if (!Number.isInteger(maxChunks) || maxChunks < 1 || maxChunks > 4096) throw new Error('maxChunks: 1–4096.');
-    this.maxChunks = maxChunks; this.focus = { x: 0, z: 0 }; this.columns = new Map(); this.classes = new Map(); this.revision = 0; this.reset('minecraft:overworld');
+    this.maxChunks = maxChunks; this.focus = { x: 0, z: 0 }; this.columns = new Map(); this.classes = new Map(); this.revision = 0; this.epoch = 0; this.columnRevisions = new WeakMap(); this.reset('minecraft:overworld');
     const all = registry.blocksArray.map(b => b.name);
     for (const [group, pattern] of Object.entries({ logs: /(_log|_stem)$/, leaves: /_leaves$/, ores: /_ore$|^ancient_debris$/, deepslate_ores: /^deepslate_.*_ore$/, crops: /^(wheat|carrots|potatoes|beetroots|nether_wart)$/, workstations: /^(crafting_table|furnace|smoker|blast_furnace|brewing_stand)$/ })) this.classes.set(group, all.filter(n => pattern.test(n)));
     this.classes.set('tree', [...this.classes.get('logs'), ...this.classes.get('leaves')]);
@@ -25,7 +25,7 @@ export class KudoWorld extends EventEmitter {
     return [...new Set(selectors.flatMap(n => { if (typeof n !== 'string') throw new Error('Селектор должен быть строкой.'); const group = n.startsWith('#') ? this.classes.get(n.slice(1)) : [n.replace(/^minecraft:/, '')]; if (!group || group.some(id => !this.registry.blocksByName[id])) throw new Error(`Неизвестный селектор ${n}.`); return group; }))];
   }
   reset(dimension, minY = dimension === 'minecraft:overworld' ? -64 : 0, height = dimension === 'minecraft:overworld' ? 384 : 256) {
-    this.dimension = dimension; this.minY = minY; this.height = height; this.columns.clear(); this.revision++;
+    this.dimension = dimension; this.minY = minY; this.height = height; this.columns.clear(); this.revision++; this.epoch++;
   }
   load(packet) {
     const column = new this.Chunk({ minY: this.minY, worldHeight: this.height }); column.load(packet.chunkData);
@@ -48,10 +48,26 @@ export class KudoWorld extends EventEmitter {
     const stateId = this.stateAt(p); if (stateId === null) return null;
     const block = this.Block.fromStateId(stateId, 0); block.position = { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) }; return block;
   }
+  /** Track only chunks actually read by a computation, including absent chunks. */
+  createReadView() {
+    const epoch = this.epoch, reads = new Map();
+    return {
+      blockAt: p => {
+        const key = `${Math.floor(p.x / 16)},${Math.floor(p.z / 16)}`, column = this.columns.get(key);
+        if (!reads.has(key)) reads.set(key, { column, revision: column ? this.columnRevisions.get(column) || 0 : null });
+        return this.blockAt(p);
+      },
+      isCurrent: () => epoch === this.epoch && [...reads].every(([key, old]) => {
+        const column = this.columns.get(key);
+        return column === old.column && (column ? this.columnRevisions.get(column) || 0 : null) === old.revision;
+      })
+    };
+  }
   update(p, stateId) {
     const column = this.columnAt(p); if (!column) return false;
     const previous = this.stateAt(p);
     column.setBlockStateId({ x: Math.floor(p.x) & 15, y: Math.floor(p.y), z: Math.floor(p.z) & 15 }, stateId); this.revision++;
+    this.columnRevisions.set(column, (this.columnRevisions.get(column) || 0) + 1);
     this.emit('blockUpdate', { position: { ...p }, previous, stateId }); return true;
   }
   async findBlocks({ names = [], classes = [], properties = {}, position, radius = 32, count = 32, maxVisited = 250000, signal }) {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { KudoConnect } from '../src/client.js';
-import { craftingRecipes, chooseCraftingRecipe, craft, ensureStation, smelt, smeltingRecipe } from '../src/crafting.js';
+import { craftingRecipes, chooseCraftingRecipe, craft, ensureStation, smelt, smeltingRecipe, smith } from '../src/crafting.js';
 
 const registry = new KudoConnect().registry;
 const empty = () => ({ itemCount: 0 });
@@ -10,7 +10,7 @@ const nameOf = value => value?.itemCount ? registry.items[value.itemId].name : n
 const signal = () => new AbortController().signal;
 
 function fixture(initial = {}, { station, ack = true, resultOnly = false, rejectResult = false } = {}) {
-  const c = new KudoConnect(), packets = [], invoked = [], blocks = new Map();
+  const c = new KudoConnect(), packets = [], invoked = [], blocks = new Map(); c.recipeBook=null;
   c.state = { ...c.state, status: 'ready', health: 20, food: 20, position: { x: .5, y: 1, z: .5 }, onGround: true };
   c.lookAt = () => {}; c.waitForLook = async () => {};
   let inventory = Array.from({ length: 46 }, empty), active = null, cursor = empty(), revision = 0, burnTimer;
@@ -34,6 +34,9 @@ function fixture(initial = {}, { station, ack = true, resultOnly = false, reject
   };
   const recompute = () => {
     const slots = active?.slots || inventory;
+    if(active?.station==='smithing_table'){
+      slots[3]=nameOf(slots[0])==='netherite_upgrade_smithing_template'&&nameOf(slots[1])==='diamond_pickaxe'&&nameOf(slots[2])==='netherite_ingot'?raw('netherite_pickaxe'):empty();return;
+    }
     if (active?.station === 'furnace') {
       if (!burnTimer && nameOf(slots[0]) === 'raw_iron' && nameOf(slots[1]) === 'coal') burnTimer = setTimeout(() => {
         const amount = slots[0].itemCount; slots[0] = empty(); slots[1].itemCount--; slots[2] = raw('iron_ingot', amount); sync();
@@ -52,9 +55,9 @@ function fixture(initial = {}, { station, ack = true, resultOnly = false, reject
   c.client = { state: 'play', end() {}, write(name, p) {
     packets.push({ name, p: structuredClone(p) });
     if (name === 'block_place') {
-      const station = blocks.get(posKey(p.location)), top = station === 'crafting_table' ? 10 : 3;
+      const station = blocks.get(posKey(p.location)), top = station === 'crafting_table' ? 10 : station==='smithing_table'?4:3;
       assert.ok(station); active = { station, top, slots: [...Array.from({length:top}, empty), ...structuredClone(inventory.slice(9,45))] };
-      c.containers.open({ windowId:1, inventoryType: station === 'crafting_table' ? 12 : 14 }); sync();
+      c.containers.open({ windowId:1, inventoryType: station === 'crafting_table' ? 12 : station==='smithing_table'?21:14 }); sync();
     }
     if (name === 'close_window') {
       if (active) { inventory.splice(9,36,...structuredClone(active.slots.slice(active.top))); if(active.station === 'crafting_table') for(const s of active.slots.slice(1,10)) if(s.itemCount)add(inventory,nameOf(s),s.itemCount); }
@@ -67,6 +70,7 @@ function fixture(initial = {}, { station, ack = true, resultOnly = false, reject
       if (p.slot < 0) { sync(); return; }
       const source = slots[p.slot];
       if (p.mode === 1) {
+        if(active?.station==='smithing_table'&&p.slot===3&&!resultOnly)for(let i=0;i<3;i++)slots[i]=empty();
         if (!resultOnly) { slots[p.slot]=empty(); if(p.slot===0 && active?.station!=='furnace')for(let i=1;i<(active?10:5);i++)slots[i]=empty(); }
         add(slots,nameOf(source),source.itemCount,top,top+36);
       } else if (!cursor.itemCount) { cursor=structuredClone(source); slots[p.slot]=empty(); }
@@ -97,6 +101,16 @@ test('registry recipes resolve mixed vanilla planks while preserving species rec
   assert.equal(chooseCraftingRecipe(registry,'stick',{oak_planks:2}).count,4);
   assert.equal(craftingRecipes(registry,'diamond_chestplate')[0].table,true);
   assert.deepEqual(craftingRecipes(registry,'cake'),[]);
+});
+
+test('smithing consumes the template and ingot only after authoritative result and closes menu',async()=>{
+  const {c,runtime}=fixture({diamond_pickaxe:1,netherite_ingot:1,netherite_upgrade_smithing_template:1},{station:'smithing_table'});
+  const result=await smith(c,{item:'diamond_pickaxe'},signal(),runtime);
+  assert.equal(result.serverConfirmed,true);assert.equal(c.inventory.count('netherite_pickaxe'),1);assert.equal(c.inventory.count('diamond_pickaxe'),0);assert.equal(c.inventory.count('netherite_ingot'),0);assert.equal(c.inventory.count('netherite_upgrade_smithing_template'),0);assert.equal(c.containers.current,null);
+});
+test('smithing refuses missing template before opening a workstation',async()=>{
+  const {c,runtime,packets}=fixture({diamond_pickaxe:1,netherite_ingot:1},{station:'smithing_table'});
+  await assert.rejects(smith(c,{item:'diamond_pickaxe'},signal(),runtime),/шаблон/);assert.equal(packets.length,0);
 });
 
 test('inventory crafting only reports server-confirmed inputs, cursor and new result items', async () => {

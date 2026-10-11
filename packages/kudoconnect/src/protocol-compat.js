@@ -8,7 +8,7 @@ let cached;
  * Upstream correction: PrismarineJS/minecraft-data#1291 (recipe serializer IDs).
  */
 export function recipeProtocol(registry) {
-  if (registry.version.minecraftVersion !== '1.21.1') throw new Error('Recipe compatibility: Java 1.21.1 only.');
+  if (!['1.21','1.21.1'].includes(registry.version.minecraftVersion)) throw new Error('Recipe compatibility: Java 1.21/1.21.1 only.');
   if (cached) return cached;
   const definition = structuredClone(registry.protocol);
   const fields = definition.play.toClient.types.packet_declare_recipes[1][0].type[1].type[1];

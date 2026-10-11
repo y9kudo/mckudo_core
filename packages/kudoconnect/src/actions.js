@@ -1,16 +1,20 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { performance } from 'node:perf_hooks';
-import { planRoute, isAir, isFullBlock, isHazard } from './navigation.js';
-import { weaponProfile, chooseWeapon, combatDecision } from './combat.js';
+import { planRouteAsync, readRouteWorld, isAir, isFullBlock, isHazard } from './navigation.js';
+import { weaponProfile, chooseWeapon, combatDecision, shieldFaces } from './combat.js';
 import { solveAim } from './projectiles.js';
 import { miningTime, chooseMiningTool, remainingDurability } from './equipment.js';
 import { isStorageBlock, storageIdentity } from './containers.js';
-import { executeNavigate, combatControl } from './movement.js';
-import { craft, ensureStation, smelt } from './crafting.js';
+import { executeNavigate, combatControl, wrapDegrees, safeCorridor, routeCanDig } from './movement.js';
+import { craft, ensureStation, smelt, smith } from './crafting.js';
 import { prepareBed, sleep } from './rest.js';
 import { ignitePortal, fillEndFrame, throwEye, enterPortal } from './portals.js';
+import { pillar, descendPillar } from './pillar.js';
+import { executeCollect } from './collection.js';
+import {assertEdit, editDecision, rememberPlacement} from './protection.js';
+import {CombatPursuit, combatApproach} from './combat-navigation.js';
 export { miningTime, chooseMiningTool } from './equipment.js';
-export const KUDO_SKILLS = Object.freeze(['look', 'lookAtPlayer', 'lootChest', 'select', 'equipArmor', 'prepareBed', 'sleep', 'goto', 'navigate', 'dig', 'gather', 'collect', 'place', 'craft', 'ensureStation', 'smelt', 'attack', 'combat', 'guard', 'shoot', 'drop', 'eat', 'wait', 'ignitePortal', 'fillEndFrame', 'throwEye', 'enterPortal']);
+export const KUDO_SKILLS = Object.freeze(['look', 'lookAtPlayer', 'lootChest', 'select', 'equipArmor', 'prepareBed', 'sleep', 'goto', 'navigate', 'pillar', 'descendPillar', 'evade', 'dig', 'gather', 'collect', 'place', 'craft', 'smith', 'ensureStation', 'smelt', 'attack', 'combat', 'guard', 'shoot', 'drop', 'eat', 'wait', 'ignitePortal', 'fillEndFrame', 'throwEye', 'enterPortal']);
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 const point = p => p && ['x', 'y', 'z'].every(k => Number.isFinite(p[k]) && Math.abs(p[k]) <= 30000000);
 const floor = p => ({ x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) });
@@ -68,17 +72,18 @@ async function approach(c, position, signal) {
     if (isAir(c.world.blockAt(p)) && isAir(c.world.blockAt({ ...p, y: p.y + 1 })) && isFullBlock(c.world.blockAt({ ...p, y: p.y - 1 }))) candidates.push(p);
   }
   candidates.sort((a, b) => distance(a, c.state.position) - distance(b, c.state.position));
-  for (const p of candidates.slice(0, 24)) {
-    const route = planRoute({ start: floor(c.state.position), goal: p, getBlock: q => c.world.blockAt(q), maxNodes: 3000, maxDistance: 128, maxDrop: 2 });
+  for (const excavate of [false,true]) for (const p of candidates.slice(0, 24)) {
+    const view = readRouteWorld(c.world);
+    const route = await planRouteAsync({ start: floor(c.state.position), goal: p, getBlock: view.getBlock, canDig:excavate?routeCanDig(c):()=>false, maxNodes: 3000, maxDistance: 128, maxDrop: 2, signal }, { getRevision: view.getRevision });
     if (route.status !== 'planned') continue;
-    await navigate(c, { ...p, range: 0 }, signal);
+    await navigate(c, { ...p, range: 0, excavate, maxDrop:2, bridge:false }, signal);
     if (distance(eye(), aim) <= 4.3 && visible(c, aim)) return;
   }
   throw new Error('Нет достижимой позиции с видимостью целевого блока.');
 }
 async function dig(c, args, signal) {
   if (!point(args)) throw new Error('dig: нужны координаты.');
-  const position = floor(args); await approach(c, position, signal); alive(c, signal);
+  const position = floor(args); assertEdit(c,'dig',position); await approach(c, position, signal); alive(c, signal);
   const b = c.world.blockAt(position); if (!b || args.block && name(args.block) !== b.name) throw new Error('Целевой блок отсутствует или изменился.');
   const foot = floor(c.state.position);
   if (position.x === foot.x && position.z === foot.z && position.y < foot.y) throw new Error('Добыча под собой запрещена.');
@@ -95,47 +100,44 @@ async function dig(c, args, signal) {
   if (timing.milliseconds > 30000) throw new Error('Слишком долгая добыча без подходящего инструмента.');
   c.lookAt(center(position)); await c.waitForLook?.({ signal }); const original = b.stateId, face = 1; let complete = false;
   const started = performance.now();
+  assertEdit(c,'dig',position);
+  if (c.world.stateAt(position) !== original) throw new Error('Целевой блок изменился во время подготовки добычи.');
   c.write('block_dig', { status: 0, location: position, face, sequence: ++c.sequence }); c.write('arm_animation', { hand: 0 });
   try {
     await delay(timing.milliseconds, undefined, { signal }); alive(c, signal);
+    assertEdit(c,'dig',position);
+    if (c.world.stateAt(position) !== original) throw new Error('Целевой блок изменился во время добычи.');
     c.write('block_dig', { status: 2, location: position, face, sequence: ++c.sequence });
     await c.waitFor(() => c.world.stateAt(position) !== null && c.world.stateAt(position) !== original, { event: 'block', signal, timeoutMs: 3000 }); complete = true;
     return { ok: true, position, block: b.name, serverConfirmed: true, durationMs: performance.now() - started };
   } finally { if (!complete && c.client.state === 'play') c.write('block_dig', { status: 1, location: position, face, sequence: ++c.sequence }); }
 }
 async function collect(c, args, signal) {
-  const itemName = name(args.item), before = args.beforeCount ?? c.inventory.count(itemName), until = Date.now() + (args.timeoutMs ?? 10000), origin = args.origin || c.state.position;
-  if (!point(origin) || !Number.isInteger(before) || before < 0 || args.timeoutMs !== undefined && (!Number.isInteger(args.timeoutMs) || args.timeoutMs < 100 || args.timeoutMs > 30000)) throw new Error('collect: неверные параметры.');
-  while (Date.now() < until) {
-    alive(c, signal); if (c.inventory.count(itemName) > before) return { ok: true, gained: c.inventory.count(itemName) - before, serverConfirmed: true };
-    if(args.entityId!==undefined&&![...c.entities.values()].some(e=>e.id===String(args.entityId)))return {ok:true,gained:0,serverConfirmed:false,reason:'Целевая сущность исчезла; получение предмета не подтверждено.'};
-    const drop = [...c.entities.values()].filter(e => e.name === 'item' && e.item?.name === itemName && (args.entityId===undefined||e.id===String(args.entityId)) && distance(e.position, origin) <= 16).sort((a, b) => distance(a.position, c.state.position) - distance(b.position, c.state.position))[0];
-    if (drop) {
-      const base = floor(drop.position), candidates = [];
-      for (let y = base.y - 2; y <= base.y; y++) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
-        const target = { x: base.x + dx, y, z: base.z + dz };
-        if (isAir(c.world.blockAt(target)) && isAir(c.world.blockAt({ ...target, y: y + 1 })) && isFullBlock(c.world.blockAt({ ...target, y: y - 1 }))) candidates.push(target);
-      }
-      candidates.sort((a, b) => distance(center(a), drop.position) - distance(center(b), drop.position));
-      // Item entities often spawn in mid-air. Wait for physics rather than planning to an unsupported cell.
-      for (const target of candidates) {
-        const route = planRoute({ start: floor(c.state.position), goal: target, getBlock: p => c.world.blockAt(p), maxDistance: 32, maxNodes: 3000, maxDrop: 2 });
-        if (route.status !== 'planned') continue;
-        const budget = Math.min(1500,until-Date.now()); if(budget<=0)break;
-        try { await navigate(c, { ...target, range: 0 }, AbortSignal.any([signal,AbortSignal.timeout(budget)])); }
-        catch(error){signal.throwIfAborted();if(c.inventory.count(itemName)>before)break;}
-        break;
-      }
-    }
-    await delay(50, undefined, { signal });
-  }
-  throw new Error('Подбор не подтверждён обновлением инвентаря.');
+  return executeCollect(c, args, signal, { navigate });
 }
 export async function runAction(c, action, signal) {
   const { skill, args = {} } = action;
   if (!KUDO_SKILLS.includes(skill)) throw new Error(`KudoConnect пока не реализует ${skill}.`);
   alive(c, signal);
   if (['ignitePortal','fillEndFrame','throwEye','enterPortal'].includes(skill)) return ({ignitePortal,fillEndFrame,throwEye,enterPortal})[skill](c,args,signal,{run:runAction,approach,select});
+  if (skill === 'pillar') return pillar(c,args,signal,{select});
+  if (skill === 'descendPillar') return descendPillar(c,args,signal,{select});
+  if (skill === 'evade') {
+    if (!point(args.from)) throw new Error('evade.from: нужна известная точка опасности.');
+    const here=floor(c.state.position), candidates=[];
+    for(let dx=-6;dx<=6;dx++)for(let dz=-6;dz<=6;dz++) {
+      const p={x:here.x+dx,y:here.y,z:here.z+dz};
+      if (Math.hypot(dx,dz)<3 || distance(p,args.from)<distance(here,args.from)+2) continue;
+      if ([...c.entities.values()].some(e=>e.name==='end_crystal' && distance(p,e.position)<12 || e.name==='area_effect_cloud' && distance(p,e.position)<(e.metadata?.radius||3)+2)) continue;
+      if(isAir(c.world.blockAt(p))&&isAir(c.world.blockAt({...p,y:p.y+1}))&&isFullBlock(c.world.blockAt({...p,y:p.y-1}))) candidates.push(p);
+    }
+    candidates.sort((a,b)=>distance(b,args.from)-distance(a,args.from));
+    for(const p of candidates.slice(0,24)) {
+      const view = readRouteWorld(c.world);
+      if((await planRouteAsync({start:here,goal:p,getBlock:view.getBlock,maxNodes:1000,maxDistance:12,maxDrop:1,signal}, {getRevision:view.getRevision})).status==='planned') return navigate(c,{...p,range:0,bridge:false,sprintJump:false,maxDrop:1},signal);
+    }
+    throw new Error('Не найден известный безопасный маршрут отхода.');
+  }
   if(skill==='equipArmor'){
     const itemName=name(args.item),part=['helmet','chestplate','leggings','boots'].findIndex(s=>itemName.endsWith('_'+s));
     if(part<0||!c.registry.itemsByName[itemName])throw new Error('equipArmor: нужен предмет брони.');
@@ -149,6 +151,7 @@ export async function runAction(c, action, signal) {
   }
   if (skill === 'look') { if (!point(args)) throw new Error('look: x/y/z.'); c.lookAt(args); await c.waitForLook?.({ signal }); return { ok: true }; }
   if (skill === 'craft') return craft(c, args, signal, { run: runAction, approach });
+  if (skill === 'smith') return smith(c, args, signal, { run: runAction, approach });
   if (skill === 'ensureStation') return ensureStation(c, args, signal, { run: runAction, approach });
   if (skill === 'smelt') return smelt(c, args, signal, { run: runAction, approach });
   if (skill === 'prepareBed') return prepareBed(c,args,signal,{run:runAction,approach});
@@ -203,7 +206,7 @@ export async function runAction(c, action, signal) {
     for (let i = 0; i < count; i++) {
       const found = await c.world.findBlocks({ names, position: c.state.position, radius: 64, count: 16, signal });
       let block, lastError;
-      for (const candidate of found.blocks) {
+      for (const candidate of found.blocks.filter(b=>editDecision(c,'dig',b.position).allowed)) {
         try { await approach(c, candidate.position, signal); block = candidate; break; } catch (e) { signal.throwIfAborted(); lastError = e; }
       }
       if (!block) throw lastError || new Error(`Нет достижимого блока ${selectors}.`);
@@ -218,14 +221,17 @@ export async function runAction(c, action, signal) {
   }
   if (skill === 'place') {
     if (!point(args)) throw new Error('place: координаты.');
-    const p = floor(args), blockName = name(args.block); await approach(c, p, signal);
+    const p = floor(args), blockName = name(args.block); assertEdit(c,'place',p); await approach(c, p, signal);
     if (!isAir(c.world.blockAt(p))) throw new Error('Место установки занято.');
     const faces = [[0, -1, 0, 1], [0, 1, 0, 0], [0, 0, -1, 3], [0, 0, 1, 2], [-1, 0, 0, 5], [1, 0, 0, 4]];
     const face = faces.find(([x, y, z]) => isFullBlock(c.world.blockAt({ x: p.x + x, y: p.y + y, z: p.z + z })));
     if (!face) throw new Error('Нет наблюдаемой опорной грани.');
     await select(c, blockName, signal); const ref = { x: p.x + face[0], y: p.y + face[1], z: p.z + face[2] };
-    c.lookAt(center(ref)); await c.waitForLook?.({ signal }); c.write('block_place', { hand: 0, location: ref, direction: face[3], cursorX: 0.5, cursorY: 0.5, cursorZ: 0.5, insideBlock: false, sequence: ++c.sequence });
-    await c.waitFor(() => c.world.blockAt(p)?.name === blockName, { signal, event: 'block', timeoutMs: 3000 }); return { ok: true, serverConfirmed: true };
+    const cursor={x:.5-face[0]*.5,y:.5-face[1]*.5,z:.5-face[2]*.5};
+    c.lookAt({x:ref.x+cursor.x,y:ref.y+cursor.y,z:ref.z+cursor.z}); await c.waitForLook?.({ signal }); assertEdit(c,'place',p);
+    if (!isAir(c.world.blockAt(p)) || !isFullBlock(c.world.blockAt(ref))) throw new Error('Место установки или опора изменились во время поворота.');
+    c.write('block_place', { hand: 0, location: ref, direction: face[3], cursorX: cursor.x, cursorY: cursor.y, cursorZ: cursor.z, insideBlock: false, sequence: ++c.sequence });
+    await c.waitFor(() => c.world.blockAt(p)?.name === blockName, { signal, event: 'block', timeoutMs: 3000 }); rememberPlacement(c,p); return { ok: true, serverConfirmed: true };
   }
   if (skill === 'attack') {
     const e = c.entities.get(Number(args.entityId)); if (!e || e.kind === 'player' && args.allowPlayer !== true) throw new Error('Недоступная цель; PvP требует allowPlayer.');
@@ -242,23 +248,34 @@ export async function runAction(c, action, signal) {
     if (!Number.isInteger(duration) || duration < 50 || duration > 2000 || !Number.isFinite(maxDistance) || maxDistance < 1 || maxDistance > 32) throw new Error('combat: неверный бюджет.');
     const target = c.entities.get(Number(args.entityId));
     if (!target || target.kind === 'player' && args.allowPlayer !== true) throw new Error('Нет разрешённой цели боя.');
-    const shieldedTarget = Boolean(target.metadata?.living_entity_flags & 1) && Object.values(target.equipment || {}).some(i => i?.name === 'shield');
-    const weapon = chooseWeapon(c.inventory.items().filter(i => remainingDurability(i, c.registry) > 0), { shieldedTarget });
+    const shieldedTarget = shieldFaces(target,c.state.position);
+    const avoidSweep=[...c.entities.values()].some(e=>e.kind==='player'&&e.gameMode!==3&&e!==target&&String(e.id)!==String(c.state.entityId)&&distance(e.position,target.position)<2);
+    if(c.inventory.items().some(i=>i.name==='shield'&&remainingDurability(i,c.registry)>0))await prepareShield(c,signal);
+    const weapon = chooseWeapon(c.inventory.items().filter(i => remainingDurability(i, c.registry) > 0), { shieldedTarget, avoidSweep });
     if (weapon && c.inventory.held()?.slot !== weapon.slot) await select(c, weapon, signal);
     else if (!weapon) await emptyHand(c, signal);
+    c.combatPursuit ??= new CombatPursuit();
     const until = Date.now() + duration;
     while (Date.now() < until) {
       alive(c, signal); if (c.entities.get(Number(target.id)) !== target) return { ok: true, targetGone: true, deathConfirmed: false };
       if (distance(c.state.position, target.position) > maxDistance) throw new Error('Цель вышла за дистанцию преследования.');
-      const shield = c.inventory.items().some(i => i.name === 'shield');
-      const tactic = combatDecision({ self: { ...c.state, shield }, target: { ...target, charging: target.name === 'blaze' && Boolean(target.metadata.flags & 1) },
-        projectiles: [...c.entities.values()].filter(e => ['arrow', 'small_fireball', 'fireball', 'trident'].includes(e.name)), nextAttackAt: c.nextAttackAt || 0, now: performance.now(), retreatHealth: args.retreatHealth ?? 8 });
+      const now=performance.now(),shield=c.inventory.slots[45]?.name==='shield'&&remainingDurability(c.inventory.slots[45],c.registry)>0;
+      if(c.combatJump){if(!c.state.onGround)c.combatJump.airborne=true;if(c.combatJump.target!==target.id||now>c.combatJump.until||c.combatJump.airborne&&c.state.onGround)c.combatJump=null;}
+      const jumpKey=String(target.id)+'/'+(c.nextAttackAt||0),nearby=[...c.entities.values()].filter(e=>e!==target&&e.kind==='player'&&distance(e.position,c.state.position)<3).length;
+      const safeJump=args.critical!==false&&weapon&&c.state.health>12&&c.state.food>6&&!nearby&&!c.guarding&&c.state.onGround&&c.criticalAttempt!==jumpKey&&['x','z'].every(axis=>[-1,1].every(sign=>safeCorridor(c.state.position,{x:axis==='x'?sign:0,z:axis==='z'?sign:0},1,p=>c.world.blockAt(p),{headroom:4})));
+      const tactic = combatDecision({ self: { ...c.state, shield,shieldDisabledUntil:c.shieldDisabledUntil }, target: { ...target,blocking:shieldFaces(target,c.state.position), charging: target.name === 'blaze' && Boolean(target.metadata.flags & 1) },
+        projectiles: [...c.entities.values()].filter(e => ['arrow', 'small_fireball', 'fireball', 'trident'].includes(e.name)), nextAttackAt: c.nextAttackAt || 0, now, retreatHealth: args.retreatHealth ?? 8,criticalPending:Boolean(c.combatJump),canCriticalJump:safeJump });
+      if(tactic.mode!=='retreat'){
+        const pursuit=c.combatPursuit.observe({target,position:c.state.position,dimension:c.state.dimension,now,maxDistance});
+        if(!pursuit.allowed){c.stopMovement();throw new Error(pursuit.reason);}
+      }
       if (!['approach', 'retreat', 'strafe'].includes(tactic.mode)) c.stopMovement();
       c.lookAt({ ...target.position, y: target.position.y + 1 }, { signal, turnSpeed: 720 });
-      if (tactic.mode === 'block') return runAction(c, { skill: 'guard', args: { durationMs: Math.max(50, Math.min(400, until - Date.now())) } }, signal);
-      if (tactic.mode === 'strike') await runAction(c, { skill: 'attack', args: { entityId: target.id, allowPlayer: args.allowPlayer === true } }, signal);
+      if (tactic.mode === 'block') {c.combatJump=null;return runAction(c, { skill: 'guard', args: { entityId:target.id,durationMs: Math.max(250, Math.min(600, until - Date.now())) } }, signal);}
+      if (tactic.mode === 'jump') {c.combatJump||={target:target.id,until:now+1500,airborne:false};c.criticalAttempt=jumpKey;c.control={x:0,z:0,jump:true,sprint:false};}
+      if (tactic.mode === 'strike') {if(avoidSweep&&weaponProfile(c.inventory.held()?.name).kind==='sword'&&!tactic.critical)throw new Error('Рядом с целью посторонний игрок: массовый удар мечом небезопасен.');await runAction(c, { skill: 'attack', args: { entityId: target.id, allowPlayer: args.allowPlayer === true } }, signal);c.combatPursuit.attackSent(performance.now());c.combatJump=null;}
       if (['approach', 'retreat', 'strafe'].includes(tactic.mode)) {
-        c.control = combatControl(c.state, target.position, tactic.mode, p => c.world.blockAt(p), { guarding: c.guarding, strafeSide: Math.floor(Date.now() / 1800) % 2 ? -1 : 1 });
+        c.control = tactic.mode==='approach'?await combatApproach(c,target,signal):combatControl(c.state, target.position, tactic.mode, p => c.world.blockAt(p), { guarding: c.guarding, strafeSide: Math.floor(Date.now() / 1800) % 2 ? -1 : 1 });
       }
       await delay(25, undefined, { signal });
     }
@@ -266,16 +283,23 @@ export async function runAction(c, action, signal) {
   }
   if (skill === 'guard') {
     const duration = args.durationMs ?? 400; if (!Number.isInteger(duration) || duration < 50 || duration > 2000) throw new Error('guard.durationMs: 50–2000.');
-    if (c.inventory.slots[45]?.name !== 'shield') {
-      await select(c, 'shield', signal); const revision = c.inventory.revision;
-      c.write('block_dig', { status: 6, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: ++c.sequence });
-      await c.waitFor(() => c.inventory.revision > revision && c.inventory.slots[45]?.name === 'shield', { signal, event: 'inventory', timeoutMs: 3000 });
-    }
+    if(performance.now()<(c.shieldDisabledUntil||0))throw new Error('Сервер временно отключил щит.');
+    await prepareShield(c,signal);
     c.write('use_item', { hand: 1, sequence: ++c.sequence, rotation: { x: c.state.yaw, y: c.state.pitch } }); c.guarding = true;
-    try { await delay(duration, undefined, { signal }); return { ok: true, guardingRequested: true }; }
+    try { const until=Date.now()+duration;while(Date.now()<until){alive(c,signal);if(performance.now()<(c.shieldDisabledUntil||0))return {ok:true,shieldDisabled:true};const e=c.entities.get(Number(args.entityId));if(e)c.lookAt({...e.position,y:e.position.y+1},{signal,turnSpeed:720});await delay(25,undefined,{signal});}return { ok: true, guardingRequested: true }; }
     finally { c.guarding = false; if (c.client.state === 'play') c.write('block_dig', { status: 5, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: ++c.sequence }); }
   }
   if (skill === 'wait') { const ms = args.durationMs ?? 100; if (!Number.isInteger(ms) || ms < 1 || ms > 2000) throw new Error('wait.durationMs: 1–2000.'); await delay(ms, undefined, { signal }); return { ok: true }; }
+}
+
+async function prepareShield(c,signal){
+  if(c.inventory.slots[45]?.name==='shield')return;
+  const previous=c.inventory.selected;
+  await select(c,'shield',signal);const revision=c.inventory.revision;
+  c.write('block_dig',{status:6,location:{x:0,y:0,z:0},face:0,sequence:++c.sequence});
+  await c.waitFor(()=>c.inventory.revision>revision&&c.inventory.slots[45]?.name==='shield',{signal,event:'inventory',timeoutMs:3000});
+  // Restore the weapon slot once, rather than repeating a shield/weapon swap each combat frame.
+  if(c.inventory.selected!==previous&&c.inventory.slots[36+previous])await select(c,c.inventory.slots[36+previous],signal);
 }
 
 async function shoot(c, args, signal) {
@@ -284,6 +308,8 @@ async function shoot(c, args, signal) {
   const target = () => {
     const e = c.entities.get(Number(args.entityId));
     if (!e || e.kind === 'player' && args.allowPlayer !== true) throw new Error('Нет разрешённой цели выстрела; PvP требует allowPlayer.');
+    if(e.name==='end_crystal' && distance(c.state.position,e.position)<12)throw new Error('Выстрел по кристаллу требует дистанции не менее 12 блоков.');
+    if(e.name==='ender_dragon' && [5,6,7,9].includes(e.metadata?.phase))throw new Error('Дракон сидит или погибает: выстрел сейчас не нужен.');
     return e;
   };
   target(); await select(c, weapon, signal); c.stopMovement();
@@ -295,9 +321,19 @@ async function shoot(c, args, signal) {
     const solution = solveAim({ origin: { ...s.position, y: s.position.y + 1.52 }, target: { ...e.position, y: e.position.y + (c.registry.entitiesByName[e.name]?.height ?? 1.8) / 2 }, targetVelocity: e.velocity,
       inheritedVelocity: { x: s.velocity.x, y: s.onGround ? 0 : s.velocity.y, z: s.velocity.z }, weapon, chargeTicks, getBlock: p => c.world.blockAt(p) });
     if (solution.status !== 'aimed') throw new Error(`Нет траектории: ${solution.reason}.`);
-    c.cancelLook(); s.yaw = solution.yaw; s.pitch = solution.pitch; c.sendPosition(); return solution;
+    return solution;
   };
-  aim(); const originalSlot = c.inventory.selected;
+  const turn=async()=>{
+    for(let i=0;i<4;i++){
+      const solution=aim(),yaw=solution.yaw*Math.PI/180,pitch=solution.pitch*Math.PI/180,s=c.state;
+      c.lookAt({x:s.position.x-Math.sin(yaw)*Math.cos(pitch)*20,y:s.position.y+1.62-Math.sin(pitch)*20,z:s.position.z+Math.cos(yaw)*Math.cos(pitch)*20},{signal,turnSpeed:720});
+      await c.waitForLook({signal});
+      const fresh=aim();
+      if(Math.hypot(wrapDegrees(fresh.yaw-c.state.yaw),fresh.pitch-c.state.pitch)<1)return fresh;
+    }
+    throw new Error('Цель сместилась при наведении; нужен новый выстрел.');
+  };
+  await turn(); const originalSlot = c.inventory.selected;
   let using = false, released = false;
   const use = () => c.write('use_item', { hand: 0, sequence: ++c.sequence, rotation: { x: c.state.yaw, y: c.state.pitch } });
   try {
@@ -306,7 +342,7 @@ async function shoot(c, args, signal) {
       await delay((weapon === 'crossbow' ? 26 : chargeTicks + 1) * 50, undefined, { signal });
       if (weapon === 'crossbow') await c.waitFor(() => loaded().length > 0, { signal, event: 'inventory', timeoutMs: 2000 });
     }
-    alive(c, signal); const solution = aim(), ammoBefore = ammunition(), priorEntities = new Set(c.entities.keys());
+    alive(c, signal); const solution = await turn(), ammoBefore = ammunition(), priorEntities = new Set(c.entities.keys());
     if (weapon === 'crossbow' && loaded().some(raw => !['arrow', 'spectral_arrow', 'tipped_arrow'].includes(c.registry.items[raw.itemId]?.name))) throw new Error('Для этой баллистики арбалет должен содержать стрелы.');
     if (weapon === 'bow') c.write('block_dig', { status: 5, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: ++c.sequence });
     else use();

@@ -6,7 +6,7 @@ const copy = value => { const text = JSON.stringify(value); if (!text || Buffer.
 export class KudoPeer extends EventEmitter {
   constructor({ id, team, peers, send, clock = Date.now, settleMs = 100 }) {
     super();
-    if (!token(id) || !token(team) || !Array.isArray(peers) || peers.length < 1 || peers.length > 10 || new Set(peers).size !== peers.length || !peers.every(token) || !peers.includes(id) || typeof send !== 'function' || !Number.isInteger(settleMs) || settleMs < 0 || settleMs > 10000) throw new Error('Peer: team, id, 1–10 peers, send и settleMs 0–10000.');
+    if (!token(id) || !token(team) || !Array.isArray(peers) || peers.length < 1 || peers.length > 20 || new Set(peers).size !== peers.length || !peers.every(token) || !peers.includes(id) || typeof send !== 'function' || !Number.isInteger(settleMs) || settleMs < 0 || settleMs > 10000) throw new Error('Peer: team, id, 1–20 peers, send и settleMs 0–10000.');
     this.id = id; this.team = team; this.peers = new Set(peers); this.transport = send; this.clock = clock; this.settleMs = settleMs;
     this.sequence = 0; this.seen = new Map(); this.claims = new Map(); this.closed = false;
   }

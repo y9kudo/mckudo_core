@@ -1,10 +1,10 @@
 import { KudoConnect } from './client.js';
 import { KudoPeer } from './peers.js';
-export const DEFAULT_AGENT_NAMES = Object.freeze(['Alice', 'Blake', 'Charlie', 'Dylan', 'Ella', 'Finn', 'Grace', 'Henry', 'Ivy', 'Jack']);
+export const DEFAULT_AGENT_NAMES = Object.freeze(['Alice', 'Blake', 'Charlie', 'Dylan', 'Ella', 'Finn', 'Grace', 'Henry', 'Ivy', 'Jack', 'Kai', 'Leo', 'Mia', 'Nora', 'Oliver', 'Parker', 'Quinn', 'Ruby', 'Sam', 'Theo']);
 
 /** Lifecycle and in-process transport. Every client retains its own authoritative world view. */
 export function createFleet({ count = 1, names = DEFAULT_AGENT_NAMES.slice(0, count), connection = {}, team = 'local', createClient = options => new KudoConnect(options), settleMs = 100 } = {}) {
-  if (!Number.isInteger(count) || count < 1 || count > 10 || !Array.isArray(names) || names.length !== count || new Set(names.map(n => String(n).toLowerCase())).size !== count || names.some(n => !/^[A-Za-z0-9_]{1,16}$/.test(n))) throw new Error('Fleet: 1–10 агентов с уникальными Minecraft-именами латиницей.');
+  if (!Number.isInteger(count) || count < 1 || count > 20 || !Array.isArray(names) || names.length !== count || new Set(names.map(n => String(n).toLowerCase())).size !== count || names.some(n => !/^[A-Za-z0-9_]{1,16}$/.test(n))) throw new Error('Fleet: 1–20 агентов с уникальными Minecraft-именами латиницей.');
   const agents = new Map(), peers = new Map(); let connecting, closed = false, started = false;
   try {
     for (const name of names) {

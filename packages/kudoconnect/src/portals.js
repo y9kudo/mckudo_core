@@ -1,5 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { isAir, isFullBlock } from './navigation.js';
+import {assertEdit} from './protection.js';
 
 const point = p => p && ['x','y','z'].every(k => Number.isInteger(p[k]) && Math.abs(p[k]) <= 30000000);
 const distance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
@@ -16,10 +17,11 @@ export async function ignitePortal(c,args,signal,runtime) {
   }
   const ready=()=>inside.every(p=>c.world.blockAt(p)?.name==='nether_portal');
   if(ready())return {ok:true,serverConfirmed:true,alreadyActive:true};
+  for(const p of inside)assertEdit(c,'place',p);
   if(!frame.every(p=>c.world.blockAt(p)?.name==='obsidian')||!inside.every(p=>isAir(c.world.blockAt(p)))) throw new Error('Не наблюдается целая обсидиановая рама 4×5 с пустой серединой.');
   const bottom={...inside[0],y:origin.y};
   await runtime.approach(c,bottom,signal);await runtime.select(c,'flint_and_steel',signal);
-  c.stopMovement();c.lookAt(center(bottom));await c.waitForLook({signal});click(c,bottom);
+  c.stopMovement();c.lookAt(center(bottom));await c.waitForLook({signal});for(const p of inside)assertEdit(c,'place',p);click(c,bottom);
   await c.waitFor(ready,{event:'block',signal,timeoutMs:3000});
   return {ok:true,serverConfirmed:true,entrance:inside[0]};
 }
@@ -28,9 +30,10 @@ export async function fillEndFrame(c,args,signal,runtime) {
   if(!point(args)||c.state.dimension!=='minecraft:overworld')throw new Error('fillEndFrame: координаты рамки в обычном мире.');
   const ready=()=>c.world.blockAt(args)?.name==='end_portal_frame'&&c.world.blockAt(args).getProperties().eye===true;
   if(ready())return {ok:true,serverConfirmed:true,alreadyFilled:true};
+  assertEdit(c,'place',args);
   if(c.world.blockAt(args)?.name!=='end_portal_frame')throw new Error('Рамка End-портала не наблюдается.');
   await runtime.approach(c,args,signal);await runtime.select(c,'ender_eye',signal);
-  c.stopMovement();c.lookAt(center(args));await c.waitForLook({signal});click(c,{x:args.x,y:args.y,z:args.z});
+  c.stopMovement();c.lookAt(center(args));await c.waitForLook({signal});assertEdit(c,'place',args);click(c,{x:args.x,y:args.y,z:args.z});
   await c.waitFor(ready,{event:'block',signal,timeoutMs:3000});
   return {ok:true,serverConfirmed:true,position:{x:args.x,y:args.y,z:args.z}};
 }

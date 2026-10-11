@@ -17,9 +17,11 @@ const mixedPlankOutputs = new Set(['crafting_table', 'stick', 'chest', 'barrel',
 const stoneMaterials = new Set(['cobblestone', 'blackstone', 'cobbled_deepslate']);
 
 /** Return executable static recipes from the installed, version-pinned registry. */
-export function craftingRecipes(registry, item) {
+export function craftingRecipes(registry, item, book) {
   item = id(item); const output = registry.itemsByName[item];
   if (!output) throw new Error(`Неизвестный предмет ${item}.`);
+  if(book&&!book.received)return [];
+  if(book?.received)return book.recipesFor(item).filter(r=>r.executable&&r.type.startsWith('minecraft:crafting_')).map(r=>({item,count:r.output.count,table:Boolean(r.station),cells:r.cells.map(c=>({...c,choices:c.choices.map(n=>n.replace(/^minecraft:/,''))}))}));
   const recipes = [];
   for (const recipe of registry.recipes[output.id] || []) {
     if (recipe.outShape || recipe.outIngredients || !recipe.result || recipe.result.id !== output.id) continue;
@@ -45,14 +47,14 @@ export function craftingRecipes(registry, item) {
 }
 
 /** Select alternatives per slot while respecting every already reserved item. */
-export function chooseCraftingRecipe(registry, item, inventory, { ingredients } = {}) {
+export function chooseCraftingRecipe(registry, item, inventory, { ingredients, recipeBook } = {}) {
   const available = Object.fromEntries(Object.entries(inventory).map(([name, n]) => [id(name), n]));
   let allowed;
   if (ingredients !== undefined) {
     if (!ingredients || typeof ingredients !== 'object' || Array.isArray(ingredients)) throw new Error('ingredients: карта предметов и количеств.');
     allowed = Object.fromEntries(Object.entries(ingredients).map(([name, n]) => [id(name), integer(n, 1, 64, 'ingredients')]));
   }
-  for (const recipe of craftingRecipes(registry, item).sort((a, b) => Number(a.table) - Number(b.table) || b.count - a.count)) {
+  for (const recipe of craftingRecipes(registry, item,recipeBook).sort((a, b) => Number(a.table) - Number(b.table) || b.count - a.count)) {
     const remaining = { ...available }, limits = allowed && { ...allowed }, selected = [];
     for (const cell of [...recipe.cells].sort((a, b) => a.choices.length - b.choices.length)) {
       const choice = cell.choices.filter(n => remaining[n] > 0 && (!limits || limits[n] > 0)).sort((a, b) => remaining[b] - remaining[a])[0];
@@ -116,7 +118,7 @@ async function openStation(c, station, position, signal, runtime) {
   try {
     c.write('block_place', { hand: 0, location: position, direction: 1, cursorX: .5, cursorY: .5, cursorZ: .5, insideBlock: false, sequence: ++c.sequence });
     await c.waitFor(() => c.containers.current?.ready === true, { signal, event: 'container', timeoutMs: 4000 });
-    const window = c.containers.current, expected = station === 'crafting_table' ? 12 : 14;
+    const window = c.containers.current, expected = {crafting_table:12,furnace:14,smithing_table:21,brewing_stand:11}[station];
     if (window.type !== expected) throw new Error('Открылась другая рабочая станция.');
     return window;
   } catch (error) { await closeMenu(c, c.containers.current, signal).catch(() => {}); c.containerRequest = false; throw error; }
@@ -131,12 +133,12 @@ export async function craft(c, args, signal, runtime) {
   try {
     while (args.times !== undefined ? completed < args.times : produced < requested) {
       live(c, signal);
-      let recipe = chooseCraftingRecipe(c.registry, item, c.inventory.snapshot(), args);
+      let recipe = chooseCraftingRecipe(c.registry, item, c.inventory.snapshot(), {...args,recipeBook:c.recipeBook});
       if (!recipe) throw new Error(`Недостаточно ингредиентов или нет поддерживаемого рецепта ${item}.`);
       if (recipe.table && !window) {
         const station = await ensureStation(c, { station: 'crafting_table', gather: args.gather !== false }, signal, runtime);
         // Making a missing station may have consumed some of the same planks.
-        recipe = chooseCraftingRecipe(c.registry, item, c.inventory.snapshot(), args);
+        recipe = chooseCraftingRecipe(c.registry, item, c.inventory.snapshot(), {...args,recipeBook:c.recipeBook});
         if (!recipe) throw new Error(`После подготовки станции не хватает ингредиентов ${item}.`);
         window = await openStation(c, 'crafting_table', station.position, signal, runtime);
       }
@@ -181,7 +183,7 @@ export async function ensurePlanks(c, count, signal, runtime) {
 /** Reuse a reachable station; otherwise gather, craft and place one nearby. */
 export async function ensureStation(c, args, signal, runtime) {
   const station = id(args.station || args.item), gather = args.gather !== false;
-  if (!['crafting_table', 'furnace'].includes(station)) throw new Error('ensureStation: crafting_table или furnace.');
+  if (!['crafting_table', 'furnace','smithing_table','brewing_stand'].includes(station)) throw new Error('Неизвестная рабочая станция.');
   live(c, signal);
   const found = await c.world.findBlocks({ names: [station], position: c.state.position, radius: 64, count: 12, signal });
   for (const candidate of found.blocks) {
@@ -220,6 +222,7 @@ export async function ensureStation(c, args, signal, runtime) {
 }
 
 const smeltingInputs = {
+  netherite_scrap:['ancient_debris'],
   iron_ingot: ['raw_iron', 'iron_ore', 'deepslate_iron_ore'], gold_ingot: ['raw_gold', 'gold_ore', 'deepslate_gold_ore', 'nether_gold_ore'], copper_ingot: ['raw_copper', 'copper_ore', 'deepslate_copper_ore'],
   stone: ['cobblestone'], smooth_stone: ['stone'], glass: ['sand', 'red_sand'], brick: ['clay_ball'], nether_brick: ['netherrack'],
   cooked_beef: ['beef'], cooked_porkchop: ['porkchop'], cooked_chicken: ['chicken'], cooked_mutton: ['mutton'], cooked_rabbit: ['rabbit'], cooked_cod: ['cod'], cooked_salmon: ['salmon'], baked_potato: ['potato'], dried_kelp: ['kelp'],
@@ -231,6 +234,37 @@ export function smeltingRecipe(registry, item) {
 }
 export function fuelItems(item) { return /crimson|warped/.test(item) ? 0 : ['coal', 'charcoal'].includes(item) ? 8 : item === 'coal_block' ? 80 : /_(planks|log|wood)$/.test(item) ? 1.5 : item === 'stick' ? .5 : 0; }
 const furnaceReservations = new Set();
+
+/** Vanilla 1.21 smithing: keep server-produced components and confirm input consumption. */
+export async function smith(c,args,signal,runtime){
+  const item=id(args.item),output=item.replace(/^diamond_/,'netherite_');
+  if(!/^diamond_(helmet|chestplate|leggings|boots|sword|pickaxe|axe|shovel|hoe)$/.test(item)||!c.registry.itemsByName[output])throw new Error('smith.item: алмазное снаряжение.');
+  if(c.containers.current||c.inventory.cursor)throw new Error('Сначала освободи курсор и закрой окно.');
+  if(!c.inventory.count(item)){
+    const armor=c.inventory.slots.slice(5,9).find(i=>i?.name===item);
+    if(armor){const m=menu(c);await click(c,m,armor.slot,0,1,signal,()=>!m.slots()[armor.slot]&&c.inventory.count(item)>0);}
+  }
+  const names=['netherite_upgrade_smithing_template',item,'netherite_ingot'];
+  if(names.some(n=>!c.inventory.count(n)))throw new Error('Нужны алмазный предмет, незеритовый слиток и шаблон улучшения.');
+  const station=await ensureStation(c,{station:'smithing_table',gather:false},signal,runtime);let window;
+  try{
+    window=await openStation(c,'smithing_table',station.position,signal,runtime);const m=menu(c,window);
+    if(m.slots().slice(0,4).some(Boolean))throw new Error('Кузнечный стол занят.');
+    for(let slot=0;slot<3;slot++){
+      const source=m.slots().findIndex((s,n)=>n>=m.playerStart&&n<m.playerStart+36&&s?.name===names[slot]);
+      if(source<0)throw new Error('Пропал материал улучшения.');await moveOne(c,m,source,slot,signal);
+    }
+    const base=structuredClone(m.slots()[1]);
+    await c.waitFor(()=>m.slots()[3]?.name===output,{event:'container',signal,timeoutMs:4000});
+    const result=structuredClone(m.slots()[3]);
+    for(const component of base.raw.components||[]){
+      if(!(result.raw.components||[]).some(r=>r.type===component.type&&JSON.stringify(r.data)===JSON.stringify(component.data)))throw new Error('Сервер изменил компоненты предмета при улучшении; результат не забран.');
+    }
+    const before=c.inventory.count(output);await withdraw(c,m,3,signal);
+    await c.waitFor(()=>m.slots().slice(0,4).every(s=>!s)&&c.inventory.count(output)===before+1,{event:'container',signal,timeoutMs:4000});
+    return {ok:true,serverConfirmed:true,item:'minecraft:'+output,produced:1,components:result.raw.components||[],station:station.position};
+  }finally{await closeMenu(c,window,signal);}
+}
 
 export async function smelt(c, args, signal, runtime) {
   const item = id(args.item), count = integer(args.count ?? 1, 1, 64, 'smelt.count'), recipe = smeltingRecipe(c.registry, item);

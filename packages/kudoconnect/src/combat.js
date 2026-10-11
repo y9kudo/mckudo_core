@@ -7,14 +7,21 @@ export function weaponProfile(name = '') {
   if (n.endsWith('_axe')) return { damage: { wooden: 7, golden: 7, stone: 9, iron: 9, diamond: 9, netherite: 10 }[tier] || 1, cooldownMs: { wooden: 1250, stone: 1250, iron: 1112, golden: 1000, diamond: 1000, netherite: 1000 }[tier] || 1000, kind: 'axe' };
   return { damage: 1, cooldownMs: 250, kind: 'hand' };
 }
-export function chooseWeapon(items, { shieldedTarget = false } = {}) {
+export function chooseWeapon(items, { shieldedTarget = false, avoidSweep = false } = {}) {
   return items.filter(i => /_(sword|axe)$/.test(i.name || i.item || '')).sort((a, b) => {
-    const score = item => { const w = weaponProfile(item.name || item.item); return w.damage / w.cooldownMs * 1000 + (shieldedTarget && w.kind === 'axe' ? 20 : 0); };
+    const score = item => { const w = weaponProfile(item.name || item.item); return w.damage / w.cooldownMs * 1000 + ((shieldedTarget || avoidSweep) && w.kind === 'axe' ? 20 : 0); };
     return score(b) - score(a);
   })[0] || null;
 }
 
-export function combatDecision({ self, target, projectiles = [], nextAttackAt = 0, now = Date.now(), retreatHealth = 8 }) {
+export function shieldFaces(entity, position) {
+  const flags=entity.metadata?.living_entity_flags||0,hand=flags&2?1:0;
+  if(!(flags&1)||entity.equipment?.[hand]?.name!=='shield'||!Number.isFinite(entity.yaw)||!entity.position)return false;
+  const yaw=entity.yaw*Math.PI/180,dx=position.x-entity.position.x,dz=position.z-entity.position.z;
+  return -Math.sin(yaw)*dx+Math.cos(yaw)*dz>0;
+}
+
+export function combatDecision({ self, target, projectiles = [], nextAttackAt = 0, now = Date.now(), retreatHealth = 8, criticalPending = false, canCriticalJump = false }) {
   if (!self?.position || !target?.position) return { mode: 'stop', reason: 'Нет подтверждённой цели.' };
   const d = distance(self.position, target.position);
   if (self.health == null || self.health <= retreatHealth || target.name === 'creeper' && d < 5) return { mode: 'retreat', reason: 'Сохранение дистанции при опасности.' };
@@ -26,8 +33,14 @@ export function combatDecision({ self, target, projectiles = [], nextAttackAt = 
     const t = (dx * v.x + dy * v.y + dz * v.z) / speed2;
     return t > 0 && t < 20 && Math.hypot(dx - v.x * t, dy - v.y * t, dz - v.z * t) < 1.5;
   });
-  if (self.shield && (incoming || target.charging && d > 3 || d < 3.5 && now < nextAttackAt)) return { mode: 'block', reason: incoming ? 'Перехват наблюдаемого снаряда щитом.' : 'Защита во время восстановления удара.' };
+  const enemyAxe=weaponProfile(target.equipment?.[0]?.name).kind==='axe';
+  if (self.shield && now >= (self.shieldDisabledUntil||0) && (incoming || target.charging && d > 3 || !enemyAxe && d < 3.5 && now < nextAttackAt)) return { mode: 'block', reason: incoming ? 'Перехват наблюдаемого снаряда щитом.' : 'Защита во время восстановления удара.' };
   if (d > 2.8) return { mode: 'approach', reason: 'Сократить дистанцию до удара.' };
+  if (criticalPending) {
+    if(!self.onGround&&self.velocity?.y<-.08&&!self.sprinting&&now>=nextAttackAt)return {mode:'strike',critical:true,reason:'Заряженный удар в нисходящей фазе обычного прыжка.'};
+    return {mode:self.onGround?'jump':'wait',reason:'Дождаться нисходящей фазы без спринта.'};
+  }
+  if(now>=nextAttackAt&&canCriticalJump&&!target.blocking)return {mode:'jump',reason:'Безопасный обычный прыжок для критического удара.'};
   if (now >= nextAttackAt) return { mode: 'strike', reason: target.blocking ? 'Удар по защищающейся цели.' : 'Готов заряженный удар.' };
   return { mode: 'strafe', reason: 'Сместиться во время восстановления удара.' };
 }

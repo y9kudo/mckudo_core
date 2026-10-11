@@ -14,10 +14,10 @@ test('the standalone package source has no imports of MCKudo or Mineflayer', asy
     assert.doesNotMatch(source, /from\s+['"](?:\.\.\/|mckudo|mineflayer)/, file);
   }
 });
-test('fleet creates exactly 1–10 unique English clients and cleans every connection after a failure', async () => {
-  assert.throws(() => createFleet({ count: 11 })); assert.throws(() => createFleet({ count: 2, names: ['Alice', 'alice'] }));
-  const calls = [], fleet = createFleet({ count: 10, createClient: o => ({ async connect() { calls.push(o.username); }, async close() { calls.push('closed:' + o.username); }, snapshot() { return { name: o.username }; } }) });
-  await fleet.connect(); assert.equal(calls.length, 10); assert.equal(fleet.agents.size, 10); await fleet.close(); assert.equal(calls.length, 20);
+test('fleet creates exactly 1–20 unique English clients and cleans every connection after a failure', async () => {
+  assert.throws(() => createFleet({ count: 21 })); assert.throws(() => createFleet({ count: 2, names: ['Alice', 'alice'] }));
+  const calls = [], fleet = createFleet({ count: 20, createClient: o => ({ async connect() { calls.push(o.username); }, async close() { calls.push('closed:' + o.username); }, snapshot() { return { name: o.username }; } }) });
+  await fleet.connect(); assert.equal(calls.length, 20); assert.equal(fleet.agents.size, 20); await fleet.close(); assert.equal(calls.length, 40);
   let closed = 0;
   const failed = createFleet({ count: 3, names:['Alice','Blake','Charlie'], createClient: o => ({ async connect() { if (o.username === 'Blake') throw new Error('offline'); }, async close() { closed++; } }) });
   await assert.rejects(failed.connect(), /offline/); assert.equal(closed, 3);
@@ -31,6 +31,13 @@ test('peers settle simultaneous claims identically despite reordering, replay an
   assert.equal(peers[1].receive(a), false); assert.equal(peers[1].receive({ ...a, team: 'other' }), false);
   now += 31000; assert.equal(peers[1].owner('tree/1'), null); assert.equal(peers[1].receive(b), false);
   peers.forEach(p => p.close());
+});
+
+test('all twenty peers agree on the lowest cost resource bidder',async()=>{
+  const fleet=createFleet({count:20,settleMs:0,createClient:()=>({async close(){}})}),peers=[...fleet.peers.values()];
+  for(let i=0;i<peers.length;i++)peers[i].claim('block/minecraft:overworld/1/64/1',{bid:20-i});
+  assert.ok(peers.every(p=>p.owner('block/minecraft:overworld/1/64/1')==='Theo'));
+  assert.equal(peers.filter(p=>p.owns('block/minecraft:overworld/1/64/1')).length,1);await fleet.close();
 });
 test('fleet routes private JSON outside Minecraft and isolates caller mutations', async () => {
   let packets = 0; const f = createFleet({ count: 3, names:['Alice','Blake','Charlie'], createClient: () => ({ async connect() {}, async close() {}, write() { packets++; } }) });
