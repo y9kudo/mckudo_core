@@ -54,9 +54,14 @@ jobs:
         run: |
           set -euo pipefail
           version=$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).version')
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Development version $version: tests only; no stable release."
-            exit 0
+          release_flags=()
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            release_flags+=(--latest)
+          elif [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-dev\.[0-9]+$ ]]; then
+            release_flags+=(--prerelease --latest=false)
+          else
+            echo "Unsupported release version: $version"
+            exit 1
           fi
           tag="v$version"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
@@ -73,4 +78,4 @@ jobs:
           else
             gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$tag" -f "sha=$GITHUB_SHA" >/dev/null
           fi
-          gh release create "$tag" dist/* --verify-tag --repo "$GITHUB_REPOSITORY" --title "MCKudo Core $tag" --notes-file "docs/releases/$version.md"
+          gh release create "$tag" dist/* --verify-tag --repo "$GITHUB_REPOSITORY" --title "MCKudo Core $tag" --notes-file "docs/releases/$version.md" "${release_flags[@]}"
