@@ -98,7 +98,11 @@
     "test:live:recipes": "node examples/recipes-live.js",
     "test:live:fleet-learning": "node examples/fleet-learning-live.js",
     "test:live:07": "node examples/v07-live.js",
-    "demo:machines": "node examples/machines.js"
+    "demo:machines": "node examples/machines.js",
+    "benchmark:diamonds:prepare": "node scripts/prepare-diamond-race.js",
+    "benchmark:diamonds:check": "node examples/diamond-race.js --check",
+    "benchmark:diamonds": "node examples/diamond-race.js",
+    "benchmark:diamonds:status": "node examples/benchmark/status.js"
   },
   "dependencies": {
     "minecraft-data": "^3.117.0",
