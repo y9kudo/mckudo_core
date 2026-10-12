@@ -30,7 +30,7 @@ const sample=()=>{
  if(startedAt){
   for(const [item,n]of Object.entries(inv))if(n>0&&milestones[item]===undefined)milestones[item]=(release.resume?.elapsedMs||0)+now-startedAt;
   if(health()===0&&!deathAt){deathAt=now;status='dead';reason='First life ended.';send('death',{at:now});}
-  proof ||= diamondEvidence({startedAt,now,inventory:inv,mined,pickups});
+  proof ||= diamondEvidence({startedAt,now,inventory:inv,mined,pickups,deathAt});
   if(proof&&!proof.continuationApplied){proof.elapsedMs+=(release.resume?.elapsedMs||0);proof.continuationApplied=true;}
  }
  const cpu=process.cpuUsage(lastCPU);cpuMs+=(cpu.user+cpu.system)/1000;
@@ -57,7 +57,7 @@ const events=c=>{
 };
 const legacySetup=async()=>{
  const mineflayer=require('mineflayer'),pathfinder=require('mineflayer-pathfinder');
- bot=mineflayer.createBot({host,port,username:release.name,version:'1.21.1',auth:'offline',hideErrors:true});
+ bot=mineflayer.createBot({host,port,username:release.name,version:'1.21.1',auth:'offline',hideErrors:true,respawn:false});
  bot.loadPlugin(pathfinder.pathfinder);
  bot.on('error',e=>{clip(errors,{at:Date.now(),reason:e.message},20);send('warning',{message:e.message});});
  bot.on('kicked',e=>{reason=JSON.stringify(e);status='disconnected';});

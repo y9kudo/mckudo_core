@@ -13,17 +13,17 @@ export function sourceDigest(root){
  }};walk(root);return hash.digest('hex');
 }
 export const cleanInventory=inventory=>Object.fromEntries(Object.entries(inventory||{}).filter(([,n])=>Number.isFinite(n)&&n>0).map(([id,n])=>[id.replace(/^minecraft:/,''),n]));
-export function diamondEvidence({startedAt,now,inventory,mined=[],pickups=[]}){
- if(!Number.isFinite(startedAt)||now<startedAt||!(cleanInventory(inventory).diamond>0))return null;
- const ore=mined.filter(m=>m.at>=startedAt&&now-m.at<=15000&&/^(?:deepslate_)?diamond_ore$/.test(m.block));
+export function diamondEvidence({startedAt,now,inventory,mined=[],pickups=[],deathAt}){
+ if(!Number.isFinite(startedAt)||!Number.isFinite(now)||now<startedAt||Number.isFinite(deathAt)&&now>=deathAt||!(cleanInventory(inventory).diamond>0))return null;
+ const ore=mined.filter(m=>m.at>=startedAt&&m.at<=now&&now-m.at<=15000&&/^(?:deepslate_)?diamond_ore$/.test(m.block));
  for(const m of ore){
-  const pickup=pickups.find(p=>p.at>=m.at-1500&&now-p.at<=15000&&p.own&&p.item==='diamond'&&p.position&&Math.hypot(p.position.x-m.position.x,p.position.y-m.position.y,p.position.z-m.position.z)<5);
+  const pickup=pickups.find(p=>p.at>=startedAt&&p.at>=m.at-1500&&p.at<=now&&now-p.at<=15000&&p.own&&p.item==='diamond'&&p.position&&Math.hypot(p.position.x-m.position.x,p.position.y-m.position.y,p.position.z-m.position.z)<5);
   if(pickup)return {at:now,elapsedMs:now-startedAt,ore:m,pickup,kind:'own-ore-and-observed-pickup'};
  }
  return null;
 }
 export function rankRace(agents){
- return Object.values(agents).filter(a=>a.diamondEvidence).sort((a,b)=>a.diamondEvidence.at-b.diamondEvidence.at).map((a,index)=>({rank:index+1,name:a.name,version:a.version,elapsedMs:a.diamondEvidence.elapsedMs}));
+ return Object.values(agents).filter(a=>a.diamondEvidence&&(!Number.isFinite(a.deathAt)||a.diamondEvidence.at<a.deathAt)).sort((a,b)=>a.diamondEvidence.at-b.diamondEvidence.at).map((a,index)=>({rank:index+1,name:a.name,version:a.version,elapsedMs:a.diamondEvidence.elapsedMs}));
 }
 export function raceContinuation(report, releases, {host,port,dependencyLockSHA256}){
  if(report.status!=='incomplete'||report.fromEmptyInventory!==true||report.server?.host!==host||report.server?.port!==port||report.dependencyLockSHA256!==dependencyLockSHA256)throw new Error('Resume requires an incomplete race on the same server and dependency environment.');

@@ -16,10 +16,19 @@ test('diamond race rejects gifts, remote pickups and pre-start observations',()=
  const evidence=diamondEvidence({...observation,pickups:[pickup]});
  assert.equal(evidence.elapsedMs,3000);assert.equal(evidence.kind,'own-ore-and-observed-pickup');
  assert.equal(diamondEvidence({...observation,now:30000,pickups:[pickup]}),null);
+ assert.equal(diamondEvidence({...observation,deathAt:3900,pickups:[pickup]}),null);
+ assert.equal(diamondEvidence({...observation,pickups:[{...pickup,at:5000}]}),null);
+ assert.equal(diamondEvidence({...observation,mined:[{...observation.mined[0],at:5000}],pickups:[pickup]}),null);
+ assert.equal(diamondEvidence({...observation,startedAt:3200,pickups:[{...pickup,at:3100}],mined:[{...observation.mined[0],at:3300}]}),null);
  assert.deepEqual(cleanInventory({'minecraft:stone':2,'minecraft:air':0}),{stone:2});
 });
 test('race ranking requires evidence and orders by observed finish, not version',()=>{
  assert.deepEqual(rankRace({newer:{name:'B',version:'0.7',diamondEvidence:{at:5000,elapsedMs:4000}},gift:{name:'C',version:'0.6'},older:{name:'A',version:'0.5',diamondEvidence:{at:4000,elapsedMs:3000}}}).map(a=>a.name),['A','B']);
+});
+
+test('a diamond observed after first death cannot enter the ranking',()=>{
+ assert.equal(rankRace({A:{name:'A',deathAt:2000,diamondEvidence:{at:3000,elapsedMs:2000}}}).length,0);
+ assert.equal(rankRace({A:{name:'A',deathAt:4000,diamondEvidence:{at:3000,elapsedMs:2000}}}).length,1);
 });
 test('cooperation retains reserves and never transfers diamonds or dead agents resources',()=>{
  const make=(name,version,inventory)=>({name,version,status:'running',sampledAt:1000,state:{position:{x:0,y:64,z:0},inventory,health:20}});
