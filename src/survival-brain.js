@@ -28,13 +28,18 @@ function attachResults(reactor, core) {
 /** Opportunistic collection is independent of goals and receives a fresh item position every tick. */
 export function createLootReactor({ radius = 24, priority = 80, retryMs = 5000, clock = Date.now, targets = {}, peer } = {}) {
   if (!Number.isFinite(radius) || radius < 1 || radius > 64 || !Number.isInteger(priority) || priority < -1000 || priority > 989 || !Number.isInteger(retryMs) || retryMs < 100) throw new Error('Неверная политика подбора.');
-  const blocked = new Map(); let selected = null;
+  const blocked = new Map(); let selected = null, observation;
   const reactor = { id: 'mckudo:loot', apiVersion: 1, failureScope: 'action',
     react(o) {
+      observation=o;
       selected = null;
       if (!o.self?.position || o.self.health === 0 || o.self.freeInventorySlots === 0) return { action: null, reason: 'Подбор сейчас недоступен.' };
-      const now = clock(); for (const [id, until] of blocked) if (until <= now) blocked.delete(id);
-      const drops = (o.drops || []).filter(d => finitePoint(d.position) && typeof (d.item || d.name) === 'string' && !blocked.has(String(d.id)))
+      const now = clock(),present=new Map((o.drops||[]).map(d=>[String(d.id),d]));
+      for(const [id,failure] of blocked){
+        const drop=present.get(id);
+        if(failure.dimension!==o.dimension||distance(failure.from,o.self.position)>=3||now>failure.until+120000||drop&&(!finitePoint(drop.position)||distance(failure.origin,drop.position)>=1))blocked.delete(id);
+      }
+      const drops = (o.drops || []).filter(d => finitePoint(d.position) && typeof (d.item || d.name) === 'string' && (blocked.get(String(d.id))?.until||0)<=now)
         .map(d => ({ ...d, item: rid(d.item || d.name), distance: distance(d.position, o.self.position) }))
         .filter(d=>{
           if(!peer)return true;
@@ -46,15 +51,25 @@ export function createLootReactor({ radius = 24, priority = 80, retryMs = 5000, 
       selected = String(drop.id);
       return { priority, action: { skill: 'collect', args: { item: drop.item, entityId:String(drop.id), beforeCount: count(o, drop.item), origin: drop.position, timeoutMs: 6000 } }, reason: `Подобрать выпавший ${drop.item}.` };
     },
-    recordResult(result, action) { const id = action?.args?.entityId ?? selected; if (id && result.outcome === 'failure') blocked.set(String(id), clock() + retryMs); },
+    recordResult(result, action) {
+      const id=String(action?.args?.entityId??selected??'');if(!id)return;
+      if(result.outcome==='success'){blocked.delete(id);return;}
+      const origin=action?.args?.origin||observation?.drops?.find(d=>String(d.id)===id)?.position;
+      if(result.outcome==='failure'&&finitePoint(origin)&&finitePoint(observation?.self?.position)){
+        const attempts=(blocked.get(id)?.attempts||0)+1;
+        blocked.set(id,{attempts,until:clock()+Math.min(120000,retryMs*2**Math.min(8,attempts-1)),origin:{...origin},from:{...observation.self.position},dimension:observation.dimension});
+        while(blocked.size>256)blocked.delete(blocked.keys().next().value);
+      }
+    },
     attach(core) { return attachResults(reactor, core); }
   }; return reactor;
 }
 
 /** Stateful, bounded next-action policy. Inventory is always authoritative; plans never complete goals. */
 export function createSurvivalReactor({ client, peer, spatial, explorationPlanner, catalog = client?.registry && catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}), target = 'diamond_set', targets,
-  priority = 5, exploration = true, digStaircase = true, maxMemory = 2048, maxRecipeNodes = 2000, clock = Date.now } = {}) {
+  priority = 5, exploration = true, digStaircase = true, preservePickaxeTier = 2, maxMemory = 2048, maxRecipeNodes = 2000, clock = Date.now } = {}) {
   if (!catalog || typeof catalog.recipes !== 'function') throw new Error('Выживанию нужен каталог рецептов.');
+  if(preservePickaxeTier!==false&&(!Number.isInteger(preservePickaxeTier)||preservePickaxeTier<1||preservePickaxeTier>4))throw new Error('preservePickaxeTier: false или 1–4.');
   if (!['diamond_set', 'iron_pickaxe', 'stone_tools', 'wood'].includes(target) || !Number.isInteger(priority) || priority < -1000 || priority > 989 || !Number.isInteger(maxMemory) || maxMemory < 32 || maxMemory > 8192 || !Number.isInteger(maxRecipeNodes) || maxRecipeNodes < 32 || maxRecipeNodes > 20000) throw new Error('Неверные параметры выживания.');
   const taxonomy = createBlockTaxonomy(catalog);
   const requested = Object.fromEntries(Object.entries(targets ?? (target === 'diamond_set' ? diamondSetTargets() : target === 'iron_pickaxe' ? { iron_pickaxe: 1 } : target === 'stone_tools' ? { stone_pickaxe: 1, furnace: 1 } : { crafting_table: 1 })).map(([item, n]) => [item.startsWith('#')?item:rid(item), n]));
@@ -69,16 +84,21 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
   for (const s of allSources) { if (!sourcesByItem.has(s.item)) sourcesByItem.set(s.item, []); sourcesByItem.get(s.item).push(s); }
   // Gravel's ordinary drop is probabilistic; success still requires inventory observation.
   if(catalog.block('minecraft:gravel')&&catalog.item('minecraft:flint'))sourcesByItem.set('minecraft:flint',[{item:'minecraft:flint',block:'minecraft:gravel',tools:[]}]);
-  const memory = new Map(), failures = new Map(), unreachable = new Map(), visited = [], milestones = new Set();
+  const memory = new Map(), failures = new Map(), unreachable = new Map(), unreachableRoutes = new Map(), visited = [], milestones = new Set();
   let dimension, pendingStep = null, heading = null, selected = null, o, evaluations, estimates, claim = null, trace = [];
   const releaseClaim = () => { if(claim){peer?.release(claim);claim=null;} };
   let state = { status: 'waiting', stage: basicStages[0], reason: 'Ожидание наблюдения.', targets: goal, completed: [], knownResources: 0, lastFailure: null };
   const getBlock = p => client?.world?.blockAt(p) ?? null;
   const actionKey = action => action.skill + ':' + JSON.stringify(action.args);
-  const blocked = action => (failures.get(actionKey(action))?.until || 0) > clock();
+  const routeStamp=(from,to)=>[from,to].flatMap(p=>{
+    const cells=[];for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)for(let dy=-1;dy<=2;dy++){
+      const b=getBlock({x:p.x+dx,y:p.y+dy,z:p.z+dz});cells.push(b?.stateId??b?.name??null);
+    }return cells;
+  }).join('|');
+  const blocked = action => unreachableRoutes.has(actionKey(action)) || (failures.get(actionKey(action))?.until || 0) > clock();
   const learnedCosts=new Map();
   const learnedCost = action => {if(!client?.planningPolicy)return 0;const id=actionKey(action);if(!learnedCosts.has(id))learnedCosts.set(id,client.planningPolicy.assess(o,action).cost);return learnedCosts.get(id);};
-  const response = (skill, args, reason) => ({ priority, action: { skill, args }, reason });
+  const response = (skill, args, reason) => ({ priority, action: { skill, args:preservePickaxeTier!==false&&['dig','navigate'].includes(skill)?{...args,preservePickaxeTier}:args }, reason });
   const station = item => (o.world?.sampledBlocks || []).some(b => b.name === item && distance(b.position, o.self.position) <= 32);
   const hasPickaxe = min => pickaxes.slice(min).some(n => count(o, n));
   const sourceCache = new Map(), observedByBlock = new Map();
@@ -94,7 +114,8 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
     return [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(([x, y, z]) => { const n = getBlock({ x: p.x + x, y: p.y + y, z: p.z + z }); return n && !isHazard(n) && !(y && /(?:sand|gravel|concrete_powder|anvil|dripstone)$/.test(n.name)); });
   };
   const updateMemory = () => {
-    if (dimension !== o.dimension) { memory.clear(); unreachable.clear(); visited.length = 0; pendingStep = null; heading = null; dimension = o.dimension; }
+    if (dimension !== o.dimension) { memory.clear(); unreachable.clear(); unreachableRoutes.clear(); visited.length = 0; pendingStep = null; heading = null; dimension = o.dimension; }
+    for(const [id,failure]of unreachableRoutes)if(key(o.self.position)!==key(failure.from)||client.world.revision!==failure.revision||routeStamp(failure.from,failure.to)!==failure.stamp){unreachableRoutes.delete(id);failures.delete(id);}
     if (spatial) for (const b of spatial.entries({ dimension, near: floor(o.self.position) }).slice(0, maxMemory)) {
       if (!memory.has(key(b.position))) memory.set(key(b.position), { name: b.name, position: { ...b.position } });
     }
@@ -308,6 +329,11 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       if (action.skill === 'navigate') explorationPlanner?.invalidate();
       const id = actionKey(action);
       if (result.outcome === 'failure') {
+        if(action.skill==='navigate'&&client?.world&&finitePoint(action.args)&&o?.self?.position&&/маршрут|пути|путь|path|route/i.test(result.detail||'')){
+          const from=floor(client.state?.position||o.self.position),to=floor(action.args);
+          unreachableRoutes.set(id,{from,to,revision:client.world.revision,stamp:routeStamp(from,to)});
+          while(unreachableRoutes.size>256)unreachableRoutes.delete(unreachableRoutes.keys().next().value);
+        }
         // A timer does not make an unreachable block reachable. Reconsider it after
         // movement or a block change; meanwhile excavate a new approach or explore.
         if (action.skill === 'dig' && /достижимой|маршрут|пути/i.test(result.detail || '') && finitePoint(action.args) && o?.self?.position) {

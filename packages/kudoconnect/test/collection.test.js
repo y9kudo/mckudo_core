@@ -41,3 +41,13 @@ test('preemption is not swallowed by pickup and always removes listeners', async
   await assert.rejects(executeCollect(c, args, abort.signal, { navigate: async () => { abort.abort(new Error('defense')); throw abort.signal.reason; } }), /defense/);
   assert.equal(c.listenerCount('inventory'), 0); assert.equal(c.stopped, true);
 });
+
+test('a failed pickup approach tries a different reachable position instead of retrying the same one', async () => {
+  const {c,give,args}=fixture(),attempts=[];
+  const result=await executeCollect(c,args,new AbortController().signal,{navigate:async(_c,target)=>{
+    const id=`${target.x},${target.y},${target.z}`;attempts.push(id);
+    if(attempts.length===1)throw new Error('Player blocks this approach');
+    assert.notEqual(id,attempts[0]);give();
+  }});
+  assert.equal(result.serverConfirmed,true);assert.equal(attempts.length,2);
+});

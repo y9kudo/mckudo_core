@@ -51,7 +51,7 @@ async function select(c, itemName, signal) {
   return c.inventory.held();
 }
 async function navigate(c, args, signal) {
-  return executeNavigate(c, args, signal, { place: (args, signal) => runAction(c, { skill: 'place', args }, signal), dig: (args, signal) => dig(c, args, signal) });
+  return executeNavigate(c, args, signal, { place: (args, signal) => runAction(c, { skill: 'place', args }, signal), dig: (step, signal) => dig(c, { ...step, preservePickaxeTier:args.preservePickaxeTier }, signal) });
 }
 async function emptyHand(c, signal) {
   if (!c.inventory.held()) return;
@@ -94,7 +94,7 @@ async function dig(c, args, signal) {
     const adjacent = c.world.blockAt({ x: position.x + dx, y: position.y + dy, z: position.z + dz });
     if (!adjacent || isHazard(adjacent) || dy === 1 && ['sand', 'gravel', 'anvil', 'pointed_dripstone'].includes(adjacent.name)) throw new Error('Рядом жидкость, падающий блок или неизвестная область.');
   }
-  const tool = chooseMiningTool(c.registry, b, c.inventory.items(), { held: c.inventory.held(), onGround: c.state.onGround });
+  const tool = chooseMiningTool(c.registry, b, c.inventory.items(), { held: c.inventory.held(), onGround: c.state.onGround, preservePickaxeTier:args.preservePickaxeTier });
   if (!tool) throw new Error('Нет инструмента для получения дропа.');
   if (tool.item && tool.item.slot !== c.inventory.held()?.slot) await select(c, tool.item, signal);
   if (!tool.item) await emptyHand(c, signal);

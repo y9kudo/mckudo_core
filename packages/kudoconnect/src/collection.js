@@ -16,6 +16,9 @@ export async function executeCollect(c, args, signal, { navigate }) {
   const gained = () => c.inventory.count(item) - before;
   const confirmed = () => ({ ok: true, gained: gained(), serverConfirmed: true });
   const onInventory = () => { if (gained() > 0) picked.abort(); };
+  // A failed endpoint is not a new approach on the next 50 ms poll. Retry it
+  // after the drop, feet cell or observed terrain changes, or try another cell.
+  const rejected = new Set(); let approachContext;
   c.on('inventory', onInventory);
   try {
     while (Date.now() < until) {
@@ -33,21 +36,27 @@ export async function executeCollect(c, args, signal, { navigate }) {
         .sort((a, b) => distance(a.position, c.state.position) - distance(b.position, c.state.position))[0];
       if (drop) {
         const base = floor(drop.position), candidates = [];
+        const feet=floor(c.state.position),context=JSON.stringify([drop.id,base,feet,c.world.revision]);
+        if(context!==approachContext){rejected.clear();approachContext=context;}
         for (let y = base.y - 2; y <= base.y; y++) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
           const target = { x: base.x + dx, y, z: base.z + dz };
           if (isAir(c.world.blockAt(target)) && isAir(c.world.blockAt({ ...target, y: y + 1 })) && isFullBlock(c.world.blockAt({ ...target, y: y - 1 }))) candidates.push(target);
         }
         candidates.sort((a, b) => distance({ x: a.x + .5, y: a.y, z: a.z + .5 }, drop.position) - distance({ x: b.x + .5, y: b.y, z: b.z + .5 }, drop.position));
         for (const target of candidates) {
+          const targetKey=`${target.x},${target.y},${target.z}`;
+          if(rejected.has(targetKey))continue;
           let route; const view = readRouteWorld(c.world);
           try { route = await planRouteAsync({ start: floor(c.state.position), goal: target, getBlock: view.getBlock, maxDistance: 32, maxNodes: 3000, maxDrop: 2, signal: searchSignal }, { getRevision: view.getRevision }); }
           catch (error) { signal.throwIfAborted(); if (gained() > 0) return confirmed(); throw error; }
-          if (route.status !== 'planned') continue;
+          if (route.status !== 'planned') {rejected.add(targetKey);continue;}
           const budget = Math.min(1500, until - Date.now()); if (budget <= 0) break;
           try { await navigate(c, { ...target, range: 0, bridge: false, maxDrop: 2 }, AbortSignal.any([signal, picked.signal, AbortSignal.timeout(budget)])); }
-          catch { signal.throwIfAborted(); }
+          catch { signal.throwIfAborted(); rejected.add(targetKey); }
           if (gained() > 0) return confirmed();
-          break;
+          // The first path can be temporarily occupied or can stop short of
+          // pickup range. Do not let it starve the remaining valid approaches.
+          rejected.add(targetKey);
         }
       }
       await delay(Math.max(0, Math.min(50, until - Date.now())), undefined, { signal });

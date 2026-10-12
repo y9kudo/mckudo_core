@@ -77,6 +77,16 @@ test('tool choice uses block mechanics, harvest level and the exact surviving to
   assert.equal(chooseWeapon([item('diamond_sword',36),item('stone_axe',37)]).name,'diamond_sword');
   assert.equal(chooseWeapon([item('diamond_sword',36),item('stone_axe',37)],{shieldedTarget:true}).name,'stone_axe');
 });
+
+test('tool reservation saves the iron pick on stone while still harvesting diamond ore',()=>{
+  const block=name=>client.world.Block.fromStateId(registry.blocksByName[name].defaultState,0);
+  const tools=[item('iron_pickaxe',36),item('stone_pickaxe',37)];
+  assert.equal(chooseMiningTool(registry,block('stone'),tools,{preservePickaxeTier:2}).item.name,'stone_pickaxe');
+  assert.equal(chooseMiningTool(registry,block('diamond_ore'),tools,{preservePickaxeTier:2}).item.name,'iron_pickaxe');
+  assert.equal(chooseMiningTool(registry,block('stone'),[tools[0]],{preservePickaxeTier:2}).item.name,'iron_pickaxe','reservation never removes the only harvestable tool');
+  assert.equal(chooseMiningTool(registry,block('stone'),tools).item.name,'iron_pickaxe','direct callers keep the explicit fastest-tool default');
+  assert.throws(()=>chooseMiningTool(registry,block('stone'),tools,{preservePickaxeTier:9}),/preservePickaxeTier/);
+});
 test('combat selects the healthy duplicate weapon by slot rather than the first matching name', async () => {
   const {c,packets} = chestClient();
   c.inventory.slots[36] = item('stone_axe',36,registry.itemsByName.stone_axe.maxDurability);

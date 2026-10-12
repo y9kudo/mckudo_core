@@ -11,8 +11,12 @@ export function miningTime(registry, block, item, { onGround = true } = {}) {
   const ticks = block.hardness === 0 ? 1 : Math.ceil(block.hardness * (harvestable ? 30 : 100) / speed * (onGround ? 1 : 5));
   return { milliseconds: (ticks + 1) * 50, harvestable };
 }
-export function chooseMiningTool(registry, block, items, { held = null, onGround = true } = {}) {
+export function chooseMiningTool(registry, block, items, { held = null, onGround = true, preservePickaxeTier } = {}) {
+  if(preservePickaxeTier!==undefined&&(!Number.isInteger(preservePickaxeTier)||preservePickaxeTier<1||preservePickaxeTier>4))throw new Error('preservePickaxeTier: 1–4.');
   const candidates = [null, ...items.filter(i => remainingDurability(i, registry) > 0)].map(item => ({ item, ...miningTime(registry, block, item, { onGround }) })).filter(t => t.harvestable);
-  candidates.sort((a,b) => a.milliseconds - b.milliseconds || Number(b.item?.slot === held?.slot) - Number(a.item?.slot === held?.slot));
-  return candidates[0] ?? null;
+  const tier=item=>['wooden_pickaxe','stone_pickaxe','iron_pickaxe','diamond_pickaxe','netherite_pickaxe'].indexOf(item?.name?.replace(/^minecraft:/,''));
+  const ordinary=preservePickaxeTier===undefined?[]:candidates.filter(t=>tier(t.item)<preservePickaxeTier);
+  const selected=ordinary.length?ordinary:candidates;
+  selected.sort((a,b) => a.milliseconds - b.milliseconds || Number(b.item?.slot === held?.slot) - Number(a.item?.slot === held?.slot));
+  return selected[0] ?? null;
 }

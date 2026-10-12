@@ -131,6 +131,35 @@ test('loot failure is attributed to the executed entity even after a new observa
   o.drops[0].id = '1'; assert.equal(r.react(o).action, null);
 });
 
+test('repeated loot failures back off progressively, while a moved drop is reconsidered immediately',()=>{
+  let now=1000;const r=createLootReactor({clock:()=>now}),o=observation();
+  o.drops=[{id:'stuck',item:'minecraft:stick',count:1,position:{x:2,y:64,z:0}}];
+  const first=r.react(o).action;r.recordResult({outcome:'failure'},first);
+  now+=5001;const second=r.react(o).action;assert.ok(second);r.recordResult({outcome:'failure'},second);
+  now+=5001;assert.equal(r.react(o).action,null,'second failure must wait longer than the first');
+  o.drops[0].position={x:4,y:64,z:0};assert.equal(r.react(o).action.args.entityId,'stuck');
+});
+
+test('unreachable backtracking is not retried merely because its timer expired',()=>{
+  let now=1000;
+  const air={name:'air',boundingBox:'empty',shapes:[]},stone={...registry.blocksByName.stone,name:'stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]};
+  const world={minY:-64,blockAt:q=>q.x===0&&q.z===0&&q.y>=64||q.x===3&&q.z===0&&q.y>=65?air:q.y<65?stone:null};
+  const r=createSurvivalReactor({catalog,client:{world},targets:{diamond:1},clock:()=>now});
+  const o=observation({'minecraft:iron_pickaxe':1});
+  const first=r.react(o);assert.equal(first.action.skill,'navigate');
+  r.recordResult({outcome:'failure',detail:'Нет пути в наблюдаемой области с заданными правилами.'},first.action);
+  now+=300000;assert.notDeepEqual(r.react(o).action,first.action);
+});
+
+test('a changed local passage clears remembered navigation failure',()=>{
+  let now=1000,changed=false;
+  const air={name:'air',boundingBox:'empty',shapes:[]},stone={...registry.blocksByName.stone,name:'stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]};
+  const world={minY:-64,blockAt:q=>q.x===0&&q.z===0&&q.y>=64||q.x===3&&q.z===0&&q.y>=65||changed&&q.x===2&&q.z===0&&q.y===65?air:q.y<65?stone:null};
+  const r=createSurvivalReactor({catalog,client:{world},targets:{diamond:1},clock:()=>now}),o=observation({'minecraft:iron_pickaxe':1});
+  const first=r.react(o);r.recordResult({outcome:'failure',detail:'Нет пути.'},first.action);
+  changed=true;assert.deepEqual(r.react(o).action,first.action,'a real block change permits an immediate new attempt');
+});
+
 test('safe staircase mines adjacent cells and rejects unknown support or liquids', () => {
   const world = { blockAt: q => block(q.y <= 63 ? 'stone' : 'air', q) };
   const client = { world, options: { username: 'Miner' } }, r = createSurvivalReactor({ client, catalog });
@@ -142,6 +171,14 @@ test('safe staircase mines adjacent cells and rejects unknown support or liquids
   assert.equal(unknown.react(o).action, null);
   const flooded = createSurvivalReactor({ catalog, client: { ...client, world: { blockAt: q => block(q.y < 64 ? 'lava' : 'air', q) } } });
   assert.equal(flooded.react(o).action, null);
+});
+
+test('survival requests iron-tier tool reservation for excavation and can explicitly disable it',()=>{
+  const world={blockAt:q=>block(q.y<=63?'stone':'air',q)},o=observation({'minecraft:iron_pickaxe':1,'minecraft:stone_pickaxe':1});
+  const r=createSurvivalReactor({client:{world},catalog,targets:{diamond:1}});
+  assert.equal(r.react(o).action.args.preservePickaxeTier,2);
+  const fastest=createSurvivalReactor({client:{world},catalog,targets:{diamond:1},preservePickaxeTier:false});
+  assert.equal(fastest.react(o).action.args.preservePickaxeTier,undefined);
 });
 
 test('bounded library loop reaches a full diamond set from zero in a deterministic executor, including drops and furnace', async () => {

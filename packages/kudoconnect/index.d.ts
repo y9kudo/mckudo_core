@@ -180,7 +180,7 @@ export declare class KudoContainers {
   contents(): KudoItem[];
   capacity(item: KudoItem): number;
 }
-export declare function chooseMiningTool(registry: any, block: any, items: KudoItem[], options?: { held?: KudoItem | null; onGround?: boolean }): { item: KudoItem | null; milliseconds: number; harvestable: boolean } | null;
+export declare function chooseMiningTool(registry: any, block: any, items: KudoItem[], options?: { held?: KudoItem | null; onGround?: boolean; preservePickaxeTier?: 1|2|3|4 }): { item: KudoItem | null; milliseconds: number; harvestable: boolean } | null;
 export interface AgentObservation { players: PlayerObservation[]; attention: { status: string; target: string | null; entityId?: string; errorDegrees?: number }; storage: StorageObservation[]; }
 export interface StorageIdentity { key: string; kind: string; positions: Position[]; }
 export interface StorageSearchOptions { radius?: number; count?: number; signal?: AbortSignal; }
