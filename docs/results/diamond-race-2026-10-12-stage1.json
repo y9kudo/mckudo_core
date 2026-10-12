@@ -1,0 +1,798 @@
+{
+  "schemaVersion": 1,
+  "runId": "diamond-2026-10-11T20-24-42-065Z",
+  "mode": "cooperative-live-race",
+  "status": "incomplete",
+  "startedAtUTC": "2026-10-11T20:24:44.041Z",
+  "finishedAtUTC": "2026-10-11T20:39:44.199Z",
+  "segmentElapsedMs": 900158,
+  "activeElapsedMs": 900158,
+  "continuation": null,
+  "originalSeriesFromEmptyInventory": true,
+  "segmentFromEmptyInventory": true,
+  "serverVersion": {
+    "name": "1.21.1",
+    "protocol": 767
+  },
+  "dependencies": {
+    "mineflayer": "4.39.0",
+    "mineflayer-pathfinder": "2.4.5",
+    "minecraft-protocol": "1.68.0",
+    "minecraft-data": "3.117.0"
+  },
+  "dependencyLockSHA256": "6862bd997820e0dc716668fc563af42a979165f0fd8057e6064e0a494cdb07ef",
+  "benchmarkSourceCommit": "4acf474",
+  "runnerSHA256": {
+    "receiptCapturedAtUTC": "2026-10-11T20:28:27.446Z",
+    "files": {
+      "examples/diamond-race.js": "b964c790e0e3ccf7b3e23952608c462be70d82e4f3d43281c5e602bcfbe6b2f0",
+      "examples/benchmark/diamond-worker.js": "862520566384bd678efaba14cde97e6abbbfec5484a929f8f1d0fd5fd5deadc5",
+      "examples/benchmark/race-metrics.js": "951d980fabcbaa5ea47dfea420c03242802932a025a36e432c4a4e42036354f5"
+    }
+  },
+  "caveats": [
+    "Live shared existing world, different positions and resource interference. No isolated version speed ranking.",
+    "Common installed dependencies, not original transitive dependency versions.",
+    "Milestones record first inventory possession, including gifts. No proof of solo crafting is inferred from milestone time.",
+    "Physical drop confirms the donor discarded items, not that the intended recipient received them.",
+    "Initial calibration runs are excluded from this result but changed the same world.",
+    "A local validation/test suite ran briefly alongside the trial around 20:28:17–20:28:41 UTC."
+  ],
+  "agents": [
+    {
+      "version": "0.2.0",
+      "name": "Atlas02utsi",
+      "commit": "c476317ba8c2db4d522e9931961fbe34feeaf549",
+      "archiveSHA256": "ba5f07f4ea878439a6a594cb830dcd36be6fea5418ca5e69a8f88c7364c3db21",
+      "sourceSHA256": "4a749baf22677eb6e818786389cfbc332828b897424596408d072e72612a365d",
+      "transport": "mineflayer",
+      "status": "time-limit",
+      "startSkewMs": 0,
+      "health": 20,
+      "milestonesMs": {
+        "oak_log": 79654,
+        "crafting_table": 105660
+      },
+      "finalInventory": {
+        "oak_log": 6
+      },
+      "actionCounts": {
+        "gather/failure": 67,
+        "gather/success": 11
+      },
+      "lastErrors": [
+        {
+          "at": 1791750456921,
+          "skill": "gather",
+          "reason": "Рядом нет jungle_log."
+        },
+        {
+          "at": 1791750457145,
+          "skill": "gather",
+          "reason": "Рядом нет dark_oak_log."
+        },
+        {
+          "at": 1791750457384,
+          "skill": "gather",
+          "reason": "Рядом нет mangrove_log."
+        },
+        {
+          "at": 1791750457619,
+          "skill": "gather",
+          "reason": "Рядом нет cherry_log."
+        },
+        {
+          "at": 1791750530617,
+          "skill": "gather",
+          "reason": "Рядом нет oak_log."
+        },
+        {
+          "at": 1791750615181,
+          "skill": "gather",
+          "reason": "Рядом нет birch_log."
+        },
+        {
+          "at": 1791750616685,
+          "skill": "gather",
+          "reason": "Рядом нет spruce_log."
+        },
+        {
+          "at": 1791750616912,
+          "skill": "gather",
+          "reason": "Рядом нет acacia_log."
+        },
+        {
+          "at": 1791750617142,
+          "skill": "gather",
+          "reason": "Рядом нет jungle_log."
+        },
+        {
+          "at": 1791750617372,
+          "skill": "gather",
+          "reason": "Рядом нет dark_oak_log."
+        },
+        {
+          "at": 1791750617606,
+          "skill": "gather",
+          "reason": "Рядом нет mangrove_log."
+        },
+        {
+          "at": 1791750617830,
+          "skill": "gather",
+          "reason": "Рядом нет cherry_log."
+        },
+        {
+          "at": 1791750723960,
+          "skill": "gather",
+          "reason": "Рядом нет oak_log."
+        },
+        {
+          "at": 1791750915403,
+          "skill": "gather",
+          "reason": "Рядом нет birch_log."
+        },
+        {
+          "at": 1791750916724,
+          "skill": "gather",
+          "reason": "Рядом нет spruce_log."
+        },
+        {
+          "at": 1791750916956,
+          "skill": "gather",
+          "reason": "Рядом нет acacia_log."
+        },
+        {
+          "at": 1791750917176,
+          "skill": "gather",
+          "reason": "Рядом нет jungle_log."
+        },
+        {
+          "at": 1791750917407,
+          "skill": "gather",
+          "reason": "Рядом нет dark_oak_log."
+        },
+        {
+          "at": 1791750917644,
+          "skill": "gather",
+          "reason": "Рядом нет mangrove_log."
+        },
+        {
+          "at": 1791750917872,
+          "skill": "gather",
+          "reason": "Рядом нет cherry_log."
+        }
+      ],
+      "diamondEvidence": null,
+      "processClosed": true,
+      "droppedTransfersSent": 3,
+      "endPositionY": 72,
+      "firstDeathElapsedMs": null
+    },
+    {
+      "version": "0.3.0",
+      "name": "Brooks03utsi",
+      "commit": null,
+      "archiveSHA256": "76867e407010c832ca87b25c20d689bfcb20c6fdb0022fbe7260d8247d1d040a",
+      "sourceSHA256": "5097e46b9f7e39197039964c6c4591e3f738da49b1a7b11a60a8a7e6a2bff14c",
+      "transport": "mineflayer",
+      "status": "time-limit",
+      "startSkewMs": 22,
+      "health": 17.49032211303711,
+      "milestonesMs": {
+        "oak_log": 50456,
+        "oak_planks": 52091,
+        "crafting_table": 52391,
+        "stick": 60691,
+        "dirt": 264854
+      },
+      "finalInventory": {
+        "oak_planks": 2,
+        "stick": 4,
+        "dirt": 5
+      },
+      "actionCounts": {
+        "gather/progress": 2,
+        "craft/progress": 6,
+        "craft/success": 4
+      },
+      "lastErrors": [],
+      "diamondEvidence": null,
+      "processClosed": true,
+      "droppedTransfersSent": 13,
+      "endPositionY": 73,
+      "firstDeathElapsedMs": null
+    },
+    {
+      "version": "0.4.0",
+      "name": "Carter04utsi",
+      "commit": "d5d0e75c37638f31776ccda7f778c7623c140eff",
+      "archiveSHA256": "ed023b2d052a5703a7628cc280603ba21481811c0259e7a9955e1ee49134cfda",
+      "sourceSHA256": "8c3433ea706059d8896d57433998f75534ee230b689b0cc8b5ca4ca11b39b25d",
+      "transport": "mineflayer",
+      "status": "time-limit",
+      "startSkewMs": 17,
+      "health": 20,
+      "milestonesMs": {
+        "oak_log": 94206,
+        "oak_planks": 106592,
+        "stick": 107570,
+        "wooden_pickaxe": 110141,
+        "dirt": 312154,
+        "cobblestone": 387506,
+        "stone_pickaxe": 395758
+      },
+      "finalInventory": {
+        "oak_planks": 3,
+        "wooden_pickaxe": 1,
+        "cobblestone": 7,
+        "stone_pickaxe": 1
+      },
+      "actionCounts": {
+        "gather/failure": 62,
+        "craft/success": 5,
+        "gather/success": 2,
+        "craft/failure": 702
+      },
+      "lastErrors": [
+        {
+          "at": 1791750919227,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750919558,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750919874,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750920192,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750920523,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750920860,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750921194,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750921502,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750921839,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750922154,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750922476,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750922794,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750923121,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750923438,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750923732,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750924096,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750924437,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750924756,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750925106,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        },
+        {
+          "at": 1791750925471,
+          "skill": "craft",
+          "reason": "No path to the goal!"
+        }
+      ],
+      "diamondEvidence": null,
+      "processClosed": true,
+      "droppedTransfersSent": 0,
+      "endPositionY": 65.41999998688698,
+      "firstDeathElapsedMs": null
+    },
+    {
+      "version": "0.5.0",
+      "name": "Dylan05utsi",
+      "commit": "6743220b04695cdf52e7290eadd6fb8d64dafcd4",
+      "archiveSHA256": "afb3072cade39e0a26ce058707ade4366c4230d16b5c7e415aadf26efd0130ff",
+      "sourceSHA256": "999abcb04f8d2dcaf3a46aaa4f33785d41c404c3502ce13be21ed73f57590ef6",
+      "transport": "kudoconnect",
+      "status": "time-limit",
+      "startSkewMs": 1,
+      "health": 20,
+      "milestonesMs": {
+        "stick": 160753,
+        "crafting_table": 161755,
+        "oak_sapling": 162604,
+        "dirt": 249054,
+        "oak_log": 376304,
+        "oak_planks": 376907,
+        "wooden_pickaxe": 397016
+      },
+      "finalInventory": {
+        "oak_log": 2,
+        "oak_sapling": 2,
+        "dirt": 1,
+        "wooden_pickaxe": 1,
+        "oak_planks": 1
+      },
+      "actionCounts": {
+        "collect/success": 9,
+        "collect/failure": 20,
+        "navigate/success": 76,
+        "navigate/failure": 6,
+        "ensureStation/success": 1,
+        "dig/success": 1,
+        "craft/success": 2,
+        "dig/failure": 7
+      },
+      "lastErrors": [
+        {
+          "at": 1791750563142,
+          "skill": "navigate",
+          "reason": "Истёк бюджет движения по шагу."
+        },
+        {
+          "at": 1791750574045,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750579314,
+          "skill": "navigate",
+          "reason": "Истёк бюджет движения по шагу."
+        },
+        {
+          "at": 1791750600193,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750616158,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750629208,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750641267,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750687346,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750689867,
+          "skill": "dig",
+          "reason": "Нет достижимой позиции с видимостью целевого блока."
+        },
+        {
+          "at": 1791750696166,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750696761,
+          "skill": "dig",
+          "reason": "Нет достижимой позиции с видимостью целевого блока."
+        },
+        {
+          "at": 1791750712244,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750712783,
+          "skill": "dig",
+          "reason": "Нет достижимой позиции с видимостью целевого блока."
+        },
+        {
+          "at": 1791750738487,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750744758,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750745005,
+          "skill": "dig",
+          "reason": "Нет достижимой позиции с видимостью целевого блока."
+        },
+        {
+          "at": 1791750785057,
+          "skill": "dig",
+          "reason": "Нет достижимой позиции с видимостью целевого блока."
+        },
+        {
+          "at": 1791750830894,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750865197,
+          "skill": "dig",
+          "reason": "Нет достижимой позиции с видимостью целевого блока."
+        },
+        {
+          "at": 1791751025352,
+          "skill": "dig",
+          "reason": "Нет достижимой позиции с видимостью целевого блока."
+        }
+      ],
+      "diamondEvidence": null,
+      "processClosed": true,
+      "droppedTransfersSent": 1,
+      "endPositionY": 73,
+      "firstDeathElapsedMs": null
+    },
+    {
+      "version": "0.6.0",
+      "name": "Elliot06utsi",
+      "commit": "05eb9477cbbd3dc5647272127c28fba94e4fe35b",
+      "archiveSHA256": "099e2b80bf0c390db60a5b8fdd022f7f3c568ad9410f9fe6c2bfa0243ff81f12",
+      "sourceSHA256": "850c2d22ca9211324297f3fab2bd3dc4938c644a9e85102dc47f3601a7117b47",
+      "transport": "kudoconnect",
+      "status": "time-limit",
+      "startSkewMs": 0,
+      "health": 20,
+      "milestonesMs": {
+        "stick": 2101,
+        "oak_log": 170453,
+        "oak_planks": 171113,
+        "crafting_table": 178323,
+        "dirt": 320802,
+        "oak_sapling": 345753,
+        "cobblestone": 483702
+      },
+      "finalInventory": {
+        "stick": 4,
+        "dirt": 3,
+        "oak_sapling": 1,
+        "cobblestone": 1,
+        "crafting_table": 1,
+        "oak_planks": 2
+      },
+      "actionCounts": {
+        "collect/success": 8,
+        "collect/failure": 47,
+        "navigate/success": 28,
+        "navigate/failure": 1,
+        "dig/failure": 1,
+        "dig/success": 2,
+        "craft/success": 4
+      },
+      "lastErrors": [
+        {
+          "at": 1791750764509,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750771043,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750777610,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750793771,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750800376,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750806967,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750813568,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750842194,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750853769,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750865544,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791750882063,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791751043135,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791751054724,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791751066426,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791751083022,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791751109541,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791751121168,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791751132745,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791751149075,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        },
+        {
+          "at": 1791751175557,
+          "skill": "collect",
+          "reason": "Подбор не подтверждён обновлением инвентаря."
+        }
+      ],
+      "diamondEvidence": null,
+      "processClosed": true,
+      "droppedTransfersSent": 5,
+      "endPositionY": 71,
+      "firstDeathElapsedMs": null
+    },
+    {
+      "version": "0.7.0-dev.0",
+      "name": "Flynn07utsi",
+      "commit": "e3541b8842213a6bfd1e08f21357b1e432138dfa",
+      "archiveSHA256": "6710afe47e96de78a2e031754d5c35346fb09f94ef1c96c8242cc922624acfb7",
+      "sourceSHA256": "7608c435a9dc788ee0d152b0be4cfa0e60dc9da876b8f159b61226d96dccd6b1",
+      "transport": "kudoconnect",
+      "status": "time-limit",
+      "startSkewMs": 1,
+      "health": 20,
+      "milestonesMs": {
+        "oak_log": 52155,
+        "oak_planks": 52603,
+        "stick": 53011,
+        "wooden_pickaxe": 75757,
+        "dirt": 78603,
+        "cobblestone": 116656,
+        "crafting_table": 210104,
+        "stone_pickaxe": 232539,
+        "wheat_seeds": 337903,
+        "wooden_hoe": 350603,
+        "raw_iron": 579903,
+        "furnace": 618561,
+        "iron_ingot": 652107,
+        "iron_pickaxe": 727138
+      },
+      "finalInventory": {
+        "dirt": 70,
+        "stone_pickaxe": 1,
+        "wheat_seeds": 2,
+        "oak_log": 2,
+        "wooden_hoe": 1,
+        "cobblestone": 4,
+        "wooden_pickaxe": 1,
+        "crafting_table": 2,
+        "iron_pickaxe": 1
+      },
+      "actionCounts": {
+        "collect/failure": 47,
+        "dig/failure": 13,
+        "navigate/success": 40,
+        "dig/success": 88,
+        "collect/success": 16,
+        "craft/success": 7,
+        "craft/failure": 3,
+        "navigate/failure": 144,
+        "ensureStation/success": 1,
+        "smelt/success": 2
+      },
+      "lastErrors": [
+        {
+          "at": 1791751171708,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751171948,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751172182,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751172417,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751172664,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751172909,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751173144,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751173425,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751173679,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751173918,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751174177,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751174421,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751174665,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751174914,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751175160,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751175442,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751175683,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751175930,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751176186,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        },
+        {
+          "at": 1791751176432,
+          "skill": "navigate",
+          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+        }
+      ],
+      "diamondEvidence": null,
+      "processClosed": true,
+      "droppedTransfersSent": 3,
+      "endPositionY": 70,
+      "firstDeathElapsedMs": null
+    }
+  ],
+  "logistics": {
+    "requested": 35,
+    "dropped": 25,
+    "failed": 10,
+    "toolsDropped": []
+  },
+  "ranking": [],
+  "warnings": []
+}

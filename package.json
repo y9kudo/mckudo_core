@@ -102,7 +102,8 @@
     "benchmark:diamonds:prepare": "node scripts/prepare-diamond-race.js",
     "benchmark:diamonds:check": "node examples/diamond-race.js --check",
     "benchmark:diamonds": "node examples/diamond-race.js",
-    "benchmark:diamonds:status": "node examples/benchmark/status.js"
+    "benchmark:diamonds:status": "node examples/benchmark/status.js",
+    "test:live:race-fixes": "node examples/benchmark/bugfix-probe.js"
   },
   "dependencies": {
     "minecraft-data": "^3.117.0",
