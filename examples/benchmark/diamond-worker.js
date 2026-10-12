@@ -17,6 +17,7 @@ if(process.argv.includes('--check')){if(native){const transport=await import(pat
 const require=createRequire(new URL('../../package.json',import.meta.url));
 let client,bot,adapter,core,catalog,currentAction,startedAt,ending=false,ended=false,sampler,loops=0,transfer;
 const mined=[],pickups=[],drops=new Map(),counts={},milestones={},errors=[];
+if(release.resume){Object.assign(counts,release.resume.actions);Object.assign(milestones,release.resume.milestones);}
 let status='connecting',reason='',deathAt=null,proof=null,lastCPU=process.cpuUsage(),lastCPUAt=Date.now(),cpuMs=0;
 const controller=new AbortController();
 const clip=(list,value,n=128)=>{list.push(value);if(list.length>n)list.shift();};
@@ -27,9 +28,10 @@ const sample=()=>{
  if(ending||!client&&!bot)return;
  const now=Date.now(),inv=inventory(),p=position();
  if(startedAt){
-  for(const [item,n]of Object.entries(inv))if(n>0&&!milestones[item])milestones[item]=now-startedAt;
+  for(const [item,n]of Object.entries(inv))if(n>0&&milestones[item]===undefined)milestones[item]=(release.resume?.elapsedMs||0)+now-startedAt;
   if(health()===0&&!deathAt){deathAt=now;status='dead';reason='First life ended.';send('death',{at:now});}
   proof ||= diamondEvidence({startedAt,now,inventory:inv,mined,pickups});
+  if(proof&&!proof.continuationApplied){proof.elapsedMs+=(release.resume?.elapsedMs||0);proof.continuationApplied=true;}
  }
  const cpu=process.cpuUsage(lastCPU);cpuMs+=(cpu.user+cpu.system)/1000;
  const cpuPercent=(cpu.user+cpu.system)/1000/Math.max(1,now-lastCPUAt)*100;
@@ -141,7 +143,7 @@ async function loop(){
  finally{sample();if(status!=='running')await finish();}
 }
 async function finish(){
- if(ending)return;sample();ending=true;controller.abort();clearInterval(sampler);
+ if(ending)return;if(['running','armed','ready'].includes(status))status='stopped';sample();ending=true;controller.abort();clearInterval(sampler);
  try{await Promise.race([core?.stop(),delay(3500)]);}catch{}
  try{if(native){await Promise.race([client.close(),delay(2000)]);client.client?.socket?.destroy();}else{bot?.pathfinder?.setGoal(null);bot?.clearControlStates();bot?.quit();bot?._client?.socket?.destroy();}}catch{}
  ended=true;send('closed',{at:Date.now(),status});process.disconnect?.();setTimeout(()=>process.exit(0),50);
@@ -156,7 +158,7 @@ process.once('disconnect',()=>{if(!ended)void finish();});
 try{
  await(native?nativeSetup():legacySetup());
  if(health()<=0)throw new Error('Spawned dead. Use a new race name.');
- if(Object.keys(inventory()).length)throw new Error('Initial inventory is not empty. Use fresh names.');
+ if(!release.resume&&Object.keys(inventory()).length)throw new Error('Initial inventory is not empty. Use fresh names.');
  const gameMode=native?client.state.gameMode:bot.game.gameMode;
  if(gameMode!==0&&gameMode!=='survival')throw new Error('Benchmark requires survival mode; observed '+gameMode);
  status='ready';sample();send('ready',{version:coreModule.MCKUDO.version,transport:native?'kudoconnect':'mineflayer',capabilities:native?client.describe().skills:adapter.describe().skills,initial:{position:position(),health:health(),inventory:inventory(),gameMode}});
