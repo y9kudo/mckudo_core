@@ -1,5 +1,6 @@
 import { jsonCopy } from './config.js';
 import { resourceId } from './catalog.js';
+import {isAir,isFullBlock} from './navigation.js';
 export const blockKey = p => `${p.x},${p.y},${p.z}`;
 const coords = p => p && ['x', 'y', 'z'].every(k => Number.isInteger(p[k]) && Math.abs(p[k]) <= 30000000);
 
@@ -19,9 +20,42 @@ export function createShelterBlueprint({ origin = { x: 0, y: 64, z: 0 }, width =
   return { schemaVersion: 1, id: 'shelter', origin: { ...origin }, size: { width, depth, height }, cells, dependent, air };
 }
 
+/** A compact covered home on existing natural ground, with a two-block door. */
+export function createGroundShelterBlueprint({origin={x:0,y:64,z:0},width=3,depth=4,height=3,material='minecraft:oak_planks',door='minecraft:oak_door'}={}){
+  if(!coords(origin)||![width,depth].every(n=>Number.isInteger(n)&&n>=3&&n<=11)||!Number.isInteger(height)||height<3||height>5)throw new Error('Дом: неверные координаты или размер.');
+  material=resourceId(material);door=resourceId(door);
+  const cells=[],air=[],entrance=Math.floor(width/2),at=(x,y,z)=>({x:origin.x+x,y:origin.y+y,z:origin.z+z});
+  for(let y=0;y<=height;y++)for(let z=0;z<depth;z++)for(let x=0;x<width;x++){
+    const p=at(x,y,z),wall=x===0||z===0||x===width-1||z===depth-1,opening=x===entrance&&z===0&&y<2;
+    if(opening)continue;
+    if(y===height||wall)cells.push({...p,block:material});else air.push(p);
+  }
+  cells.push({...at(entrance,0,0),block:door});
+  return validateBlueprint({schemaVersion:1,id:'ground-shelter',origin:{...origin},size:{width,depth,height},cells,dependent:[{...at(entrance,1,0),block:door}],air});
+}
+
+/** Only choose an observed, flat, unoccupied site with support under every cell. */
+export function findGroundShelterSite({near,getBlock,width=3,depth=4,height=3,radius=8,maxRise=20}={}){
+  if(!near||!['x','y','z'].every(k=>Number.isFinite(near[k]))||typeof getBlock!=='function'||![width,depth].every(n=>Number.isInteger(n)&&n>=3&&n<=11)||!Number.isInteger(height)||height<3||height>5||!Number.isInteger(radius)||radius<0||radius>32||!Number.isInteger(maxRise)||maxRise<0||maxRise>64)throw new Error('Поиск дома: near, getBlock, размеры, radius и maxRise.');
+  const center={x:Math.floor(near.x),y:Math.floor(near.y),z:Math.floor(near.z)},offsets=[];
+  for(let dx=-radius;dx<=radius;dx++)for(let dz=-radius;dz<=radius;dz++)offsets.push([dx,dz]);
+  offsets.sort((a,b)=>a[0]**2+a[1]**2-b[0]**2-b[1]**2);
+  for(let dy=0;dy<=maxRise;dy++)for(const [dx,dz]of offsets){
+    const origin={x:center.x+dx-Math.floor(width/2),y:center.y+dy,z:center.z+dz-Math.floor(depth/2)};
+    let clear=true;
+    for(let x=0;x<width&&clear;x++)for(let z=0;z<depth&&clear;z++){
+      const p={x:origin.x+x,y:origin.y,z:origin.z+z};
+      if(!isFullBlock(getBlock({...p,y:p.y-1})))clear=false;
+      for(let y=0;y<=height&&clear;y++)if(!isAir(getBlock({...p,y:p.y+y})))clear=false;
+    }
+    if(clear)return origin;
+  }
+  return null;
+}
+
 export function validateBlueprint(input) {
-  const b = jsonCopy(input);
-  if (b.schemaVersion !== 1 || !Array.isArray(b.cells) || !b.cells.length || b.cells.length > 1024 || !Array.isArray(b.air || []) || !Array.isArray(b.dependent || [])) throw new Error('Blueprint: нужен формат 1 и 1–1024 блока.');
+  const b = jsonCopy(input,'$',1048576);
+  if (b.schemaVersion !== 1 || !Array.isArray(b.cells) || !b.cells.length || b.cells.length > 4096 || !Array.isArray(b.air || []) || !Array.isArray(b.dependent || [])) throw new Error('Blueprint: нужен формат 1 и 1–4096 блоков.');
   const occupied = new Set();
   for (const cell of [...b.cells, ...(b.dependent || []), ...(b.air || [])]) {
     if (!coords(cell) || occupied.has(blockKey(cell))) throw new Error('Blueprint: неверные или повторяющиеся координаты.');

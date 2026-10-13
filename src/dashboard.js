@@ -7,7 +7,7 @@ import { createAgentManager } from './agent-manager.js';
 export async function startDashboard({ port = 4180, manager = createAgentManager() } = {}) {
   if(!Number.isInteger(port)||port<0||port>65535)throw new Error('Неверный порт панели.');
   await manager.ready;
-  const token=randomBytes(32).toString('hex'),files={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css']};
+  const token=randomBytes(32).toString('hex'),files={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css'],'/vision.css':['vision.css','text/css']};
   let origin;
   const json=(res,status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
   const server=http.createServer(async(req,res)=>{
@@ -17,14 +17,22 @@ export async function startDashboard({ port = 4180, manager = createAgentManager
       const path=new URL(req.url,origin).pathname;
       if(req.method==='GET'&&files[path]){const [file,type]=files[path];res.writeHead(200,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store'});return res.end(await readFile(new URL('./dashboard-public/'+file,import.meta.url)));}
       if(req.method==='GET'&&path==='/api/state')return json(res,200,{token,...manager.snapshot()});
-      if(req.method!=='POST'||path!=='/api/command')return json(res,404,{error:'Не найдено.'});
+      if(req.method==='GET'&&path==='/api/vision'){
+        const query=new URL(req.url,origin).searchParams;
+        return json(res,200,manager.vision(query.get('name'),{radius:Number(query.get('radius')||12)}));
+      }
+      if(req.method!=='POST'||!['/api/command','/api/schematic'].includes(path))return json(res,404,{error:'Не найдено.'});
       const supplied=Buffer.from(String(req.headers['x-mckudo-token']||'')),expected=Buffer.from(token);
       if(supplied.length!==expected.length||!timingSafeEqual(supplied,expected))return json(res,403,{error:'Обнови панель: токен сессии недействителен.'});
+      if(path==='/api/schematic'){
+        const chunks=[];let size=0;for await(const chunk of req){size+=chunk.length;if(size>8*1024*1024)return json(res,413,{error:'Схема превышает 8 МиБ.'});chunks.push(chunk);}
+        return json(res,200,{result:manager.importSchematic(String(req.headers['x-mckudo-name']||''),Buffer.concat(chunks),String(req.headers['x-mckudo-filename']||''))});
+      }
       let body='';for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>16384)return json(res,413,{error:'Запрос слишком большой.'});}
       const {name,command,args}=JSON.parse(body);return json(res,200,{result:await manager.execute(name,command,args)});
     }catch(error){if(!res.headersSent)json(res,400,{error:String(error.message).slice(0,500)});else res.end();}
   });
-  server.requestTimeout=65000;server.headersTimeout=5000;
+  server.requestTimeout=185000;server.headersTimeout=5000;
   await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});origin=`http://127.0.0.1:${server.address().port}`;
   let closing;
   return {url:origin,manager,server,close(){

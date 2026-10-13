@@ -4,7 +4,7 @@ import { createBlockTaxonomy } from '../src/taxonomy.js';
 import { isStorageBlock } from '../packages/kudoconnect/src/containers.js';
 import { traceVisibility } from '../packages/kudoconnect/src/visibility.js';
 
-export function createKudoAdapter(client, { catalog = catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}), taxonomy = createBlockTaxonomy(catalog), searchRadius = 128, trackedBlocks = ['#logs', '#ores', '#workstations', '#crops'] } = {}) {
+export function createKudoAdapter(client, { catalog = catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}), taxonomy = createBlockTaxonomy(catalog), searchRadius = 192, trackedBlocks = ['#logs', '#ores', '#workstations', '#crops'] } = {}) {
   if (!Number.isInteger(searchRadius) || searchRadius < 16 || searchRadius > 512) throw new Error('searchRadius: 16–512.');
   if (!Array.isArray(trackedBlocks) || trackedBlocks.length > 128 || trackedBlocks.some(s => typeof s !== 'string')) throw new Error('trackedBlocks: до 128 ID или классов.');
   const names = [...new Set(trackedBlocks.flatMap(s => {

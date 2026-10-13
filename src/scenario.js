@@ -2,8 +2,8 @@ import { jsonCopy } from './config.js';
 import { createBlockTaxonomy } from './taxonomy.js';
 import { createResourceReactor, planExploration } from './exploration.js';
 import { createNetherPortalBlueprint, planNetherPortal, triangulateEyes, fortressEvidence, dragonDecision } from './endgame.js';
-import { blockKey } from './construction.js';
-const fields = { resources: ['targets'], swim:['position'], navigate: ['position','range','bridge','excavate'], collect: ['item', 'count'], netherPortal: ['origin', 'axis'], travel: ['dimension'], blazeRods: ['count'], enderPearls: ['count'], eyes: ['count'], stronghold: [], endPortal: [], dragon: [] };
+import {blockKey,createGroundShelterBlueprint,findGroundShelterSite,planConstruction} from './construction.js';
+const fields = { resources: ['targets'], shelter:[], swim:['position'], navigate: ['position','range','bridge','excavate'], collect: ['item', 'count'], netherPortal: ['origin', 'axis'], travel: ['dimension'], blazeRods: ['count'], enderPearls: ['count'], eyes: ['count'], stronghold: [], endPortal: [], dragon: [] };
 const namespaced = s => typeof s === 'string' && /^[a-z0-9_.-]+:[a-z0-9_./-]+$/.test(s);
 export function validateScenario(input) {
   const s = jsonCopy(input);
@@ -36,7 +36,7 @@ export function validateScenario(input) {
 
 /** A scenario is a reactor/controller, not a Minecraft client. The application owns both. */
 export function createScenario({ scenario, catalog, taxonomy = createBlockTaxonomy(catalog), stations = {}, getBlock, explorationRadius = 24, resourceFactory, navigationFactory, strongholdSearch, dragonCombat, explorationPlanner }) {
-  const definition = validateScenario(scenario), completed = [], resources = new Map(), origins = new Map(), visited = [], portals = new Map();
+  const definition = validateScenario(scenario), completed = [], resources = new Map(), origins = new Map(), shelters=new Map(), visited = [], portals = new Map();
   const navigation=new Map();
   let index = 0, activeResource = null, activeNavigation=null, state = { status: 'pending', current: definition.steps[0].id, completed: [], reason: 'Ожидание наблюдения.' };
   const idle = reason => ({ action: null, reason: String(reason).slice(0, 500) });
@@ -88,6 +88,24 @@ export function createScenario({ scenario, catalog, taxonomy = createBlockTaxono
     if (step.type === 'resources') {
       const owned={...inv};for(const item of Object.values(o.equipment||{}))if(item)owned[item.item]=(owned[item.item]||0)+item.count;
       return enough(step.targets, owned) ? null : supply(step.id, step.targets, o);
+    }
+    if(step.type==='shelter'){
+      if(o.dimension!=='minecraft:overworld'||!getBlock)return idle('Для строительства дома нужны наблюдаемые блоки обычного мира.');
+      let blueprint=shelters.get(step.id);
+      if(!blueprint){
+        const site=findGroundShelterSite({near:o.self.position,getBlock});
+        if(!site)return explore(o,'surface');
+        const nearestLog=blocks.filter(b=>/_log$/.test(b.name)).sort((a,b)=>Math.hypot(a.position.x-o.self.position.x,a.position.z-o.self.position.z)-Math.hypot(b.position.x-o.self.position.x,b.position.z-o.self.position.z))[0]?.name;
+        const heldWood=Object.entries(inv).filter(([id,n])=>n>0&&/_(?:log|planks)$/.test(id)).sort((a,b)=>b[1]-a[1])[0]?.[0];
+        const wood=(nearestLog||heldWood||'minecraft:oak_log').replace(/^minecraft:/,'').replace(/_(?:log|planks)$/,'');
+        blueprint=createGroundShelterBlueprint({origin:site,material:`minecraft:${wood}_planks`,door:`minecraft:${wood}_door`});shelters.set(step.id,blueprint);
+      }
+      const siteBlocks=Object.fromEntries([...blueprint.cells,...blueprint.air,...blueprint.dependent].map(p=>[blockKey(p),nameAt(p)]));
+      const plan=planConstruction(blueprint,{blocks:siteBlocks,inventory:inv});
+      if(plan.status==='completed')return null;
+      if(plan.status==='blocked')return idle(plan.reason);
+      if(plan.status==='needs-materials')return supply(step.id,Object.fromEntries(Object.entries(plan.shortages).map(([id,n])=>[id,(inv[id]||0)+n])),o);
+      const next=plan.actions[0];return act(next.skill,next.args,'Построить наблюдаемый дом с дверью и крышей.');
     }
     if (step.type === 'collect') return inv[step.item] >= step.count ? null : collect(step.item, o) || idle(`В наблюдении нет выпавшего ${step.item}.`);
     if (step.type === 'eyes') return inv['minecraft:ender_eye'] >= step.count ? null : supply(step.id, { 'minecraft:ender_eye': step.count }, o);

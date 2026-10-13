@@ -120,6 +120,11 @@ test('loot outranks crafting, tracks current drop origin, and backs off failed d
   o.drops[0].position.x = 3; assert.equal(r.react(o).action.args.origin.x, 3);
   r.recordResult({ outcome: 'failure' }); assert.equal(r.react(o).action, null);
 });
+test('loot policy can stop detours for surplus soil while keeping useful drops',()=>{
+  const r=createLootReactor({stockLimits:{'minecraft:dirt':16}}),o=observation({'minecraft:dirt':16});
+  o.drops=[{id:'1',name:'dirt',count:1,position:{x:1,y:64,z:0}},{id:'2',name:'cobblestone',count:1,position:{x:2,y:64,z:0}}];
+  assert.equal(r.react(o).action.args.item,'minecraft:cobblestone');
+});
 
 test('loot failure is attributed to the executed entity even after a new observation', () => {
   const r = createLootReactor({ clock: () => 1000 }), o = observation();

@@ -48,3 +48,30 @@ export async function shareTeamSupplies({clients,targets,peers,signal,maxTransfe
   }
   return {status:proposeTeamTransfer({clients,targets})?'pending':'completed',transfers};
 }
+
+/** Each member acquires only its deficit; shared chests are accessed sequentially. */
+export async function distributeStorageSupplies({clients,requests,radius=64,signal}={}){
+  if(!Array.isArray(clients)||clients.length<1||clients.length>20||typeof requests!=='function')throw new Error('Распределение припасов: 1–20 клиентов и requests(client).');
+  const receipts=[],missing={},errors=[];
+  for(const client of clients){
+    signal?.throwIfAborted();
+    const wanted=requests(client);
+    if(!wanted||typeof wanted!=='object'||Array.isArray(wanted)||Object.entries(wanted).some(([item,count])=>! /^(?:minecraft:)?[a-z0-9_]+$/.test(item)||!Number.isInteger(count)||count<0||count>4096))throw new Error('requests: карта предметов и количества 0–4096.');
+    const deficit=Object.fromEntries(Object.entries(wanted).map(([item,count])=>[item.replace(/^minecraft:/,''),Math.max(0,count-client.inventory.ownedCount(item))]).filter(([,count])=>count));
+    if(!Object.keys(deficit).length)continue;
+    const found=await client.findStorages({radius,count:32,signal});
+    for(const storage of found.storages){
+      if(!Object.values(deficit).some(Boolean))break;
+      try{
+        const state=await client.execute({skill:'inspectStorage',args:storage.position},{signal}),amounts={};
+        for(const item of state.contents){const name=item.name||item.item.replace(/^minecraft:/,'');if(deficit[name])amounts[name]=Math.min(deficit[name],(amounts[name]||0)+item.count);}
+        if(!Object.keys(amounts).length)continue;
+        const result=await client.execute({skill:'takeStorage',args:{...storage.position,amounts}},{signal});
+        receipts.push({agent:client.options.username,storage:storage.position,items:result.transferred});
+      }catch(error){signal?.throwIfAborted();errors.push({agent:client.options.username,storage:storage.position,reason:error.message});}
+      for(const [item,count]of Object.entries(wanted))deficit[item.replace(/^minecraft:/,'')]=Math.max(0,count-client.inventory.ownedCount(item));
+    }
+    const left=Object.fromEntries(Object.entries(deficit).filter(([,count])=>count));if(Object.keys(left).length)missing[client.options.username]=left;
+  }
+  return {status:Object.keys(missing).length?'incomplete':'completed',receipts,missing,errors};
+}

@@ -10,7 +10,9 @@ import {createCampaignJournal} from './campaign-journal.js';
 /** A reusable objective; the launcher only connects, records evidence and enforces a deadline. */
 export function endExpeditionScenario(){
   return {schemaVersion:1,name:'From an empty inventory to the End',steps:[
-    {id:'stone-tools',type:'resources',targets:{'minecraft:stone_pickaxe':1,'minecraft:furnace':1}},
+    {id:'stone-tools',type:'resources',targets:{'minecraft:stone_pickaxe':1,'minecraft:furnace':1,'minecraft:stone_sword':1}},
+    {id:'first-shelter',type:'shelter'},
+    {id:'early-shield',type:'resources',targets:{'minecraft:shield':1}},
     {id:'iron-equipment',type:'resources',targets:{'minecraft:iron_pickaxe':1,'minecraft:iron_sword':1,'minecraft:iron_chestplate':1}},
     {id:'portal-materials',type:'resources',targets:{'minecraft:diamond_pickaxe':1,'minecraft:obsidian':14,'minecraft:flint_and_steel':1}},
     {id:'build-nether-portal',type:'netherPortal'},
@@ -56,7 +58,7 @@ function strongholdSearch(client){
   };
 }
 
-export function createEndExpedition({client,worldId,scenario=endExpeditionScenario(),config={},clock=Date.now}={}){
+export function createEndExpedition({client,worldId,scenario=endExpeditionScenario(),config={},cognitionMemory,neuralMemory,clock=Date.now}={}){
   if(!client?.registry)throw new Error('Экспедиции нужен клиент KudoConnect.');
   const catalog=catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}),failures=new Map(),dragonCombat=createDragonPolicy({client});
   const explorer=createExplorationPlanner({world:client.world,onReady:()=>client.emit('planningReady')});
@@ -70,8 +72,8 @@ export function createEndExpedition({client,worldId,scenario=endExpeditionScenar
     const failed=failures.get(JSON.stringify(decision.action));
     return failed&&failed.until>clock()?{action:null,reason:'Пауза после ошибки: '+failed.reason}:decision;
   };
-  brain=createMinecraftBrain({client,worldId,computation:{planner:explorer},config:{actionTimeoutMs:60000,...config},survival:false,storage:false,night:false,
-    defense:{attackPlayers:false},hunting:{foodReserve:6,radius:16,targets:{},prepareWool:false},reactors:[controller.reactor],
+  brain=createMinecraftBrain({client,worldId,computation:{planner:explorer},config:{actionTimeoutMs:60000,...config},survival:false,storage:false,night:{},loot:{radius:8,stockLimits:{'minecraft:dirt':0,'minecraft:egg':0}},cognition:{memory:cognitionMemory},neural:{memory:neuralMemory},
+    defense:{attackPlayers:false},hunting:{foodReserve:6,radius:16,targets:{},prepareWool:true},reactors:[controller.reactor],
     adapterOptions:{trackedBlocks:['#logs','#ores','#workstations','#crops','stone','cobblestone','deepslate','cobbled_deepslate','blackstone','obsidian','gravel','nether_portal','end_portal','end_portal_frame','nether_bricks','nether_brick_fence']}});
   let current=null;
   brain.on('action:start',e=>{current=e.id===controller.reactor.id?e.action:null;});

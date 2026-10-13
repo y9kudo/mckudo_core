@@ -1,10 +1,10 @@
-import { createKudoConnect, planRoute, volumeClearance, traceVolume } from '../kudoconnect/index.js';
+import { createKudoConnect, KUDOCONNECT, planRoute, volumeClearance, traceVolume } from '../kudoconnect/index.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 
 // Native, nonadministrative integration check. It never grants equipment or edits terrain.
 const client=createKudoConnect({host:process.env.MC_HOST??'127.0.0.1',port:Number(process.env.MC_PORT??25565),username:process.env.MC_NAME??'RowanVector07',version:'1.21.1'});
-const report={version:'0.7.0-dev.0',startedAt:new Date().toISOString(),status:'running',checks:[],warnings:[],fullDragonRun:false};
+const report={version:KUDOCONNECT.version,startedAt:new Date().toISOString(),status:'running',checks:[],warnings:[],fullDragonRun:false};
 const signal=AbortSignal.timeout(90000),check=(name,detail)=>{report.checks.push({name,status:'passed',detail});console.log(name+': passed');};
 client.on('warning',e=>report.warnings.push(String(e.message).slice(0,200)));
 try{

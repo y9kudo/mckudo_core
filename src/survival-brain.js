@@ -5,6 +5,7 @@ import { isAir, isFullBlock, isHazard } from './navigation.js';
 import { itemValue } from './item-value.js';
 import {traceVisibility} from '../packages/kudoconnect/src/visibility.js';
 import { smeltingRecipe, fuelItems } from '../packages/kudoconnect/src/crafting.js';
+import { blockEvidenceValue } from '../packages/kudoconnect/src/failures.js';
 
 const key = p => `${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`;
 const floor = p => ({ x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) });
@@ -26,8 +27,8 @@ function attachResults(reactor, core) {
 }
 
 /** Opportunistic collection is independent of goals and receives a fresh item position every tick. */
-export function createLootReactor({ radius = 24, priority = 80, retryMs = 5000, clock = Date.now, targets = {}, peer } = {}) {
-  if (!Number.isFinite(radius) || radius < 1 || radius > 64 || !Number.isInteger(priority) || priority < -1000 || priority > 989 || !Number.isInteger(retryMs) || retryMs < 100) throw new Error('Неверная политика подбора.');
+export function createLootReactor({ radius = 24, priority = 80, retryMs = 5000, clock = Date.now, targets = {}, stockLimits = {}, peer } = {}) {
+  if (!Number.isFinite(radius) || radius < 1 || radius > 64 || !Number.isInteger(priority) || priority < -1000 || priority > 989 || !Number.isInteger(retryMs) || retryMs < 100 || !stockLimits || typeof stockLimits!=='object' || Array.isArray(stockLimits) || Object.entries(stockLimits).some(([id,n])=>!/^minecraft:[a-z0-9_]+$/.test(id)||!Number.isInteger(n)||n<0||n>4096)) throw new Error('Неверная политика подбора.');
   const blocked = new Map(); let selected = null, observation;
   const reactor = { id: 'mckudo:loot', apiVersion: 1, failureScope: 'action',
     react(o) {
@@ -46,7 +47,7 @@ export function createLootReactor({ radius = 24, priority = 80, retryMs = 5000, 
           const claims=peer.snapshot().claims.filter(c=>!c.release&&c.resource.startsWith(`block/${o.dimension}/`)).map(c=>{const [x,y,z]=c.resource.split('/').slice(-3).map(Number);return {...c,d:distance(d.position,{x:x+.5,y:y+.5,z:z+.5})};}).filter(c=>c.d<2).sort((a,b)=>a.d-b.d);
           const owner=claims[0]&&peer.owner(claims[0].resource);return !owner||owner===peer.id;
         })
-        .filter(d => d.distance <= radius).sort((a, b) => b.count * itemValue(b.item, { inventory: o.inventory, targets }) / (1 + b.distance) - a.count * itemValue(a.item, { inventory: o.inventory, targets }) / (1 + a.distance));
+        .filter(d => d.distance <= radius && (o.inventory[d.item]||0)<(stockLimits[d.item]??Infinity)).sort((a, b) => b.count * itemValue(b.item, { inventory: o.inventory, targets }) / (1 + b.distance) - a.count * itemValue(a.item, { inventory: o.inventory, targets }) / (1 + a.distance));
       const drop = drops[0]; if (!drop) return { action: null, reason: 'Нет доступного наблюдаемого лута.' };
       selected = String(drop.id);
       return { priority, action: { skill: 'collect', args: { item: drop.item, entityId:String(drop.id), beforeCount: count(o, drop.item), origin: drop.position, timeoutMs: 6000 } }, reason: `Подобрать выпавший ${drop.item}.` };
@@ -66,9 +67,10 @@ export function createLootReactor({ radius = 24, priority = 80, retryMs = 5000, 
 }
 
 /** Stateful, bounded next-action policy. Inventory is always authoritative; plans never complete goals. */
-export function createSurvivalReactor({ client, peer, spatial, explorationPlanner, catalog = client?.registry && catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}), target = 'diamond_set', targets,
+export function createSurvivalReactor({ client, peer, spatial, explorationPlanner, actionEvidence, catalog = client?.registry && catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}), target = 'diamond_set', targets,
   priority = 5, exploration = true, digStaircase = true, preservePickaxeTier = 2, maxMemory = 2048, maxRecipeNodes = 2000, clock = Date.now } = {}) {
   if (!catalog || typeof catalog.recipes !== 'function') throw new Error('Выживанию нужен каталог рецептов.');
+  if(actionEvidence && (typeof actionEvidence.record!=='function'||typeof actionEvidence.assess!=='function'))throw new Error('actionEvidence: память с record/assess.');
   if(preservePickaxeTier!==false&&(!Number.isInteger(preservePickaxeTier)||preservePickaxeTier<1||preservePickaxeTier>4))throw new Error('preservePickaxeTier: false или 1–4.');
   if (!['diamond_set', 'iron_pickaxe', 'stone_tools', 'wood'].includes(target) || !Number.isInteger(priority) || priority < -1000 || priority > 989 || !Number.isInteger(maxMemory) || maxMemory < 32 || maxMemory > 8192 || !Number.isInteger(maxRecipeNodes) || maxRecipeNodes < 32 || maxRecipeNodes > 20000) throw new Error('Неверные параметры выживания.');
   const taxonomy = createBlockTaxonomy(catalog);
@@ -95,7 +97,23 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       const b=getBlock({x:p.x+dx,y:p.y+dy,z:p.z+dz});cells.push(b?.stateId??b?.name??null);
     }return cells;
   }).join('|');
-  const blocked = action => unreachableRoutes.has(actionKey(action)) || (failures.get(actionKey(action))?.until || 0) > clock();
+  const evidenceChecks = new Map();
+  const evidenceAgent = client?.options?.username || 'local';
+  const readFact = (fact, action) => {
+    const position=client?.state?.position || o.self.position;
+    if(fact==='position')return key(position);
+    if(fact==='navigationMode')return client?.state?.gameMode==='creative'&&client.state.allowFlying&&action.args?.creativeFlight!==false&&action.args?.excavate!==true&&Math.hypot(action.args?.x-position.x,action.args?.z-position.z)>3?'creative-flight':'ground';
+    return fact.startsWith('block:') ? blockEvidenceValue(getBlock(Object.fromEntries(fact.slice(6).split(',').map((n,i)=>[['x','y','z'][i],Number(n)])))) : null;
+  };
+  const blocked = action => {
+    const id=actionKey(action);
+    if(actionEvidence && !evidenceChecks.has(id)){
+      const assessment=actionEvidence.assess({agentId:evidenceAgent,dimension:o.dimension,action,readFact:fact=>readFact(fact,action)});
+      evidenceChecks.set(id,assessment);
+      if(!assessment.blocked&&assessment.changedFacts?.length)failures.delete(id);
+    }
+    return evidenceChecks.get(id)?.blocked || unreachableRoutes.has(id) || (failures.get(id)?.until || 0) > clock();
+  };
   const learnedCosts=new Map();
   const learnedCost = action => {if(!client?.planningPolicy)return 0;const id=actionKey(action);if(!learnedCosts.has(id))learnedCosts.set(id,client.planningPolicy.assess(o,action).cost);return learnedCosts.get(id);};
   const response = (skill, args, reason) => ({ priority, action: { skill, args:preservePickaxeTier!==false&&['dig','navigate'].includes(skill)?{...args,preservePickaxeTier}:args }, reason });
@@ -115,7 +133,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
   };
   const updateMemory = () => {
     if (dimension !== o.dimension) { memory.clear(); unreachable.clear(); unreachableRoutes.clear(); visited.length = 0; pendingStep = null; heading = null; dimension = o.dimension; }
-    for(const [id,failure]of unreachableRoutes)if(key(o.self.position)!==key(failure.from)||client.world.revision!==failure.revision||routeStamp(failure.from,failure.to)!==failure.stamp){unreachableRoutes.delete(id);failures.delete(id);}
+    for(const [id,failure]of unreachableRoutes)if(key(o.self.position)!==key(failure.from)||routeStamp(failure.from,failure.to)!==failure.stamp){unreachableRoutes.delete(id);failures.delete(id);}
     if (spatial) for (const b of spatial.entries({ dimension, near: floor(o.self.position) }).slice(0, maxMemory)) {
       if (!memory.has(key(b.position))) memory.set(key(b.position), { name: b.name, position: { ...b.position } });
     }
@@ -152,6 +170,15 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
     const ore = /(?:diamond|raw_iron|coal|cobblestone|cobbled_deepslate)$/.test(item), p = floor(o.self.position);
     const destinationY = Math.max((client.world.minY ?? -64)+2,item === rid('diamond') ? -54 : item === rid('raw_iron') ? 16 : p.y - 8);
     if (pendingStep && distance(p, pendingStep) < 0.5) pendingStep = null;
+    // Before opening a shaft, test a known, walkable descent into a cave.
+    // This is based on observed blocks and a complete route, never on an assumed void.
+    if (ore && !pendingStep && p.y > destinationY + 3) {
+      const cave = planExploration({position:p,getBlock,mode:'ores',visited,radius:32,maxNodes:1800,maxCandidates:24});
+      if(cave.status==='planned' && cave.target.y <= p.y - 3){
+        const result=response('navigate',{...cave.target,range:0,bridge:false,excavate:false},'Сначала исследовать доступный спуск в пещеру.');
+        if(!blocked(result.action))return result;
+      }
+    }
     // A descending staircase removes only adjacent cells, never the supporting block under the bot.
     if (ore && digStaircase && hasPickaxe(0)) {
       const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
@@ -294,11 +321,11 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
     return response('craft', { item, count: Math.min(64, missing), recipeId: chosen.recipe.id }, `Создать ${item} из подтверждённых запасов.`);
   }
 
-  const reactor = { id: 'mckudo:survival', apiVersion: 1, failureScope: 'action',
+  const reactor = { id: 'mckudo:survival', apiVersion: 1, failureScope: 'action', managesRetries: Boolean(actionEvidence),
     react(observation) {
       o = observation; selected = null;
       if (!finitePoint(o.self?.position) || o.self.health == null || o.self.health <= 0) return { action: null, reason: 'Выживание ожидает живого бота и позицию.' };
-      evaluations = 0; estimates = new Map(); trace = []; learnedCosts.clear(); updateMemory();
+      evaluations = 0; estimates = new Map(); trace = []; learnedCosts.clear(); evidenceChecks.clear(); updateMemory();
       sourceCache.clear(); observedByBlock.clear();
       for (const block of memory.values()) {
         if (!observedByBlock.has(block.name)) observedByBlock.set(block.name, []);
@@ -329,7 +356,10 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       if (action.skill === 'navigate') explorationPlanner?.invalidate();
       const id = actionKey(action);
       if (result.outcome === 'failure') {
-        if(action.skill==='navigate'&&client?.world&&finitePoint(action.args)&&o?.self?.position&&/маршрут|пути|путь|path|route/i.test(result.detail||'')){
+        if(actionEvidence && o?.dimension)actionEvidence.record({agentId:evidenceAgent,dimension:o.dimension,action,failure:result.failure||{code:'ACTION_FAILED'}});
+        // Structured transport failures use the evidence memory. Legacy adapters
+        // keep their existing route cache until they can supply certificates.
+        if(!result.failure&&action.skill==='navigate'&&client?.world&&finitePoint(action.args)&&o?.self?.position&&/маршрут|пути|путь|path|route/i.test(result.detail||'')){
           const from=floor(client.state?.position||o.self.position),to=floor(action.args);
           unreachableRoutes.set(id,{from,to,revision:client.world.revision,stamp:routeStamp(from,to)});
           while(unreachableRoutes.size>256)unreachableRoutes.delete(unreachableRoutes.keys().next().value);
@@ -342,7 +372,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
         }
         const attempts = (failures.get(id)?.attempts || 0) + 1;
         failures.set(id, { attempts, until: clock() + Math.min(120000, 2000 * 2 ** Math.min(6, attempts - 1)) });
-        state.lastFailure = { action, message: String(result.detail || 'Действие не удалось.').slice(0, 300), attempts };
+        state.lastFailure = { action, message: String(result.detail || 'Действие не удалось.').slice(0, 300), attempts, ...(result.failure?{failure:result.failure}:{}) };
         if (action.skill === 'navigate') { const p = floor(action.args); visited.push(p); if (visited.length > 512) visited.shift(); pendingStep = null; }
         while (failures.size > 256) failures.delete(failures.keys().next().value);
       } else failures.delete(id);

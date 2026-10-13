@@ -12,6 +12,14 @@ test('critical-health defense uses a navigation retreat when the adapter support
   const escape=r.react(o);assert.equal(escape.action.skill,'evade');assert.deepEqual(escape.action.args.from,o.entities[0].position);
   o.self.health=20;assert.equal(r.react(o).action.skill,'combat');
 });
+test('failed retreat changes to defensive combat instead of repeating the same impossible path',()=>{
+  let now=1000;const r=createCombatReactor({attackPlayers:false,pathRetreat:true,clock:()=>now}),o=base();
+  o.self.health=5;o.entities=[{id:'8',name:'zombie',kind:'entity',hostile:true,position:{x:2,y:64,z:0},health:20}];
+  const escape=r.react(o).action;assert.equal(escape.skill,'evade');
+  r.recordResult({outcome:'failure',detail:'Нет пути в наблюдаемой области с заданными правилами.'},escape);
+  const fallback=r.react(o).action;assert.equal(fallback.skill,'combat');assert.equal(fallback.args.retreatHealth,0);assert.equal(fallback.args.critical,false);
+  now+=3100;assert.equal(r.react(o).action.skill,'evade');
+});
 test('retreat does not authorize attacking an unrelated player',()=>{
   const r=createCombatReactor({attackPlayers:false,pathRetreat:true}),o=base();o.self.health=4;o.entities=[{id:'9',name:'player',kind:'player',position:{x:2,y:64,z:0}}];
   assert.equal(r.react(o).action,null);

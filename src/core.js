@@ -7,6 +7,7 @@ import { WorkflowPlanner } from './workflows.js';
 import { SkillRegistry } from './skills.js';
 import { GoalBrain } from './brain.js';
 import { normalizeObservation } from './perception.js';
+import { normalizeActionFailure } from '../packages/kudoconnect/src/failures.js';
 
 const canonical = value => Array.isArray(value) ? value.map(canonical) : object(value) ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 
@@ -24,6 +25,7 @@ export class MckudoCore extends EventEmitter {
     if (!Array.isArray(reactors) || reactors.length > 16 || new Set(reactors.map(r => r?.id)).size !== reactors.length || reactors.some(r => !id(r?.id) || r.apiVersion !== 1 || typeof r.react !== 'function')) throw new Error('Нужно до 16 уникальных Reactor: id, apiVersion: 1, react().');
     this.#reactors = [...reactors];
     if (reactors.some(r => r.failureScope !== undefined && !['reactor', 'action'].includes(r.failureScope))) throw new Error('Reactor failureScope: reactor или action.');
+    if (reactors.some(r => r.managesRetries !== undefined && typeof r.managesRetries !== 'boolean')) throw new Error('Reactor managesRetries: boolean.');
     if (!Number.isInteger(preemptionMs) || preemptionMs < 50 || preemptionMs > 2000) throw new Error('preemptionMs: 50–2000.');
     this.#preemptionMs = preemptionMs;
     if (!reactors.length && !this.#config.rules.length && !this.#config.workflows.length && !this.#config.goals.length) throw new Error('Добавь правила, задачи, цели или Reactor.');
@@ -77,7 +79,7 @@ export class MckudoCore extends EventEmitter {
         r.action.args ??= {}; if (!object(r.action.args)) throw new Error('Reactor args: нужен объект.');
         const memoryKey = JSON.stringify(['reactor', reactor.id]);
         const cooldownKey = reactor.failureScope === 'action' ? memoryKey + '/' + createHash('sha256').update(JSON.stringify(canonical(r.action))).digest('hex') : memoryKey;
-        return { id: reactor.id, kind: 'reactor', active: true, priority: r.priority, action: r.action, description: r.reason, memoryKey, cooldownKey };
+        return { id: reactor.id, kind: 'reactor', active: true, priority: r.priority, action: r.action, description: r.reason, memoryKey, cooldownKey, managesRetries: reactor.managesRetries === true };
       } catch (error) { return { id: reactor.id, kind: 'reactor', active: false, reason: String(error.message).slice(0, 500), error: true }; }
     });
   }
@@ -202,13 +204,13 @@ export class MckudoCore extends EventEmitter {
     } catch (error) {
       const cancelled = ac.signal.aborted && !timedOut;
       const message = timedOut ? 'Истекло время задачи.' : String(error?.message || error).slice(0, 300);
-      if (plan && began) this.#record(plan, context, cancelled ? 'cancelled' : 'failure', message);
+      if (plan && began) this.#record(plan, context, cancelled ? 'cancelled' : 'failure', message, !cancelled && !timedOut && error?.code ? normalizeActionFailure(error) : undefined);
       if (plan && began) this.#learn(plan, beforeAction, null, cancelled ? 'cancelled' : 'failure', startedAt);
       this.#state.status = cancelled ? this.#paused ? 'paused' : 'idle' : 'fault'; this.#state.reason = message;
     } finally { monitoring = false; this.#wakeMonitor = null; clearTimeout(monitorTimer); clearTimeout(timeout); if (this.#abort === ac) this.#abort = null; }
     this.#notify(); return this.snapshot();
   }
-  #record(plan, context, outcome, detail = '') {
+  #record(plan, context, outcome, detail = '', failure) {
     if (plan.kind === 'goal') {
       outcome = this.#brain.finish(plan, outcome, this.#state.observation, detail);
       if (outcome === 'failure' && !detail) detail = 'Наблюдение не подтвердило ожидаемый эффект; план отброшен.';
@@ -219,7 +221,7 @@ export class MckudoCore extends EventEmitter {
       if (outcome === 'success') { s.successes++; s.streak = 0; this.#actionFailures.delete(this.#cooldownKey(plan, context)); }
       else {
         s.failures++; s.streak++;
-        if (['rule', 'reactor'].includes(plan.kind)) {
+        if (['rule', 'reactor'].includes(plan.kind) && !plan.managesRetries) {
           const key = this.#cooldownKey(plan, context), scoped = plan.cooldownKey && plan.cooldownKey !== plan.memoryKey;
           const streak = scoped ? (this.#actionFailures.get(key) || 0) + 1 : s.streak;
           if (scoped) { this.#actionFailures.delete(key); this.#actionFailures.set(key, streak); }
@@ -228,7 +230,7 @@ export class MckudoCore extends EventEmitter {
         }
       }
     }
-    const result = { at: this.#clock(), rule: plan.id, skill: plan.action.skill, outcome, detail };
+    const result = { at: this.#clock(), rule: plan.id, skill: plan.action.skill, outcome, detail, ...(failure ? {failure} : {}) };
     this.#history.push(result); this.#history = this.#history.slice(-this.#config.maxHistory);
     this.#state.lastResult = result; this.#publish('action:finish', result);
   }

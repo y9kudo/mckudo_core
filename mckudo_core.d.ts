@@ -13,7 +13,7 @@ export interface AgentConfig { $schema?: string; schemaVersion: 1 | 2 | 3 | 4; n
 export interface Manifest { protocolVersion: 1; perceptionVersion?: 1; kind: string; loader: string; minecraftVersion: string; skills: readonly string[]; }
 export interface Context { signal: AbortSignal; priority?: number; }
 export interface Adapter { describe(): Manifest; observe(context: Context): Promise<Observation>; observeThreats?(context: Context): Promise<Observation>; subscribeUrgent?(listener: () => void): () => void; execute(action: Action, context: Context): Promise<unknown>; dispose?(): void; }
-export interface Result { at: number; rule: string; skill: string; outcome: 'success' | 'failure' | 'cancelled' | 'progress'; detail: string; }
+export interface Result { at: number; rule: string; skill: string; outcome: 'success' | 'failure' | 'cancelled' | 'progress'; detail: string; failure?: import('./kudoconnect/index.js').ActionFailure; }
 export interface StepState { status: 'pending' | 'running' | 'completed' | 'failed' | 'interrupted'; attempts: number; retryAt: number; error: string; }
 export interface WorkflowState { id: string; status: 'pending' | 'active' | 'completed' | 'failed' | 'interrupted'; completed: number; total: number; steps: Record<string, StepState>; }
 export interface SavedWorkflow { fingerprint: string; active: boolean; steps: Record<string, StepState>; }
@@ -99,7 +99,7 @@ export declare class MckudoRuntime {
 }
 
 export type Reaction = { action: null; reason: string } | { action: Action; priority: number; reason: string };
-export interface Reactor { id: string; apiVersion: 1; preempt?: boolean; failureScope?: 'reactor' | 'action'; react(observation: Observation): Reaction; }
+export interface Reactor { id: string; apiVersion: 1; preempt?: boolean; failureScope?: 'reactor' | 'action'; managesRetries?:boolean; react(observation: Observation): Reaction; }
 export interface Position { x: number; y: number; z: number; }
 export interface CatalogItem { id: string; numericId?: number; displayName?: string; stackSize?: number; maxDurability?: number | null; }
 export interface CatalogBlock { id: string; numericId?: number; displayName?: string; hardness?: number | null; diggable?: boolean; boundingBox?: string | null; drops?: string[]; harvestTools?: string[]; states?: Json[]; }
@@ -125,11 +125,19 @@ export interface Blueprint { schemaVersion: 1; id?: string; origin?: Position; s
 export interface ShelterBlueprint extends Blueprint { id: string; origin: Position; size: { width: number; depth: number; height: number }; air: Position[]; dependent: (Position & { block: string })[]; }
 export declare function blockKey(position: Position): string;
 export declare function createShelterBlueprint(options?: { origin?: Position; width?: number; depth?: number; height?: number; material?: string; door?: string }): ShelterBlueprint;
+export declare function createGroundShelterBlueprint(options?: { origin?: Position; width?: number; depth?: number; height?: number; material?: string; door?: string }): ShelterBlueprint;
+export declare function findGroundShelterSite(options: { near: Position; getBlock: (position: Position) => unknown; width?: number; depth?: number; height?: number; radius?: number; maxRise?: number }): Position | null;
 export declare function validateBlueprint(blueprint: unknown): Blueprint;
 export declare function billOfMaterials(blueprint: Blueprint): Record<string, number>;
 export interface ConstructionPlan { status: 'blocked' | 'needs-materials' | 'ready' | 'completed'; reason?: string; actions: Action[]; shortages?: Record<string, number>; materials?: Record<string, number>; unknown?: string[]; conflicts?: { position: string; expected: string; actual: string }[]; }
 export declare function planConstruction(blueprint: Blueprint, observation: { blocks: Record<string, string | null>; inventory?: Record<string, number> }): ConstructionPlan;
 export declare function createConstructionReactor(options: { blueprint: Blueprint; priority?: number }): Reactor;
+export interface ImportedSchematic { format: 'nbt' | 'litematic' | 'schem' | 'schematic'; size: Position; offset?: Position; cells: (Position & { block: string; properties: Record<string, string> })[]; dataVersion: number | null; blockCount: number; unsupportedStates: number; }
+export declare function parseSchematic(buffer: Buffer | Uint8Array, options?: { filename?: string }): ImportedSchematic;
+export declare function schematicBlueprint(schematic: ImportedSchematic, origin: Position): Blueprint;
+export declare function buildSchematic(client: import('./kudoconnect/index.js').KudoConnect, schematic: ImportedSchematic, origin: Position, options?: { signal?: AbortSignal; maxActions?: number }): Promise<{ status: 'completed' | 'partial' | 'blocked' | 'needs-materials'; actions: number; blockCount?: number; shortages?: Record<string,number>; reason?: string }>;
+export declare function findSchematicSite(client: import('./kudoconnect/index.js').KudoConnect, schematic: ImportedSchematic, options?: { near?: Position; minDistance?: number; maxDistance?: number }): { site: Position; origin: Position } | null;
+export declare function buildSchematicPhysical(client: import('./kudoconnect/index.js').KudoConnect, schematic: ImportedSchematic, origin: Position, options?: { signal?: AbortSignal; maxActions?: number; strategy?:'layer'|'nearest';cellFilter?:(cell:ImportedSchematic['cells'][number])=>boolean;failureCounts?:Map<string,{position:Position;block:string;reason:string;count:number}>; onProgress?: (progress: {actions:number;remaining:number;position:Position;layer:number})=>void }): Promise<{status:'completed'|'partial'|'blocked';actions:number;blockCount:number;remaining:number;failures:{position:Position;block:string;reason:string}[];reason?:string}>;
 export interface SurvivalStage { id: string; description?: string; desired: Condition; }
 export declare function survivalStages(): SurvivalStage[];
 export declare function createSurvivalProgression(options?: { stages?: SurvivalStage[]; completed?: string[] }): { update(observation: Observation): { completed: string[]; current: SurvivalStage | null; status: 'progressing' | 'completed' }; exportMemory(): { completed: string[] }; };
@@ -171,7 +179,7 @@ export declare function dragonDecision(observation: Observation): { mode: 'block
 export type ScenarioStep = { id: string } & (
   {type:'swim';position:Position} |
   { type:'navigate'; position:Position; range?:number; bridge?:boolean; excavate?:boolean } |
-  { type: 'resources'; targets: Record<string, number> } | { type: 'collect'; item: string; count: number } |
+  { type: 'resources'; targets: Record<string, number> } | { type:'shelter' } | { type: 'collect'; item: string; count: number } |
   { type: 'netherPortal'; origin?: Position; axis?: 'x' | 'z' } | { type: 'travel'; dimension: 'minecraft:overworld' | 'minecraft:the_nether' | 'minecraft:the_end' } |
   { type: 'blazeRods' | 'enderPearls' | 'eyes'; count: number } | { type: 'stronghold' | 'endPortal' | 'dragon' });
 export interface Scenario { schemaVersion: 1; name: string; steps: ScenarioStep[]; }
@@ -186,10 +194,11 @@ export interface DragonPolicy {react(observation:Observation):Reaction|null;reco
 export declare function createDragonPolicy(options:{client:import('./kudoconnect/index.js').KudoConnect;maxTowerHeight?:number}):DragonPolicy;
 export interface CampaignProgress {objective:'enter-end'|'defeat-dragon';stage:string|null;reason?:string;elapsedMs?:number;idleMs?:number;status?:'running'|'stalled'|'blocked'|'dead'|'completed'|'unverified';goalConfirmed?:boolean;entries:{at:number;stage:string|null;completed:string[];dimension:string}[];}
 export declare function createCampaignJournal(options?:{clock?:()=>number;stallAfterMs?:number;maxEntries?:number;objective?:'enter-end'|'defeat-dragon'}):{observe(input:{scenario:ScenarioState;self:{dimension:string;health:number};inventory?:Record<string,number>;endgame?:{crystals?:{entityId:string}[];dragonDeath?:{confirmed:boolean;ownDamageConfirmed:boolean}}}):CampaignProgress;snapshot():CampaignProgress};
-export declare function createEndExpedition(options:{client:import('./kudoconnect/index.js').KudoConnect;worldId:string;scenario?:Scenario;config?:Partial<Omit<AgentConfig,'worldId'>>;clock?:()=>number}):{brain:MinecraftBrain;controller:ScenarioController;snapshot():{scenario:ScenarioState;progress:CampaignProgress;dragon:ReturnType<DragonPolicy['snapshot']>;failures:{action:Action;attempts:number;until:number;reason:string}[]}};
+export declare function createEndExpedition(options:{client:import('./kudoconnect/index.js').KudoConnect;worldId:string;scenario?:Scenario;config?:Partial<Omit<AgentConfig,'worldId'>>;cognitionMemory?:unknown;neuralMemory?:unknown;clock?:()=>number}):{brain:MinecraftBrain;controller:ScenarioController;snapshot():{scenario:ScenarioState;progress:CampaignProgress;dragon:ReturnType<DragonPolicy['snapshot']>;failures:{action:Action;attempts:number;until:number;reason:string}[]}};
 export interface StorageOptions { radius?: number; recheckMs?: number; maxStacks?: number; items?: string[]; clock?: () => number; }
 export declare function createStorageReactor(options?: StorageOptions): Reactor;
 export interface MinecraftBrainOptions extends Omit<CoreOptions, 'config' | 'adapter'> {
+  actionEvidence?:ActionEvidenceMemory;
   client: import('./kudoconnect/index.js').KudoConnect;
   worldId: string;
   config?: Partial<Omit<AgentConfig, 'worldId'>>;
@@ -220,13 +229,24 @@ export declare function previewInteraction(options: InteractionOptions & { maxDi
 export declare function runInteraction(options: InteractionOptions & { timeoutMs?: number; signal?: AbortSignal; peers?: Map<string, import('./kudoconnect/index.js').KudoPeer>; priority?: number }): Promise<InteractionReport>;
 
 export type SurvivalTarget = 'wood' | 'stone_tools' | 'iron_pickaxe' | 'diamond_set';
-export interface SurvivalOptions { spatial?:SpatialMemory|null; explorationPlanner?:ExplorationPlanner; client?: import('./kudoconnect/index.js').KudoConnect; peer?: import('./kudoconnect/index.js').KudoPeer; catalog?: Catalog; target?: SurvivalTarget; targets?: Record<string,number>; priority?: number; exploration?: boolean; digStaircase?: boolean; preservePickaxeTier?: 1|2|3|4|false; maxMemory?: number; maxRecipeNodes?: number; clock?: ()=>number; }
+export interface SurvivalOptions { actionEvidence?:ActionEvidenceMemory; spatial?:SpatialMemory|null; explorationPlanner?:ExplorationPlanner; client?: import('./kudoconnect/index.js').KudoConnect; peer?: import('./kudoconnect/index.js').KudoPeer; catalog?: Catalog; target?: SurvivalTarget; targets?: Record<string,number>; priority?: number; exploration?: boolean; digStaircase?: boolean; preservePickaxeTier?: 1|2|3|4|false; maxMemory?: number; maxRecipeNodes?: number; clock?: ()=>number; }
 export interface LootOptions { peer?:import("./kudoconnect/index.js").KudoPeer; radius?: number; priority?: number; retryMs?: number; clock?: ()=>number; targets?: Record<string,number>; }
 export interface SurvivalSnapshot { status:string; stage:string|null; reason:string; targets:Record<string,number>; completed:string[]; knownResources:number; remaining?:Record<string,number>; lastFailure:unknown; plan?:{item:string;required:number;missing:number;parent:string|null;recipeId?:string;ingredients?:{item:string;count:number}[];alternatives?:{recipeId:string;cost:number}[]}[]; }
-export interface StatefulReactor extends Reactor { recordResult(result:{outcome:string;detail?:string},action?:Action):void; attach(core:MckudoCore):()=>void; }
+export interface StatefulReactor extends Reactor { recordResult(result:{outcome:string;detail?:string;failure?:import('./kudoconnect/index.js').ActionFailure},action?:Action):void; attach(core:MckudoCore):()=>void; }
 export interface SurvivalReactor extends StatefulReactor { snapshot():SurvivalSnapshot; }
-export interface MinecraftBrain extends MckudoCore { computation:ExplorationPlanner|null; spatial:SpatialMemory|null; cognition:NeuralPlanner|null; neural?:NeuralNavigator; survival:SurvivalReactor|null; loot:StatefulReactor|null; }
+export interface MinecraftBrain extends MckudoCore { actionEvidence:ActionEvidenceMemory; computation:ExplorationPlanner|null; spatial:SpatialMemory|null; cognition:NeuralPlanner|null; neural?:NeuralNavigator; survival:SurvivalReactor|null; loot:StatefulReactor|null; }
 export declare function createSurvivalReactor(options:SurvivalOptions):SurvivalReactor;
+export interface ActionEvidenceQuery {agentId:string;dimension:string;action:Action;}
+export interface ActionEvidenceRecord extends Omit<ActionEvidenceQuery,'action'> {key:string;skill:string;code:import('./kudoconnect/index.js').ActionFailureCode;facts:Record<string,string|number|boolean|null>;mode:'condition'|'timer';attempts:number;at:number;until:number|null;}
+export interface ActionEvidenceAssessment {blocked:boolean;reason:string;code?:import('./kudoconnect/index.js').ActionFailureCode;mode?:'condition'|'timer';sourceAgent?:string;retryAt?:number|null;facts?:string[];changedFacts?:string[];unknownFacts?:string[];}
+export interface ActionEvidenceMemory {
+  worldId:string;
+  record(input:ActionEvidenceQuery & {failure:import('./kudoconnect/index.js').ActionFailure}):ActionEvidenceRecord;
+  assess(input:ActionEvidenceQuery & {readFact:(fact:string)=>string|number|boolean|null|undefined}):ActionEvidenceAssessment;
+  snapshot():{worldId:string;maxEntries:number;recorded:number;avoided:number;sharedAvoided:number;reconsidered:number;entries:ActionEvidenceRecord[]};
+  clear():void;
+}
+export declare function createActionEvidenceMemory(options:{worldId:string;maxEntries?:number;retryMs?:number;clock?:()=>number}):ActionEvidenceMemory;
 export declare function createLootReactor(options?:LootOptions):StatefulReactor;
 export declare function diamondSetTargets():Record<string,number>;
 export declare function diamondSetCondition():Condition;
@@ -243,10 +263,11 @@ export interface TeamSupplyOptions { clients:import('./kudoconnect/index.js').Ku
 export declare function teamSupplyTargets(client:import('./kudoconnect/index.js').KudoConnect,clients:TeamSupplyOptions['clients'],goals?:Record<string,number>):Record<string,number>;
 export declare function proposeTeamTransfer(options:TeamSupplyOptions & {maxDistance?:number}):({from:import('./kudoconnect/index.js').KudoConnect;to:import('./kudoconnect/index.js').KudoConnect;fromTargets:Record<string,number>;toTargets:Record<string,number>;proposal:TradePlan})|null;
 export declare function shareTeamSupplies(options:TeamSupplyOptions & {peers?:Map<string,import('./kudoconnect/index.js').KudoPeer>;signal?:AbortSignal;maxTransfers?:number}):Promise<{status:TradeReport['status']|'pending';transfers:(TradeReport & {from:string;to:string})[]}>;
-export interface AgentManagerOptions { brainOptions?:Omit<MinecraftBrainOptions,'client'|'worldId'>; memoryDirectory?:string; count?:number;names?:string[];connection?:import('./kudoconnect/index.js').KudoOptions;worldId?:string;createClient?:typeof import('./kudoconnect/index.js').createKudoConnect;createBrain?:typeof createMinecraftBrain; }
-export interface ManagedAgent { spatial:SpatialMemorySnapshot|null; tasks:AgentTask[];taskState:TaskState[];learning:NeuralSnapshot|null;cognition:CognitionSnapshot|null;recipes:import("./kudoconnect/index.js").RecipeBookSnapshot|null; name:string;busy:boolean;error:string;goal:SurvivalTarget;state:import('./kudoconnect/index.js').KudoSnapshot;inventory:{item:string;name:string;count:number;slot:number}[];brain:Snapshot|null;survival:SurvivalSnapshot|null;skills:string[]; }
+export declare function distributeStorageSupplies(options:{clients:import('./kudoconnect/index.js').KudoConnect[];requests:(client:import('./kudoconnect/index.js').KudoConnect)=>Record<string,number>;radius?:number;signal?:AbortSignal}):Promise<{status:'completed'|'incomplete';receipts:{agent:string;storage:Position;items:{item:string;count:number}[]}[];missing:Record<string,Record<string,number>>;errors:{agent:string;storage:Position;reason:string}[]}>;
+export interface AgentManagerOptions { brainOptions?:Omit<MinecraftBrainOptions,'client'|'worldId'>; supplyTargets?:Record<string,number>;memoryDirectory?:string; count?:number;names?:string[];connection?:import('./kudoconnect/index.js').KudoOptions;worldId?:string;createClient?:typeof import('./kudoconnect/index.js').createKudoConnect;createBrain?:typeof createMinecraftBrain; }
+export interface ManagedAgent { spatial:SpatialMemorySnapshot|null; tasks:AgentTask[];taskState:TaskState[];learning:NeuralSnapshot|null;cognition:CognitionSnapshot|null;recipes:import("./kudoconnect/index.js").RecipeBookSnapshot|null; name:string;busy:boolean;error:string;goal:SurvivalTarget;settings:{humanizeMode:boolean;viewDistance:number};attention:unknown|null;schematic:({format:ImportedSchematic['format'];blockCount:number;size:Position;unsupportedStates:number;origin:Position|null})|null;state:import('./kudoconnect/index.js').KudoSnapshot;inventory:{item:string;name:string;count:number;slot:number}[];brain:Snapshot|null;survival:SurvivalSnapshot|null;skills:string[]; }
 export interface ManagerSnapshot { worldId:string;agents:ManagedAgent[];log:{at:number;name:string;event:string;detail:string}[]; }
-export interface AgentManager { ready:Promise<unknown>; fleet:ReturnType<typeof import('./kudoconnect/index.js').createFleet>;snapshot():ManagerSnapshot;execute(name:string,command:'connect'|'disconnect'|'respawn'|'start'|'pause'|'goal'|'action'|'give'|'trade'|'tasks'|'taskRetry',args?:Record<string,unknown>):Promise<unknown>;close():Promise<void>; }
+export interface AgentManager { ready:Promise<unknown>; fleet:ReturnType<typeof import('./kudoconnect/index.js').createFleet>;snapshot():ManagerSnapshot;importSchematic(name:string,buffer:Buffer|Uint8Array,filename:string):Pick<ImportedSchematic,'format'|'blockCount'|'size'|'unsupportedStates'>;vision(name:string,options?:{radius?:number}):unknown;execute(name:string,command:'connect'|'disconnect'|'respawn'|'start'|'pause'|'goal'|'action'|'give'|'trade'|'tasks'|'taskRetry'|'settings'|'buildSchematic',args?:Record<string,unknown>):Promise<unknown>;close():Promise<void>; }
 export declare function createAgentManager(options?:AgentManagerOptions):AgentManager;
 export interface MinecraftAgentOptions extends Omit<AgentManagerOptions,'count'|'names'|'worldId'> {name?:string;worldId:string;}
 export type MissionStep = {get:string;count?:number} | {craft:string;count?:number} | {go:Position;range?:number;bridge?:boolean;excavate?:boolean} | {swim:Position};
@@ -312,3 +333,11 @@ export declare function machineResourceKey(resource:MachineResource):string;
 export declare function createMachineGraph(document:MachineGraphDocument):MachineGraph;
 export declare function planMachineResources(options:{graph:MachineGraph;targets:MachineResource[];inventory?:MachineResource[];executors?:string[];maxDepth?:number;maxNodes?:number;maxSteps?:number}):MachinePlan;
 export declare function executeMachinePlan(options:{plan:MachinePlan;executors:Record<string,(step:MachineStep,context:{signal:AbortSignal})=>unknown|Promise<unknown>>;observe:()=>{revision:number;resources:MachineResource[]}|Promise<{revision:number;resources:MachineResource[]}>;signal?:AbortSignal;timeoutMs?:number}):Promise<{ok:true;receipts:{recipe:string;machine:string;batches:number;revision:number;confirmed:true}[]}>;
+export {planElytraFlight,elytraControl} from './packages/kudoconnect/index.js';
+export declare const STORAGE_CATEGORIES:Readonly<Record<'building'|'resources'|'equipment'|'food'|'nature'|'other',string>>;
+export type StorageCategory=keyof typeof STORAGE_CATEGORIES;
+export declare function storageCategory(item:string|{name?:string;item?:string},registry:unknown):StorageCategory;
+export declare function storageForSign(client:import('./kudoconnect/index.js').KudoConnect,sign:import('./kudoconnect/index.js').SignObservation):Position;
+export declare function findLabelledStorage(client:import('./kudoconnect/index.js').KudoConnect,label:string,options?:{radius?:number}):Position;
+export interface SortStorageOptions {source?:Position;sourceLabel?:string;radius?:number;destinations?:Partial<Record<StorageCategory,Position>>;maxBatches?:number;resumeInventory?:boolean;preserveItems?:string[];signal?:AbortSignal;onProgress?:(report:Record<string,unknown>)=>void;}
+export declare function sortStorage(client:import('./kudoconnect/index.js').KudoConnect,options?:SortStorageOptions):Promise<{status:'completed'|'incomplete';source:Position;sourceEmpty:boolean;serverConfirmed:true;conserved?:boolean;assignments:Partial<Record<StorageCategory,Position>>;labels:unknown[];transferred:unknown[];batches:number;initialCounts?:Record<string,number>;finalCounts?:Record<string,number>}>;
