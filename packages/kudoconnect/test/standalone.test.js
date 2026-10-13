@@ -5,9 +5,15 @@ import {resolve,relative,isAbsolute} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import minecraftData from 'minecraft-data';
 import { KudoConnect, KudoWorld, KudoPeer, createFleet, stepPhysics, environmentAt, solveAim, traceProjectile, projectileProfile } from '../index.js';
+import {observeAgent} from '../src/observation.js';
 const air = { name: 'air', shapes: [], boundingBox: 'empty' }, stone = { name: 'stone', shapes: [[0,0,0,1,1,1]], boundingBox: 'block' };
 const flat = p => p.y < 1 ? stone : air;
 const state = (y = 1) => ({ position: { x: .5, y, z: .5 }, velocity: { x: 0, y: 0, z: 0 }, onGround: y === 1, health: 20 });
+test('observation exposes sheep wool color and sheared flag for bed planning',()=>{
+  const c={options:{version:'1.21.1'},state:{...state(),dimension:'minecraft:overworld'},inventory:{snapshot:()=>({}),equipment:()=>({}),slots:Array(46).fill(null)},
+    entities:new Map([[1,{id:'1',name:'sheep',kind:'entity',position:{x:2,y:1,z:0},velocity:{x:0,y:0,z:0},metadata:{wool:0x13}}]]),players:{snapshot:()=>[]},attention:{last:null},containers:{observations:new Map()},time:{},endgame:{},world:{revision:0,columns:new Map()},attackers:new Map()};
+  const sheep=observeAgent(c).entities[0];assert.equal(sheep.woolColor,3);assert.equal(sheep.sheared,true);
+});
 test('the standalone package source has no imports of MCKudo or Mineflayer', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url)));
   assert.equal(pkg.name, 'kudoconnect'); assert.equal(pkg.dependencies.mckudo, undefined); assert.equal(pkg.dependencies.mineflayer, undefined);
@@ -131,6 +137,53 @@ test('loaded crossbow fires once and distinguishes ammunition confirmation from 
   c.on('sent', e => { if (e.name === 'use_item') c.inventory.updateSlot({ windowId: 0, slot: 36, stateId: 3, item: slot('crossbow', 1) }); });
   const result = await c.execute({ skill: 'shoot', args: { entityId: '42', weapon: 'crossbow' } });
   assert.equal(result.shotServerConfirmed, true); assert.equal(result.hitConfirmed, false); assert.equal(packets.filter(e => e.name === 'use_item').length, 1); await c.close();
+});
+test('moving dragon gets a final current aim and releases one arrow',async()=>{
+  const {c,packets,slot}=armed('bow');
+  Object.assign(c.entities.get(42),{name:'ender_dragon',metadata:{phase:0}});
+  const original=c.waitForLook.bind(c);
+  c.waitForLook=async options=>{await original(options);c.entities.get(42).position.z+=1.5;};
+  c.on('sent',e=>{if(e.name==='block_dig'&&e.packet.status===5)c.inventory.updateSlot({windowId:0,slot:37,stateId:4,item:slot('arrow',2)});});
+  const result=await c.execute({skill:'shoot',args:{entityId:'42'}});
+  assert.equal(result.shotServerConfirmed,true);
+  assert.equal(packets.filter(e=>e.name==='block_dig'&&e.packet.status===5).length,1);
+  await c.close();
+});
+test('Infinity bow confirms a shot from server durability despite unchanged arrow count',async()=>{
+  const {c,packets,slot}=armed('bow');
+  const before=slot('bow',1,[{type:'damage',data:4}]);
+  c.inventory.updateSlot({windowId:0,slot:36,stateId:3,item:before});
+  c.on('sent',e=>{if(e.name==='block_dig'&&e.packet.status===5)c.inventory.updateSlot({windowId:0,slot:36,stateId:4,item:slot('bow',1,[{type:'damage',data:5}])});});
+  const result=await c.execute({skill:'shoot',args:{entityId:'42'}});
+  assert.equal(result.shotServerConfirmed,true);
+  assert.equal(c.inventory.count('arrow'),3);
+  assert.equal(packets.filter(e=>e.name==='block_dig'&&e.packet.status===5).length,1);
+  await c.close();
+});
+test('perched dragon melee addresses its head part and confirms damage separately',async()=>{
+  const c=new KudoConnect(),packets=[];
+  c.state={...c.state,status:'ready',position:{x:.5,y:64,z:.5},velocity:{x:0,y:0,z:0},onGround:true,health:20,food:20,dimension:'minecraft:the_end'};
+  c.world.blockAt=flat;
+  const raw={itemCount:1,itemId:c.registry.itemsByName.netherite_sword.id,addedComponentCount:0,removedComponentCount:0,components:[],removeComponents:[]};
+  c.inventory.updateSlot({windowId:0,slot:36,stateId:1,item:raw});
+  const dragon={id:'42',name:'ender_dragon',kind:'entity',position:{x:-5,y:65,z:0},yaw:90,pitch:0,metadata:{phase:5,health:20}};
+  c.entities.set(42,dragon);c.client={state:'play',end(){}};
+  c.write=(name,packet)=>{packets.push({name,packet});if(name==='use_entity'){dragon.metadata.health=10;c.endgame.ownDragonHits=1;c.emit('entity',dragon);}};
+  const result=await c.execute({skill:'attackDragon',args:{entityId:'42',critical:false}});
+  assert.equal(result.damageConfirmed,true);assert.equal(result.criticalAttempted,false);assert.equal(result.headId,43);
+  assert.equal(packets.filter(p=>p.name==='use_entity').length,1);
+  await c.close();
+});
+test('crystal removal is reported separately from confirmation of our arrow',async()=>{
+  const {c,packets}=armed('bow');
+  Object.assign(c.entities.get(42),{name:'end_crystal'});
+  c.on('sent',e=>{if(e.name==='block_dig'&&e.packet.status===5)setTimeout(()=>{c.entities.delete(42);(c.endgame.crystals??=[]).push({entityId:'42',at:Date.now()});},25);});
+  const result=await c.execute({skill:'shoot',args:{entityId:'42'}});
+  assert.equal(result.crystalDestroyedServerConfirmed,true);
+  assert.equal(result.shotServerConfirmed,false);
+  assert.equal(result.hitConfirmed,false);
+  assert.equal(packets.filter(e=>e.name==='block_dig'&&e.packet.status===5).length,1);
+  await c.close();
 });
 test('ranged PvP needs permission and unknown terrain prevents charging', async () => {
   const { c, packets } = armed('bow'); c.entities.get(42).kind = 'player';

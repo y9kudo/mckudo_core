@@ -4,6 +4,8 @@ import { gazeAngles } from './players.js';
 import {assessFall} from './fall.js';
 import {chooseMiningTool} from './equipment.js';
 import {editDecision} from './protection.js';
+import {executeCreativeFly} from './creative-flight.js';
+import {KudoActionError} from './failures.js';
 
 /** Deliberate route excavation only consumes common terrain with an appropriate tool. */
 export const routeCanDig = c => {
@@ -38,12 +40,14 @@ export class SmoothLook {
     if (immediate) { Object.assign(state, this.angles(state)); this.clear(); }
   }
   angles(state) { return gazeAngles({ ...state.position, y: state.position.y + 1.62 }, this.target.position); }
-  tick(state, dt = .05) {
+  tick(state, dt = .05, safeAngles = null) {
     if (!this.target) return;
     if (this.target.signal?.aborted || !state.position) { this.clear(); return; }
     const angles = this.angles(state);
-    Object.assign(state, rotateToward(state, angles, { turnSpeed: this.target.turnSpeed, dt }));
-    if (Math.hypot(wrapDegrees(angles.yaw - state.yaw), angles.pitch - state.pitch) < .1) { Object.assign(state, angles); this.clear(); }
+    const next=rotateToward(state, angles, { turnSpeed: this.target.turnSpeed, dt });
+    Object.assign(state, safeAngles ? safeAngles(state,next) : next);
+    const final=safeAngles?safeAngles(state,angles):angles;
+    if (Math.hypot(wrapDegrees(angles.yaw - state.yaw), angles.pitch - state.pitch) < .1 && Math.hypot(wrapDegrees(final.yaw-angles.yaw),final.pitch-angles.pitch)<.001) { Object.assign(state, angles); this.clear(); }
   }
   clear() { this.target = null; }
 }
@@ -147,6 +151,9 @@ export function personalSpaceControl(state,control,entities,getBlock,ownId,{canM
 
 export async function executeNavigate(c, args, signal, { place, dig, replans=0 } = {}) {
   if (!validPoint(args)) throw new Error('Навигация: нужны x/y/z.');
+  if(c.state.gameMode==='creative'&&c.state.allowFlying&&args.creativeFlight!==false&&args.excavate!==true&&Math.hypot(args.x-c.state.position.x,args.z-c.state.position.z)>3){
+    return executeCreativeFly(c,{x:Math.floor(args.x),y:Math.floor(args.y),z:Math.floor(args.z),land:true},signal);
+  }
   const range = args.range ?? 1;
   if (!Number.isInteger(range) || range < 0 || range > 8) throw new Error('range: 0–8.');
   const alive = () => { signal.throwIfAborted(); if (c.state.health <= 0 || c.state.status !== 'ready') throw new Error('Агент недоступен.'); };
@@ -162,8 +169,8 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
   const route = await planRouteAsync({ start, goal: floor(args), range, occupied, canDig:args.excavate===true?routeCanDig(c):()=>false, edgeCost:c.navigationPolicy?.cost, getBlock: view.getBlock, maxDistance: 128, maxNodes: 12000, maxDrop:args.maxDrop??c.options?.maxDrop??dimensionDrop,fallPolicy,
     bridgeBudget: typeof place === 'function' ? budget : 0, bridgeBlock: blocks[0]?.block || 'minecraft:cobblestone', canPlace:p=>editDecision(c,'place',p).allowed, signal }, { getRevision: view.getRevision });
   alive();
-  if (c.metrics.corrections !== plannedCorrections || ['x', 'y', 'z'].some(axis => Math.floor(c.state.position[axis]) !== start[axis])) throw new Error('Старт изменился во время поиска маршрута; нужно повторное планирование.');
-  if (route.status !== 'planned') throw new Error(route.reason);
+  if (c.metrics.corrections !== plannedCorrections || ['x', 'y', 'z'].some(axis => Math.floor(c.state.position[axis]) !== start[axis])) throw new KudoActionError('STALE_WORLD', 'Старт изменился во время поиска маршрута; нужно повторное планирование.');
+  if (route.status !== 'planned') throw new KudoActionError(route.failure?.code || 'NO_PATH', route.reason, route.failure?.evidence);
   const corrections = c.metrics.corrections;let segment=null, bridgeWalk=false;
   try {
     for (let i = 0; i < route.steps.length; i++) {
@@ -197,16 +204,16 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
       const endpoint = route.steps[last].position, target = { x: endpoint.x + .5, y: endpoint.y, z: endpoint.z + .5 }, until = Date.now() + 5000 + (last - i) * (bridgeWalk ? 1200 : 700);
       segment={from:floor(c.state.position),to:{...endpoint},kind:step.kind,dimension:c.state.dimension,health:c.state.health,food:c.state.food};
       while (Math.hypot(c.state.position.x - target.x, c.state.position.z - target.z) > .18 || Math.abs(c.state.position.y - target.y) > .12 || !c.state.onGround) {
-        alive(); if (Date.now() > until) throw new Error('Истёк бюджет движения по шагу.');
-        if (c.metrics.corrections - corrections > 2) throw new Error('Сервер несколько раз скорректировал движение; маршрут остановлен.');
+        alive(); if (Date.now() > until) throw new KudoActionError('STEP_STALLED', 'Истёк бюджет движения по шагу.');
+        if (c.metrics.corrections - corrections > 2) throw new KudoActionError('SERVER_CORRECTION', 'Сервер несколько раз скорректировал движение; маршрут остановлен.');
         if(c.state.onGround&&route.steps.slice(i,last+1).some(s=>occupied(s.position)&&Math.hypot(s.position.x+.5-c.state.position.x,s.position.z+.5-c.state.position.z)>.9)){
-          c.stopMovement();if(replans>=4)throw new Error('Маршрут занят другими игроками; требуется новая цель.');
+          c.stopMovement();if(replans>=4)throw new KudoActionError('OCCUPIED', 'Маршрут занят другими игроками; требуется новая цель.');
           await delay(100,undefined,{signal});return await executeNavigate(c,args,signal,{place,dig,replans:replans+1});
         }
         // Recheck the entire segment: a block may vanish while the bot is running.
         for (let check = i; check <= last; check++) {
           const p = route.steps[check].position;
-          if (!isAir(c.world.blockAt(p)) || !isAir(c.world.blockAt({ ...p, y: p.y + 1 })) || !isFullBlock(c.world.blockAt({ ...p, y: p.y - 1 }))) throw new Error('Опора/проход маршрута изменились.');
+          if (!isAir(c.world.blockAt(p)) || !isAir(c.world.blockAt({ ...p, y: p.y + 1 })) || !isFullBlock(c.world.blockAt({ ...p, y: p.y - 1 }))) throw new KudoActionError('SUPPORT_CHANGED', 'Опора/проход маршрута изменились.');
         }
         c.lookAt({ ...target, y: target.y + 1.62 }, { signal });
         const control = travelControl(c.state, target, p => c.world.blockAt(p), { sprint: args.sprint !== false, sprintJump: args.sprintJump !== false && last - i >= 7, guarding: c.guarding });

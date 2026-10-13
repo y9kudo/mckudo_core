@@ -1,5 +1,6 @@
 import { environmentAt } from './environment.js';
-const bounds = p => ({ minX: p.x - 0.3, maxX: p.x + 0.3, minY: p.y, maxY: p.y + 1.8, minZ: p.z - 0.3, maxZ: p.z + 0.3 });
+import {predictElytraTick} from './vectorize.js';
+const bounds = (p,height=1.8) => ({ minX: p.x - 0.3, maxX: p.x + 0.3, minY: p.y, maxY: p.y + height, minZ: p.z - 0.3, maxZ: p.z + 0.3 });
 const shift = (b, axis, v) => { b['min' + axis] += v; b['max' + axis] += v; };
 const intersects = (a, b, k) => ['X', 'Y', 'Z'].filter(n => n !== k).every(n => a['max' + n] > b['min' + n] + 1e-7 && a['min' + n] < b['max' + n] - 1e-7);
 // Grounded sneaking clips horizontal motion to observed collision support. An
@@ -29,7 +30,9 @@ function holdEdge(box, velocity, getBlock) {
 /** Standing-player baseline for Java 1.21.1; one call = one 50 ms tick. Health is server-owned. */
 export function stepPhysics(state, control, getBlock) {
   if (!state?.position || !state.velocity || [...Object.values(state.position), ...Object.values(state.velocity)].some(v => !Number.isFinite(v)) || Object.values(state.velocity).some(v => Math.abs(v) > 16)) throw new Error('Physics: неверное состояние или скорость вне бюджета.');
-  const p = { ...state.position }, velocity = { ...state.velocity }, box = bounds(p);
+  const gliding=Boolean(state.gliding&&state.elytraEquipped&&!state.onGround);
+  const creativeFlying=Boolean(state.creativeFlying&&state.allowFlying&&state.gameMode==='creative');
+  const p = { ...state.position }, velocity = { ...state.velocity }, box = bounds(p,gliding?.6:1.8);
   const environment = environmentAt(p, getBlock), liquid = environment.medium !== 'air', web = environment.contacts.includes('cobweb');
   if (environment.unknown) return { ...state, environment, velocity: { x: 0, y: 0, z: 0 }, frozen: true };
   const length = Math.hypot(control.x || 0, control.z || 0);
@@ -37,9 +40,18 @@ export function stepPhysics(state, control, getBlock) {
   const acceleration = liquid ? .02 : (state.onGround ? .1 * (.6 / environment.slipperiness) ** 3 : .02) * (sprinting ? 1.3 : 1);
   // Analog input brakes near goals; 0.98 is vanilla's normal movement-input factor.
   const input = Math.min(1, length) * .98 * (control.sneak ? .3 : control.usingItem ? .2 : 1);
-  if (length) { velocity.x += (control.x || 0) / length * acceleration * input; velocity.z += (control.z || 0) / length * acceleration * input; }
-  if (liquid) { for (const k of ['x', 'y', 'z']) velocity[k] += environment.flow[k] * (environment.medium === 'water' ? .014 : .002333333); if (control.jump) velocity.y += .04; if (control.sneak) velocity.y -= .04; }
-  else if (control.jump && state.onGround) {
+  if (length&&!gliding&&!creativeFlying) { velocity.x += (control.x || 0) / length * acceleration * input; velocity.z += (control.z || 0) / length * acceleration * input; }
+  if(creativeFlying){
+    const speed=Math.min(.45,Math.max(.08,(state.flyingSpeed||.05)*6));
+    const targetX=length?(control.x||0)/length*speed*input:0,targetZ=length?(control.z||0)/length*speed*input:0;
+    velocity.x+=(targetX-velocity.x)*.4;velocity.z+=(targetZ-velocity.z)*.4;
+    const targetY=((control.up?1:0)-(control.down?1:0))*speed;
+    velocity.y+=(targetY-velocity.y)*.5;
+    if(Math.abs(velocity.y)<.003)velocity.y=0;
+  }
+  if(gliding)Object.assign(velocity,predictElytraTick({position:p,velocity,yaw:state.yaw,pitch:state.pitch,rocket:Boolean(state.rocketBoost)}).velocity);
+  if (liquid&&!creativeFlying) { for (const k of ['x', 'y', 'z']) velocity[k] += environment.flow[k] * (environment.medium === 'water' ? .014 : .002333333); if (control.jump) velocity.y += .04; if (control.sneak) velocity.y -= .04; }
+  else if (!creativeFlying&&control.jump && state.onGround && !gliding) {
     velocity.y = Math.fround(.42) * (environment.support === 'honey_block' ? .4 : 1);
     if (sprinting) {
       // The vanilla sprint-jump impulse follows facing, not the requested waypoint.
@@ -76,6 +88,8 @@ export function stepPhysics(state, control, getBlock) {
     }
   }
   const after = environmentAt(p, getBlock);
+  if(gliding)return {...state,position:p,velocity,onGround,horizontalCollision,sprinting:false,sneaking:false,gliding:!onGround&&!liquid,frozen:false,environment:after};
+  if(creativeFlying)return {...state,position:p,velocity,onGround,horizontalCollision,sprinting:false,sneaking:false,frozen:false,environment:after};
   if (web) velocity.x = velocity.y = velocity.z = 0;
   if (liquid) velocity.y = velocity.y * (environment.medium === 'water' ? .8 : .5) - (environment.medium === 'water' ? .005 : .02);
   else velocity.y = (velocity.y - .08) * .98;

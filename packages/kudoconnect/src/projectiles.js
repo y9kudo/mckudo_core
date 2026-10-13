@@ -26,7 +26,7 @@ function segmentCollision(a, b, getBlock) {
         const shapes = block ? block.shapes || (block.boundingBox === 'block' ? [[0, 0, 0, 1, 1, 1]] : []) : [[0, 0, 0, 1, 1, 1]];
         for (const s of shapes) {
           const t = intersection(a, b, { x: x + s[0], y: y + s[1], z: z + s[2] }, { x: x + s[3], y: y + s[4], z: z + s[5] });
-          if (t !== null && (!hit || t < hit.t)) hit = { t, cell, reason: block ? 'obstacle' : 'unknown' };
+          if (t !== null && (!hit || t < hit.t)) hit = { t, cell, point: {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t}, reason: block ? 'obstacle' : 'unknown' };
         }
       }
   return hit;

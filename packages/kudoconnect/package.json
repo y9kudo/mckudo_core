@@ -1,6 +1,6 @@
 {
   "name": "kudoconnect",
-  "version": "0.7.0-dev.0",
+  "version": "0.7.0",
   "description": "Independent Minecraft Java agent client, physics and peer communication",
   "author": "y9kudo",
   "license": "MIT",

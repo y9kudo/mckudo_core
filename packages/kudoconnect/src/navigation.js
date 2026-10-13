@@ -1,5 +1,6 @@
 import {assessFall} from './fall.js';
 import { navigationScheduler } from './scheduler.js';
+import { blockEvidenceValue } from './failures.js';
 const key = p => `${p.x},${p.y},${p.z}`;
 const point = p => p && ['x', 'y', 'z'].every(k => Number.isInteger(p[k]) && Math.abs(p[k]) <= 30000000);
 const directions = [[1, 0], [-1, 0], [0, 1], [0, -1], [1,1], [1,-1], [-1,1], [-1,-1]];
@@ -39,7 +40,11 @@ function* routeSearch({ start, goal, getBlock, occupied = () => false, edgeCost 
     if (neighbors.some(q => { const v = read(q); return !v || isHazard(v) || /(?:sand|gravel|concrete_powder|anvil|dripstone)$/.test(v.name || v.id); })) return null;
     steps.push({ kind: 'dig', position: cell, expected: b.name || b.id }); change(cell,emptyBlock); excavated++; return 5 + Math.max(0, b.hardness || 0);
   };
-  if (!air(start) || !air({ ...start, y: start.y + 1 }) || !isFullBlock(read({ ...start, y: start.y - 1 }))) return { status: 'blocked', reason: 'Старт не подтверждён как свободная ячейка с опорой.', steps: [], visited: 0, unknown: [...unknown.values()] };
+  if (!air(start) || !air({ ...start, y: start.y + 1 }) || !isFullBlock(read({ ...start, y: start.y - 1 }))) return {
+    status: 'blocked', reason: 'Старт не подтверждён как свободная ячейка с опорой.', steps: [], visited: 0, unknown: [...unknown.values()],
+    failure: { code: 'START_UNSUPPORTED', evidence: { complete: unknown.size === 0,
+      facts: { position: key(start), navigationMode: 'ground', ...Object.fromEntries([...cache].map(([cell, block]) => ['block:' + cell, blockEvidenceValue(block)])) } } }
+  };
   const distance = p => Math.max(Math.abs(p.x - goal.x), Math.abs(p.y - goal.y), Math.abs(p.z - goal.z));
   const heuristic = p => {const dx=Math.max(0,Math.abs(p.x-goal.x)-range),dz=Math.max(0,Math.abs(p.z-goal.z)-range);return Math.max(dx,dz)+(Math.SQRT2-1)*Math.min(dx,dz)+Math.max(0,Math.abs(p.y-goal.y)-range)*.3;};
   const open = new Heap(), best = new Map(), first = { p: { ...start }, g: 0, f: heuristic(start), used: 0, damage:0, edits:null, excavated:0, parent: null, steps: [] };
@@ -91,7 +96,7 @@ function* routeSearch({ start, goal, getBlock, occupied = () => false, edgeCost 
     }
   }
   if (partial) return finish(partial, true);
-  return { status: 'blocked', reason: visited >= maxNodes ? 'Исчерпан бюджет поиска маршрута.' : 'Нет пути в наблюдаемой области с заданными правилами.', steps: [], visited, unknown: [...unknown.values()] };
+  return { status: 'blocked', reason: visited >= maxNodes ? 'Исчерпан бюджет поиска маршрута.' : 'Нет пути в наблюдаемой области с заданными правилами.', steps: [], visited, unknown: [...unknown.values()], failure: {code: visited >= maxNodes ? 'SEARCH_BUDGET' : 'NO_PATH'} };
 }
 
 /** Synchronous API for small offline searches. */

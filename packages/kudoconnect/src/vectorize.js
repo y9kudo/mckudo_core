@@ -2,7 +2,7 @@ import { setImmediate as yieldTask } from 'node:timers/promises';
 import {performance} from 'node:perf_hooks';
 import { fluidAt } from './environment.js';
 
-export const KUDOVECTORIZE = Object.freeze({ name: 'KudoVectorize', author: 'y9kudo', version: '0.7.0-dev.0', modes: ['swim'], predictions: ['elytra'] });
+export const KUDOVECTORIZE = Object.freeze({ name: 'KudoVectorize', author: 'y9kudo', version: '0.7.0', modes: ['swim','elytra'], predictions: ['elytra'] });
 const axes = ['x', 'y', 'z'];
 const valid = p => p && axes.every(k => Number.isFinite(p[k]) && Math.abs(p[k]) <= 30000000);
 const distance = (a,b) => Math.hypot(...axes.map(k=>a[k]-b[k]));
@@ -107,12 +107,13 @@ export async function planSwimRouteAsync(options,{nodesPerSlice=64,sliceMs=4,get
 /** One Java-style elytra prediction tick, in blocks/tick, pitch in degrees. Not a packet sender. */
 export function predictElytraTick({position,velocity,yaw,pitch,rocket=false}){
   if(!valid(position)||!valid(velocity)||!Number.isFinite(yaw)||!Number.isFinite(pitch)||Math.abs(pitch)>90||Math.hypot(velocity.x,velocity.y,velocity.z)>16)throw new Error('Elytra: неверное состояние.');
-  const y=yaw*Math.PI/180,p=pitch*Math.PI/180,cos=Math.cos(p),sin=Math.sin(p),look={x:-Math.sin(y)*cos,y:-sin,z:Math.cos(y)*cos},v={...velocity},horizontal=Math.hypot(v.x,v.z);
+  const y=yaw*Math.PI/180,p=pitch*Math.PI/180,cos=Math.cos(p),sin=Math.sin(p),look={x:-Math.sin(y)*cos,y:-sin,z:Math.cos(y)*cos},v={...velocity};
+  if(rocket)for(const k of axes)v[k]+=look[k]*.1+(look[k]*1.5-v[k])*.5;
+  const horizontal=Math.hypot(v.x,v.z);
   v.y+=-.08+cos*cos*.06;
   if(v.y<0&&cos>1e-7){const lift=v.y*-.1*cos*cos;v.y+=lift;v.x+=look.x*lift/cos;v.z+=look.z*lift/cos;}
   if(p<0&&cos>1e-7){const lift=horizontal*-sin*.04;v.y+=lift*3.2;v.x-=look.x*lift/cos;v.z-=look.z*lift/cos;}
   if(cos>1e-7){v.x+=(look.x/cos*horizontal-v.x)*.1;v.z+=(look.z/cos*horizontal-v.z)*.1;}
-  if(rocket)for(const k of axes)v[k]+=look[k]*.1+(look[k]*1.5-v[k])*.5;
   v.x*=.99;v.y*=.98;v.z*=.99;
   return {position:Object.fromEntries(axes.map(k=>[k,position[k]+v[k]])),velocity:v,yaw,pitch};
 }
@@ -122,4 +123,35 @@ export class KudoVectorize {
   plan(options){return planSwimRoute({...options,getBlock:this.getBlock});}
   planAsync(options){return planSwimRouteAsync({...options,getBlock:this.getBlock},{getRevision:this.getRevision});}
   clearance(position){return volumeClearance({position,getBlock:this.getBlock});}
+  planFlight(options){return planElytraFlight({...options,getBlock:this.getBlock});}
+}
+
+/** A bounded flight corridor over observed blocks, with a checked landing patch. */
+export function planElytraFlight({start,goal,getBlock,cruiseHeight=16,maxDistance=192}){
+  if(!valid(start)||!valid(goal)||typeof getBlock!=='function'||!Number.isInteger(cruiseHeight)||cruiseHeight<8||cruiseHeight>64||!Number.isInteger(maxDistance)||maxDistance<8||maxDistance>512)throw new Error('Flight: start/goal, cruiseHeight 8–64, maxDistance 8–512.');
+  if(distance(start,goal)>maxDistance)return {status:'blocked',reason:'distance-budget'};
+  const landing={x:Math.floor(goal.x)+.5,y:Math.floor(goal.y),z:Math.floor(goal.z)+.5};
+  for(let x=-3;x<=3;x++)for(let z=-3;z<=3;z++){
+    const p={x:landing.x+x,y:landing.y,z:landing.z+z},b=getBlock({...p,y:p.y-1});
+    if(!b||!(b.shapes?.some(s=>s[4]===1)||b.boundingBox==='block')||dangerous.has(name(b))||fluidAt(b)||!volumeClearance({position:p,getBlock}).clear)return {status:'blocked',reason:'landing-patch'};
+  }
+  const altitude=Math.max(start.y,landing.y)+cruiseHeight;
+  const waypoints=[{...start,y:start.y+.1},{...start,y:altitude},{...landing,y:altitude},landing];
+  for(let i=1;i<waypoints.length;i++){
+    const check=traceVolume({from:waypoints[i-1],to:waypoints[i],getBlock,height:1.8,radius:.5});
+    if(!check.clear)return {status:'blocked',reason:check.reason,position:check.position};
+  }
+  return {status:'planned',mode:'elytra',landing,altitude,waypoints};
+}
+
+/** Flight angles, not positions: vanilla physics remains the only motion source. */
+export function elytraControl({position,velocity,landing,altitude,boosting=false}){
+  if(![position,velocity,landing].every(valid)||!Number.isFinite(altitude))throw new Error('Flight control: неверное состояние.');
+  const dx=landing.x-position.x,dz=landing.z-position.z,remaining=Math.hypot(dx,dz),height=position.y-landing.y;
+  let phase,pitch;
+  if(remaining<Math.max(5,Math.hypot(velocity.x,velocity.z)*5)){phase='flare';pitch=-78;}
+  else if(remaining<Math.max(20,height*2.5)){phase='approach';pitch=Math.max(5,Math.min(35,Math.atan2(Math.max(0,height-1),remaining)*180/Math.PI));}
+  else if(position.y<altitude-2&&boosting){phase='climb';pitch=-45;}
+  else{phase='cruise';pitch=Math.max(-25,Math.min(18,(position.y-altitude)*2));}
+  return {yaw:Math.atan2(-dx,dz)*180/Math.PI,pitch,phase,remaining};
 }

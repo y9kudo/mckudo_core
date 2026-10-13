@@ -94,6 +94,8 @@ export async function descendPillar(c,args,signal,{select}) {
         c.write('block_dig',{status:2,location:p,face:1,sequence:++c.sequence});
         await c.waitFor(()=>isAir(c.world.blockAt(p)),{event:'block',signal,timeoutMs:3000});done=true;
         await c.waitFor(()=>c.state.onGround&&Math.abs(c.state.position.y-p.y)<.05,{signal,timeoutMs:2000});
+        if(Math.abs(c.state.position.x-p.x-.5)>.19||Math.abs(c.state.position.z-p.z-.5)>.19||Math.hypot(c.state.velocity.x,c.state.velocity.z)>.12)
+          throw new Error('Спуск сместил агента с центра опоры; дальнейший разбор столба остановлен.');
         c.pillarBlocks.delete(id);c.protection?.forget(c.state.dimension,p);removed.push(p);
       }finally{if(!done&&c.client?.state==='play')c.write('block_dig',{status:1,location:p,face:1,sequence:++c.sequence});}
     }

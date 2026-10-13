@@ -13,7 +13,15 @@ export function miningTime(registry, block, item, { onGround = true } = {}) {
 }
 export function chooseMiningTool(registry, block, items, { held = null, onGround = true, preservePickaxeTier } = {}) {
   if(preservePickaxeTier!==undefined&&(!Number.isInteger(preservePickaxeTier)||preservePickaxeTier<1||preservePickaxeTier>4))throw new Error('preservePickaxeTier: 1–4.');
-  const candidates = [null, ...items.filter(i => remainingDurability(i, registry) > 0)].map(item => ({ item, ...miningTime(registry, block, item, { onGround }) })).filter(t => t.harvestable);
+  const candidates = [null, ...items.filter(i => remainingDurability(i, registry) > 1)].map(item => ({ item, ...miningTime(registry, block, item, { onGround }) })).filter(t => t.harvestable);
+  const material = String(block.material || ''), blockName = String(block.name || '');
+  const family = /(?:dirt|grass|sand|gravel|clay|snow|mud|podzol|mycelium|farmland)/.test(material+';'+blockName) ? 'shovel'
+    : /(?:wood|log|stem|hyphae)/.test(material+';'+blockName) ? 'axe'
+    : /(?:stone|ore|deepslate|metal)/.test(material+';'+blockName) ? 'pickaxe' : null;
+  // A held pickaxe must not win a tie on soil: save its durability for stone.
+  const suited = family ? candidates.filter(t => t.item?.name?.endsWith('_'+family)) : [];
+  if (suited.length) candidates.splice(0,candidates.length,...suited);
+  else if (family === 'shovel' && candidates.some(t => t.item === null)) candidates.splice(0,candidates.length,...candidates.filter(t => t.item === null));
   const tier=item=>['wooden_pickaxe','stone_pickaxe','iron_pickaxe','diamond_pickaxe','netherite_pickaxe'].indexOf(item?.name?.replace(/^minecraft:/,''));
   const ordinary=preservePickaxeTier===undefined?[]:candidates.filter(t=>tier(t.item)<preservePickaxeTier);
   const selected=ordinary.length?ordinary:candidates;

@@ -1,13 +1,22 @@
+import {craftingRecipes} from './crafting.js';
 const resource=s=>s?.startsWith('minecraft:')?s:'minecraft:'+s;
 /** A per-connection recipe book. Packets are retained once; outputs indexed on demand. */
 export class WorldRecipeBook {
   constructor(registry){this.registry=registry;this.received=false;this.revision=0;this.raw=[];this.cache=new Map();}
   ingest(packet){
     if(!Array.isArray(packet.recipes)||packet.recipes.length>20000)throw new Error('Некорректная книга рецептов сервера.');
-    this.raw=structuredClone(packet.recipes);this.received=true;this.revision++;this.cache.clear();
+    this.raw=structuredClone(packet.recipes);this.versionCatalog=false;this.announcedHints=0;this.received=true;this.revision++;this.cache.clear();
   }
+  useVersionCatalog(announced=0){this.versionCatalog=true;this.received=true;this.announcedHints=announced;this.revision++;this.cache.clear();}
   recipesFor(item){
     item=resource(item);if(this.cache.has(item))return structuredClone(this.cache.get(item));
+    if(this.versionCatalog){
+      const results=craftingRecipes(this.registry,item).map((r,index)=>{
+        const groups=new Map(),cells=r.cells.map(cell=>({...cell,choices:cell.choices.map(resource)}));
+        for(const cell of cells){const k=cell.choices.join('|');if(!groups.has(k))groups.set(k,{choices:cell.choices,count:0});groups.get(k).count++;}
+        return {id:`kudoconnect:catalog/${item.replace(':','/')}/${index}`,type:'minecraft:crafting_shaped',output:{item,count:r.count},ingredients:[...groups.values()],station:r.table?'minecraft:crafting_table':null,executable:true,cells,reason:''};
+      });this.cache.set(item,results);return structuredClone(results);
+    }
     const results=[],items=this.registry.items;
     const ingredient=v=>(v||[]).map(s=>items[s.itemId]?.name).filter(Boolean).map(resource);
     for(const r of this.raw){
@@ -27,5 +36,5 @@ export class WorldRecipeBook {
     }
     this.cache.set(item,results);return structuredClone(results);
   }
-  snapshot(){return {source:this.received?'server':'waiting',revision:this.revision,announced:this.raw.length,indexedOutputs:this.cache.size};}
+  snapshot(){return {source:this.versionCatalog?'version-catalog':this.received?'server':'waiting',revision:this.revision,announced:this.versionCatalog?this.announcedHints:this.raw.length,indexedOutputs:this.cache.size};}
 }

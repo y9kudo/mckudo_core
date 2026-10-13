@@ -9,6 +9,8 @@ export { KudoContainers, findStorages, storageIdentity, isStorageBlock } from '.
 export { KudoPeer } from './src/peers.js';
 export { createFleet, DEFAULT_AGENT_NAMES } from './src/fleet.js';
 export { projectileProfile, traceProjectile, solveAim } from './src/projectiles.js';
+export {predictFallLanding,planPearlEscape,decideFallRescue} from './src/fall-safety.js';
+export {perchedDragonHead} from './src/dragon-melee.js';
 export { KudoPlayers, gazeAngles, gazeError } from './src/players.js';
 export { rotateToward, bridgeMaterials, travelControl, combatControl } from './src/movement.js';
 export { craftingRecipes, chooseCraftingRecipe, smeltingRecipe, fuelItems } from './src/crafting.js';
@@ -19,5 +21,8 @@ export {WorldRecipeBook} from './src/recipes.js';
 export {traceVisibility} from './src/visibility.js';
 export {KudoProtection, isStructureBlock} from './src/protection.js';
 export {versionSupport,listVersionSupport,NATIVE_VERSIONS} from './src/versions.js';
-export {KUDOVECTORIZE,KudoVectorize,volumeClearance,traceVolume,planSwimRoute,planSwimRouteAsync,predictElytraTick} from './src/vectorize.js';
+export {createJava263Profile} from './src/java263.js';
+export {KudoActionError, ACTION_FAILURE_CODES, blockEvidenceValue} from './src/failures.js';
+export {KUDOVECTORIZE,KudoVectorize,volumeClearance,traceVolume,planSwimRoute,planSwimRouteAsync,predictElytraTick,planElytraFlight,elytraControl} from './src/vectorize.js';
+export {findSigns,readSign} from './src/signs.js';
 export {observeMenu,findMenuSlot,menuText} from './src/menus.js';

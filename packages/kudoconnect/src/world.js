@@ -5,9 +5,9 @@ import { EventEmitter } from 'node:events';
 
 /** Authoritative, bounded world cache. Unknown chunks stay unknown. */
 export class KudoWorld extends EventEmitter {
-  constructor(registry, { maxChunks = 1024 } = {}) {
+  constructor(registry, { maxChunks = 1024,chunkFactory=chunkLoader,blockFactory=blockLoader } = {}) {
     super();
-    this.registry = registry; this.Chunk = chunkLoader(registry); this.Block = blockLoader(registry);
+    this.registry = registry; this.Chunk = chunkFactory(registry); this.Block = blockFactory(registry);
     if (!Number.isInteger(maxChunks) || maxChunks < 1 || maxChunks > 4096) throw new Error('maxChunks: 1–4096.');
     this.maxChunks = maxChunks; this.focus = { x: 0, z: 0 }; this.columns = new Map(); this.classes = new Map(); this.revision = 0; this.epoch = 0; this.columnRevisions = new WeakMap(); this.reset('minecraft:overworld');
     const all = registry.blocksArray.map(b => b.name);
@@ -25,11 +25,13 @@ export class KudoWorld extends EventEmitter {
     return [...new Set(selectors.flatMap(n => { if (typeof n !== 'string') throw new Error('Селектор должен быть строкой.'); const group = n.startsWith('#') ? this.classes.get(n.slice(1)) : [n.replace(/^minecraft:/, '')]; if (!group || group.some(id => !this.registry.blocksByName[id])) throw new Error(`Неизвестный селектор ${n}.`); return group; }))];
   }
   reset(dimension, minY = dimension === 'minecraft:overworld' ? -64 : 0, height = dimension === 'minecraft:overworld' ? 384 : 256) {
-    this.dimension = dimension; this.minY = minY; this.height = height; this.columns.clear(); this.revision++; this.epoch++;
+    this.dimension = dimension; this.minY = minY; this.height = height; this.columns.clear(); this.blockEntities=new Map(); this.revision++; this.epoch++;
   }
   load(packet) {
     const column = new this.Chunk({ minY: this.minY, worldHeight: this.height }); column.load(packet.chunkData);
     this.columns.set(`${packet.x},${packet.z}`, column); this.revision++;
+    this.clearBlockEntities(packet.x,packet.z);
+    for(const e of packet.blockEntities||[])if(e.nbtData)this.setBlockEntity({x:packet.x*16+e.x,y:e.y,z:packet.z*16+e.z},e.nbtData);
     this.emit('chunkLoad', { x: packet.x, z: packet.z });
     if (this.columns.size > this.maxChunks) {
       const farthest = [...this.columns.keys()].sort((a, b) => {
@@ -38,7 +40,9 @@ export class KudoWorld extends EventEmitter {
       })[0]; const [x, z] = farthest.split(',').map(Number); this.unload(x, z);
     }
   }
-  unload(x, z) { this.columns.delete(`${x},${z}`); this.revision++; this.emit('chunkUnload', { x, z }); }
+  clearBlockEntities(x,z){for(const [key,e] of this.blockEntities)if(Math.floor(e.position.x/16)===x&&Math.floor(e.position.z/16)===z)this.blockEntities.delete(key);}
+  setBlockEntity(position,nbt){if(!this.columnAt(position)||!nbt)return;const key=`${position.x},${position.y},${position.z}`;this.blockEntities.set(key,{position:{...position},nbt:structuredClone(nbt),revision:(this.blockEntities.get(key)?.revision||0)+1});while(this.blockEntities.size>8192)this.blockEntities.delete(this.blockEntities.keys().next().value);}
+  unload(x, z) { this.columns.delete(`${x},${z}`); this.clearBlockEntities(x,z); this.revision++; this.emit('chunkUnload', { x, z }); }
   columnAt(p) { return this.columns.get(`${Math.floor(p.x / 16)},${Math.floor(p.z / 16)}`); }
   stateAt(p) {
     if (p.y < this.minY || p.y >= this.minY + this.height) return null;
@@ -66,6 +70,7 @@ export class KudoWorld extends EventEmitter {
   update(p, stateId) {
     const column = this.columnAt(p); if (!column) return false;
     const previous = this.stateAt(p);
+    if(previous!==stateId)this.blockEntities.delete(`${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`);
     column.setBlockStateId({ x: Math.floor(p.x) & 15, y: Math.floor(p.y), z: Math.floor(p.z) & 15 }, stateId); this.revision++;
     this.columnRevisions.set(column, (this.columnRevisions.get(column) || 0) + 1);
     this.emit('blockUpdate', { position: { ...p }, previous, stateId }); return true;
