@@ -10,7 +10,7 @@ const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'
 const npm = process.env.npm_execpath;
 assert.ok(npm, 'Run with npm run test:package.');
 const base = resolve(tmpdir()), directory = await mkdtemp(join(base, 'mckudo-package-'));
-const run = (args, cwd) => execFileSync(process.execPath, [npm, ...args], { cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 });
+const run = (args, cwd) => execFileSync(process.execPath, [npm, ...args], { cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout: 120000, windowsHide: true });
 try {
   const archives = [];
   for (const folder of [root, join(root, 'packages/kudoconnect')]) {
@@ -24,8 +24,8 @@ try {
   const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     import {createRequire} from 'node:module';
-    import {MCKUDO, createMinecraftAgent, defineMission, createNeuralPlanner, createCpuPool, catalogFromMinecraftData} from 'mckudo';
-    import {createKudoConnect, KUDOCONNECT} from 'kudoconnect';
+    import {MCKUDO, createMinecraftAgent, defineMission, createNeuralPlanner, createCpuPool, catalogFromMinecraftData, createActionEvidenceMemory} from 'mckudo';
+    import {createKudoConnect, KUDOCONNECT, KudoActionError} from 'kudoconnect';
     import {KUDOCONNECT as bundled} from 'mckudo/connect';
     import {createKudoAdapter} from 'mckudo/adapters/kudoconnect';
     import {createSimulator} from 'mckudo/adapters/simulator';
@@ -47,6 +47,9 @@ try {
     assert.ok(catalogFromMinecraftData(client.registry).blocks().length > 1000);
     assert.equal(typeof createKudoAdapter, 'function'); assert.equal(typeof createSimulator, 'function');
     assert.equal(defineMission([{get:'#logs',count:2}]).steps[0].targets['#logs'], 2);
+    const evidence = createActionEvidenceMemory({worldId:'package-smoke'});
+    evidence.record({agentId:'Atlas',dimension:'minecraft:overworld',action:{skill:'navigate',args:{x:1,y:64,z:0}},failure:new KudoActionError('STEP_STALLED','temporary')});
+    assert.equal(evidence.snapshot().entries[0].mode,'timer');
     const model = createNeuralPlanner({worldId:'package-smoke'});
     assert.equal(createNeuralPlanner({worldId:'package-smoke',memory:model.export()}).snapshot().samples, 0);
     const pool = createCpuPool();

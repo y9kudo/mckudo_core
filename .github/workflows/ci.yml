@@ -18,6 +18,8 @@ jobs:
           package-manager-cache: false
       - run: npm ci --ignore-scripts
       - run: npm run check
+      - run: npm run test:types
+      - run: npm run demo:evidence
       - run: npm run demo
       - run: npm run demo:workflow
       - run: npm run demo:plugins

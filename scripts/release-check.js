@@ -37,6 +37,8 @@ for (const [folder, identity] of [['.', MCKUDO], ['packages/kudoconnect', KUDOCO
     for (const match of source.matchAll(/\]\(([^\s)]+)\)/g)) {
       const target = match[1].split('#')[0];
       if (!target || /^(?:[a-z]+:|\/)/i.test(target)) continue;
+      const packagedTarget = posix.normalize(posix.join(posix.dirname(path), decodeURIComponent(target)));
+      assert.ok(paths.has(packagedTarget), `${pkg.name}: documentation link leaves its installation archive: ${path} -> ${target}`);
       assert.ok((await stat(resolve(directory, posix.dirname(path), decodeURIComponent(target))).catch(() => null))?.isFile(), `${pkg.name}: broken link ${path} -> ${target}`);
     }
   }

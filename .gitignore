@@ -6,6 +6,7 @@ data/
 *.log
 *.tgz
 coverage/
+/dist/
 .cache/
 
 # Local runs and scratch files are not release sources.

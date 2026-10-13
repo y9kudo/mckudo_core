@@ -1,6 +1,6 @@
 {
   "name": "mckudo",
-  "version": "0.7.0-dev.0",
+  "version": "0.7.0",
   "description": "Reusable Minecraft automation kernel: catalogs, resource planning, construction and reactors",
   "author": "y9kudo",
   "license": "MIT",
@@ -60,6 +60,8 @@
     "release:check": "node scripts/release-check.js",
     "test:package": "node scripts/package-smoke.js",
     "demo:mission": "node examples/mission.js",
+    "demo:evidence": "node examples/evidence-memory.js",
+    "test:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types/daily.mts test/types/platform07.mts test/types/evidence.mts",
     "test:live:mission": "node examples/mission-live.js",
     "mission:check": "node examples/mission.js examples/missions/first-tools.json --check",
     "test:live:protection": "node examples/protection-live.js",
@@ -103,19 +105,29 @@
     "benchmark:diamonds:check": "node examples/diamond-race.js --check",
     "benchmark:diamonds": "node examples/diamond-race.js",
     "benchmark:diamonds:status": "node examples/benchmark/status.js",
-    "test:live:race-fixes": "node examples/benchmark/bugfix-probe.js"
+    "test:live:race-fixes": "node examples/benchmark/bugfix-probe.js",
+    "test:live:flight-storage:survey": "node examples/flight-storage-live.js survey",
+    "test:live:flight": "node examples/flight-storage-live.js flight",
+    "test:live:storage": "node examples/flight-storage-live.js storage",
+    "test:live:creative": "node examples/creative-flat-trial.js",
+    "test:live:creative:flight": "node examples/creative-flight-live.js",
+    "test:live:creative:schematic": "node examples/creative-schematic-build.js",
+    "test:live:cooperative-diamonds": "node examples/cooperative-diamonds-live.js",
+    "test:cooperative-diamonds:check": "node examples/cooperative-diamonds-live.js --check",
+    "dashboard:creative": "node examples/creative-dashboard.js"
   },
   "dependencies": {
     "minecraft-data": "^3.117.0",
     "minecraft-protocol": "^1.68.0",
-    "prismarine-chunk": "^1.41.0",
     "prismarine-block": "^1.23.0",
-    "protodef": "^1.19.0",
-    "prismarine-nbt": "^2.8.0"
+    "prismarine-chunk": "^1.41.0",
+    "prismarine-nbt": "^2.8.0",
+    "protodef": "^1.19.0"
   },
   "devDependencies": {
     "mineflayer": "^4.39.0",
-    "mineflayer-pathfinder": "^2.4.5"
+    "mineflayer-pathfinder": "^2.4.5",
+    "typescript": "5.9.3"
   },
   "repository": {
     "type": "git",
