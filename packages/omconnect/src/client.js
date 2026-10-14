@@ -27,7 +27,7 @@ import {safeEndermanAngles,safeLookTarget} from './enderman-gaze.js';
 import {decideFallRescue} from './fall-safety.js';
 import {OMHumanize} from './humanize.js';
 
-export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-dev.1', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-dev.1', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
+export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-dev.2', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-dev.2', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
 export class OMConnect extends EventEmitter {
   constructor(options = {}, { createProtocolClient, physics = stepPhysics, versionProfile = null,navigationBackend=null } = {}) {
     super();

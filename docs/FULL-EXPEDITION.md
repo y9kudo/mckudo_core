@@ -2,7 +2,7 @@
 
 OvermindMC is a reusable kernel. `examples/from-zero-to-dragon.js` connects OMConnect and runs the library's `fullExpeditionScenario`; it does not contain a separate scripted Minecraft brain. Author: **y9kudo**.
 
-The profile is an integration test, not proof that autonomous completion has already succeeded. The current package remains `1.0.0-Arthas-dev.1`. A timer, completed simulation or equipment-assisted End fight cannot certify the stable Arthas release.
+The profile is an integration test, not proof that autonomous completion has already succeeded. The current package remains `1.0.0-Arthas-dev.2`. A timer, completed simulation or equipment-assisted End fight cannot certify the stable Arthas release.
 
 ## Prepare and start
 

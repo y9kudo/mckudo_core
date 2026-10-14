@@ -1,6 +1,6 @@
 # Version Arthas · curriculum and game trials
 
-User Name: **v1.0.0Arthas-dev.1**, Brief **Version Arthas**. Package number OvermindMC/OMConnect: `1.0.0-Arthas-dev.1`; Defiance before prerelease I need it for SemVer/npm. Author — y9kudo, MIT. It's a pre-line branch, Unstable release 1.0.0.
+Display name: **v1.0.0Arthas-dev.2**, or **Version Arthas**. OvermindMC/OMConnect package version: `1.0.0-Arthas-dev.2`. Author: y9kudo, MIT. This is a development prerelease; stable 1.0.0 requires verified autonomous Dragon completion.
 
 ## Two different applications curriculum
 

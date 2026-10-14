@@ -1,6 +1,6 @@
 # Version Arthas: learning, planning and operations
 
-OvermindMC, OMConnect and OMVectorize are reusable libraries authored by **y9kudo**, licensed under **MIT**. The working version is `1.0.0-Arthas-dev.1`. Stable 1.0.0 still requires a verified autonomous run from an empty inventory to defeating the Ender Dragon.
+OvermindMC, OMConnect and OMVectorize are reusable libraries authored by **y9kudo**, licensed under **MIT**. The working version is `1.0.0-Arthas-dev.2`. Stable 1.0.0 still requires a verified autonomous run from an empty inventory to defeating the Ender Dragon.
 
 ## Start locally
 

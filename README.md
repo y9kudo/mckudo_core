@@ -1,6 +1,8 @@
 # OvermindMC
 
-**A reusable Minecraft Java automation and learning platform. Created by y9kudo · MIT · Version Arthas · `1.0.0-Arthas-dev.1`.**
+**A reusable Minecraft Java automation and learning platform. Created by y9kudo · MIT · Version Arthas · `1.0.0-Arthas-dev.2`.**
+
+[Download the Arthas dev.2 prerelease](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-dev.2) · [Release notes and installation](docs/releases/1.0.0-Arthas-dev.2.md).
 
 ## Changelog
 

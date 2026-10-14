@@ -1,6 +1,8 @@
 # OMConnect
 
-**Independent Minecraft Java client · Version Arthas · `1.0.0-Arthas-dev.1` · Created by y9kudo · MIT.**
+**Independent Minecraft Java client · Version Arthas · `1.0.0-Arthas-dev.2` · Created by y9kudo · MIT.**
+
+The `omconnect-1.0.0-Arthas-dev.2.tgz` installation archive is included in the [OvermindMC Arthas dev.2 prerelease](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-dev.2).
 
 OMConnect connects agents to Java servers, records authoritative world/inventory observations and executes actions through ordinary protocol packets. It includes collision/medium physics, containers, equipment, protection and player tracking. It does not import Mineflayer or the OvermindMC planning kernel.
 

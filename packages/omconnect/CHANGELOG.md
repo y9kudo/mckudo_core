@@ -1,5 +1,12 @@
 # OMConnect changelog
 
+## 1.0.0-Arthas-dev.2 · 2026-10-14 · prerelease
+
+- Synchronized OMConnect and OMVectorize metadata with the OvermindMC Arthas preview.
+- Added an injectable ground backend, safer ground alignment, target visibility before approach, workstation provisioning and crouched placement on interactive supports.
+- Retained confirmed placement ownership across restarts, duplicate block notifications and furnace lighting changes.
+- Included installation archives in the OvermindMC GitHub prerelease. The optional C framing/search implementation is supplied by the core's native package entry.
+
 ## OMConnect / OMVectorize migration · Version Arthas · 2026-10-14
 
 - Renamed client and spatial APIs; retained deprecated JavaScript aliases for migration.

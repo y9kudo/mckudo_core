@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0-Arthas-dev.2 · 2026-10-14 · prerelease
+
+- Packaged the OvermindMC migration, expanded learning APIs, optional C computation and survival recovery work as the second Version Arthas preview.
+- Synchronized package manifests, lockfiles, runtime metadata, display labels and TypeScript declarations across OvermindMC, OMConnect and OMVectorize.
+- Added versioned release notes and a tested GitHub prerelease pipeline for the Arthas development branch, with installation archives and SHA-256 checksums.
+- Kept prior test evidence under its original version. Autonomous Dragon completion and the wider C migration remain development milestones.
+
 ## Native C groundwork and expedition recovery · Version Arthas · 2026-10-14
 
 - Added an optional C/Node-API kernel for static ground A*, wire framing/VarInts and explicit dense-network inference, with bounded asynchronous search and a JS fallback.

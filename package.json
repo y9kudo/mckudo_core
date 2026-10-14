@@ -1,6 +1,6 @@
 {
   "name": "overmindmc",
-  "version": "1.0.0-Arthas-dev.1",
+  "version": "1.0.0-Arthas-dev.2",
   "description": "Reusable Minecraft automation kernel: catalogs, resource planning, construction and reactors",
   "author": "y9kudo",
   "license": "MIT",

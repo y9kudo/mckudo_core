@@ -28,7 +28,7 @@ export type SkillValidator = (args: Record<string, Json>) => boolean | string | 
 export interface SkillDefinition { execute: SkillHandler; validate?: SkillValidator; }
 export interface Plugin { readonly id: string; readonly apiVersion: 1; readonly requires?: readonly string[]; readonly skills: Readonly<Record<string, SkillHandler | SkillDefinition>>; }
 export declare function definePlugin(plugin: Plugin): Plugin;
-export declare const OVERMIND: Readonly<{ name: string; id: 'mckudo_core'; version: string; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-dev.1'; author: 'y9kudo'; protocolVersion: 1 }>;
+export declare const OVERMIND: Readonly<{ name: string; id: 'overmindmc'; version: string; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-dev.2'; author: 'y9kudo'; protocolVersion: 1 }>;
 export declare class ConfigError extends Error { readonly path: string; }
 export declare function validateConfig(input: unknown): AgentConfig;
 export declare function matches(condition: Condition | undefined, observation: Observation): boolean;
