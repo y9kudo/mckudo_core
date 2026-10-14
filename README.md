@@ -4,6 +4,10 @@
 
 ## Changelog
 
+The latest Arthas work adds an optional [C computation layer](docs/NATIVE-COMPUTE.md): static ground search, OMConnect packet framing and explicit numerical inference. JS APIs and adapters remain available. Expedition reports now retain learning, placement ownership, heartbeat and interrupted segments; cave reconnaissance uses climbable drops, and agents can excavate supported stairs back toward surface resources. [Full campaign instructions](docs/FULL-EXPEDITION.md).
+
+Current checks: **561 automated tests passed**, including the compiled C backend, types and installation archives. The resumed C-profile completed its starter equipment stage and began iron provisioning. Its ownership-memory repair is disclosed; this is development evidence, not a completed unassisted campaign. [Native and live results](docs/results/native-expedition-2026-10-14.md).
+
 The current development branch introduces the OvermindMC, OMConnect and OMVectorize names, categorical PPO and discrete SAC, a physical headless mode with mobs, and a live RL control bridge. Resource queries share a bounded section index, descending routes retain their heading, and a reachable leaf face can be cleared before collecting a hidden trunk. Documentation and dashboard text are now in English.
 
 Verification on October 14: **527 automated tests passed after migration**. A live PPO policy reached a four-block navigation goal with **20 health and zero server corrections**. A separate agent completed **6/6 survival stages from an empty inventory in 161.12 seconds**, ending with a stone pickaxe and furnace. These are separate experiments; the survival run used the resource planner. [Evidence](docs/results/overmind-migration-2026-10-14.md).

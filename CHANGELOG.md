@@ -1,5 +1,16 @@
 # Changelog
 
+## Native C groundwork and expedition recovery · Version Arthas · 2026-10-14
+
+- Added an optional C/Node-API kernel for static ground A*, wire framing/VarInts and explicit dense-network inference, with bounded asynchronous search and a JS fallback.
+- Added a reproducible native benchmark, compiler entry point, package API and mandatory Linux native CI checks. The wider C migration remains in progress.
+- Added campaign heartbeat, stage/status tools, learning evidence, durable segment journals and resume checks, including interrupted-process recovery.
+- Retained workstation ownership across restarts; fixed interactive-support placement and provided safe workstation alcoves.
+- Preserved ownership on duplicate block updates and furnace lighting changes; recorded exact server-confirmed placement coordinates. Pillar clicks also crouch on interactive supports.
+- Added supported climbing out of caves, conservative returnable cave reconnaissance, target visibility before walking and ground-edge alignment.
+- Moved cave route computation to independent worker requests; expanded food acquisition and navigation recovery policies.
+- Stable 1.0.0 remains gated on an independently reviewed empty-inventory campaign ending in an own confirmed Dragon kill.
+
 ## OvermindMC migration and expanded RL · Version Arthas · 2026-10-14
 
 - Renamed the kernel, standalone client and spatial layer to OvermindMC, OMConnect and OMVectorize. Canonical package entries and public declarations use the new names.
