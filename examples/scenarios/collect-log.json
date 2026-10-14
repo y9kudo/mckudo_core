@@ -1,5 +1,0 @@
-{
-  "schemaVersion": 1,
-  "name": "Подбор выпавшего бревна",
-  "steps": [{ "id": "pickup", "type": "collect", "item": "minecraft:oak_log", "count": 1 }]
-}

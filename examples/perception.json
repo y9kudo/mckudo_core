@@ -1,7 +1,0 @@
-{
-  "searchRadius": 128,
-  "entityRadius": 128,
-  "requestedViewDistance": 16,
-  "scanIntervalMs": 1000,
-  "trackedBlocks": ["#logs", "#ores", "#workstations", "#crops"]
-}
