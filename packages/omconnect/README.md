@@ -8,14 +8,15 @@ OMConnect connects agents to Java servers, records authoritative world/inventory
 
 OMVectorize supplies ground routes, swimming, body clearance and elytra trajectory calculations. OvermindMC can use the client as its execution layer, or your application can use OMConnect independently.
 
-## Install from a checkout
+## Install from the current release
 
-Use Node.js 24. Until the renamed package is actually published to npm:
+Use Node.js 24. Download `omconnect-1.0.0-Arthas-dev.2.tgz` from the [GitHub release](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-dev.2). In your application's folder, run:
 
 ```powershell
-# In your application's folder:
-npm.cmd install C:\path\to\mckudo_core\packages\omconnect
+npm.cmd install .\omconnect-1.0.0-Arthas-dev.2.tgz
 ```
+
+The archive is published on GitHub and resolves its dependencies through npm; the package is not published to the npm registry.
 
 Add `"type": "module"` to your application's `package.json`.
 
@@ -68,6 +69,6 @@ npm.cmd ci
 npm.cmd test
 ```
 
-The full repository additionally checks public TypeScript declarations, packed-package imports and documentation links. Release archives exclude world data, account caches and raw local logs. The historical repository URL remains [y9kudo/kudoconnect](https://github.com/y9kudo/kudoconnect); the package and APIs in this checkout use the OM names.
+The full repository additionally checks public TypeScript declarations, packed-package imports and documentation links. Release archives exclude world data, account caches and raw local logs.
 
 [License](LICENSE) · [Changelog](CHANGELOG.md).

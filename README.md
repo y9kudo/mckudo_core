@@ -1,22 +1,17 @@
 # OvermindMC
 
-**A reusable Minecraft Java automation and learning platform. Created by y9kudo · MIT · Version Arthas · `1.0.0-Arthas-dev.2`.**
+**Current release: Version Arthas `1.0.0-Arthas-dev.2` · Created by y9kudo · MIT.**
 
-[Download the Arthas dev.2 prerelease](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-dev.2) · [Release notes and installation](docs/releases/1.0.0-Arthas-dev.2.md).
+[Download OvermindMC and OMConnect](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-dev.2) · [Release notes and installation](docs/releases/1.0.0-Arthas-dev.2.md).
 
-## Changelog
+## What is in this release
 
-The latest Arthas work adds an optional [C computation layer](docs/NATIVE-COMPUTE.md): static ground search, OMConnect packet framing and explicit numerical inference. JS APIs and adapters remain available. Expedition reports now retain learning, placement ownership, heartbeat and interrupted segments; cave reconnaissance uses climbable drops, and agents can excavate supported stairs back toward surface resources. [Full campaign instructions](docs/FULL-EXPEDITION.md).
+- **OvermindMC** plans goals, recipes, survival tasks and learning for Minecraft Java agents. **OMConnect** executes actions through the Java protocol; **OMVectorize** plans movement and spatial actions.
+- An optional [C computation layer](docs/NATIVE-COMPUTE.md) handles bounded ground search, packet framing and explicit numerical inference. The JavaScript APIs and adapters remain available.
+- Expedition reports retain learning evidence, placement ownership, heartbeats and interrupted segments. Cave reconnaissance uses supported descents and recovery routes back toward surface resources. [Full campaign instructions](docs/FULL-EXPEDITION.md).
+- PPO, discrete SAC, a physical headless environment and a live RL control bridge are available for experimentation. [Learning and simulation guide](docs/RL-PHYSICS-AND-CONNECT.md).
 
-Current checks: **561 automated tests passed**, including the compiled C backend, types and installation archives. The resumed C-profile completed its starter equipment stage and began iron provisioning. Its ownership-memory repair is disclosed; this is development evidence, not a completed unassisted campaign. [Native and live results](docs/results/native-expedition-2026-10-14.md).
-
-The current development branch introduces the OvermindMC, OMConnect and OMVectorize names, categorical PPO and discrete SAC, a physical headless mode with mobs, and a live RL control bridge. Resource queries share a bounded section index, descending routes retain their heading, and a reachable leaf face can be cleared before collecting a hidden trunk. Documentation and dashboard text are now in English.
-
-Verification on October 14: **527 automated tests passed after migration**. A live PPO policy reached a four-block navigation goal with **20 health and zero server corrections**. A separate agent completed **6/6 survival stages from an empty inventory in 161.12 seconds**, ending with a stone pickaxe and furnace. These are separate experiments; the survival run used the resource planner. [Evidence](docs/results/overmind-migration-2026-10-14.md).
-
-[Full changelog](CHANGELOG.md) · [Migration guide](docs/OVERMIND-MIGRATION.md) · [Original 0.1.0 archive](https://github.com/y9kudo/mckudo_core/tree/archive/mckudo-0.1.0).
-
-This is a development version. The stable 1.0.0 milestone remains a verified autonomous run from an empty inventory to defeating the Ender Dragon.
+The release passed **561 automated tests** locally, including the compiled C backend; its GitHub Actions checks also passed on Windows and Linux. An autonomous run from an empty inventory through an own Ender Dragon victory is still unverified. [Validation evidence](docs/results/native-expedition-2026-10-14.md) · [Version support](docs/VERSION-API.md) · [Current release notes](docs/releases/1.0.0-Arthas-dev.2.md).
 
 ## What the components do
 
@@ -59,12 +54,13 @@ Use a new nickname for an empty-inventory test. The launcher checks Survival mod
 
 ## Use the library in your own application
 
-Until the renamed packages have an actual npm release, install this checkout locally:
+Download `overmindmc-1.0.0-Arthas-dev.2.tgz` from the [current release](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-dev.2). In your application's folder, install the downloaded archive:
 
 ```powershell
-# Run in your application's folder; replace the example path:
-npm.cmd install C:\path\to\mckudo_core
+npm.cmd install .\overmindmc-1.0.0-Arthas-dev.2.tgz
 ```
+
+The independent client is available as `omconnect-1.0.0-Arthas-dev.2.tgz` in the same release. These archives are published on GitHub; installation resolves npm dependencies, and neither package is published to the npm registry.
 
 Create `index.js`, with `"type": "module"` in your application's `package.json`:
 
@@ -118,7 +114,7 @@ node examples/train-physical.js --algorithm=sac --batches=600 --count=32
 node examples/rl-connect-live.js --name=ArthasRL
 ```
 
-Double DQN, PPO and discrete SAC run on CPU. Physical environments share OMConnect's 50 ms physics step and model collision, liquids, falls and bounded zombie behavior. Worker pools support 128 independent environments without opening Minecraft windows. The older skill-level simulator remains available for resource progression.
+Double DQN, PPO and discrete SAC run on CPU. Physical environments share OMConnect's 50 ms physics step and model collision, liquids, falls and bounded zombie behavior. Worker pools support 128 independent environments without opening Minecraft windows. A skill-level simulator is also available for resource progression.
 
 The low-level RL bridge executes a compatible 18-feature, 9-action policy through OMConnect. It checks health, loaded support, hazards, projected motion and legal attack targets. Training and evaluation remain explicit. [RL, physics and live transfer](docs/RL-PHYSICS-AND-CONNECT.md) · [v1 intelligence API](docs/V1-INTELLIGENCE.md).
 
