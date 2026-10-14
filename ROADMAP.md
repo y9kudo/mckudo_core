@@ -1,42 +1,42 @@
-# Развитие MCKudo Core
+# Development OvermindMC
 
-MCKudo — самостоятельное многофункциональное ядро автоматизации Minecraft. Автор: **y9kudo**.
+OvermindMC — Automation self-sustainment multifunctional core Minecraft. Author: **y9kudo**.
 
-## Реализовано в 0.6
+## Implemented in 0.6
 
-Простой API агента и JSON-миссии, локальные нейросети навигации и планирования, пространственная память, CPU worker, общий асинхронный A*, защита построек, боевой обход и мосты с приседанием. Книга рецептов сервера создаёт индекс по запросу; добавлены планировщики зелий/незеритового улучшения, очереди задач и редактор в панели. Группа расширена до 20 клиентов. [Проверки релиза](docs/TESTING-06.md) отделяют моделируемые механики от игрового испытания.
+Simple API agent and JSON-Mission, Local navigation and planning neural networks, space memory, CPU worker, common asynchronous A*, Building protection, Battle-by-air and bridge. The server recipe book creates the index on demand; Added potion planners/Non-Zerite Improvement, Tasks and Editor in the Panel. Group expanded to 20 Clients. [Release Checks](docs/TESTING-06.md) Separating simulated mechanics from the game test.
 
-## Реализовано в 0.5
+## Implemented in 0.5
 
-Самостоятельный KudoConnect v0.5.0 с отдельным пакетом и контрактом; группа 1–10 клиентов и обмен намерениями вне чата. Модель опыта MCKudo выводит эффекты операторов и пересматривает их после неудач. Адаптивные сценарии сохраняют цель, меняя доступную стратегию. Добавлены базовые специальные поверхности и расчёт упреждения снарядов.
+Self-contained OMConnect v0.5.0 with a separate package and contract; Group 1–10 and sharing of intentions outside the chat room. Experience model OvermindMC The operator effects are removed and revised after failure. Adaptation scenarios maintain purpose, Changing the Available Strategy. Basic special surfaces and design of the anti-personnel projectiles.
 
-Каталоги и импорт данных игры, множественные классы блоков, альтернативные источники ресурсов, цепочки производства, модульные реакции, собственный A*, исполнитель движения, мосты, исследование известных областей, защита и питание, чертежи и этапы выживания. Сохранены цели, Workflow, плагины, память и Runtime предыдущих версий.
+Catalogues and Imports of Game Data, Multiple blocks, alternative sources of resources, Production Chain, Modular reactions, own A*, Traffic operator, Bridges, Research into known areas, Protection and nutrition, Drawings and stages of survival. Targets Saved, Workflow, Plagues, memory and Runtime Previous versions.
 
-Описание модулей: [AUTOMATION](docs/AUTOMATION.md). Уровень проверки каждого модуля: [TESTING-05](docs/TESTING-05.md).
+Description of modules: [AUTOMATION](docs/AUTOMATION.md). Test level of each module: [TESTING-05](docs/TESTING-05.md).
 
-## Следующие направления
+## Next directions
 
-- Знания MCKudo: расширить зельеварение, эффекты и прочность с наблюдаемыми условиями и исполнителями; покрывать механики конкретной версии отдельными тестами.
-- Опыт: постоянное хранилище, контролируемые эксперименты для проверки причинных гипотез и проверенный перенос опыта между агентами.
-- Независимый KudoConnect: игровые испытания расширенной физики/стрельбы, Microsoft-вход и модовые профили с матрицей проверенных возможностей.
+- Knowledge OvermindMC: Increase potion, effects and strength with observed conditions and performers; Cover the mechanics of a particular version with separate tests.
+- Experience: Permanent storage, Controlled experiments to verify causal hypotheses and verified inter-agent transfer.
+- Independent OMConnect: Playing tests of extended physics/Shots fired, Microsoft-Incoming and fashion profiles with a matrix of tested capabilities.
 
-- Развитие **KudoConnect** как основного клиента без Mineflayer: специальные рецепты, зельеварение, эффекты и дополнительные виды движения; игровые проверки долгих переходов между измерениями.
-- Измеряемая отзывчивость: отдельные показатели времени решения, отправки пакета и подтверждения сервера; сравнение на одинаковых игровых заданиях.
-- Пространственная память между загруженными областями, иерархические маршруты и более широкий набор переходов: жидкости, лестницы, двери и сложные коллизии.
-- Учёт прочности, резервов еды, инструментов и станций на протяжении длительной производственной задачи.
-- Восстановление прерванных производственных операций и содержимого собственных печей.
-- Модели специальных рецептов, контейнеров и производственных механизмов модпаков.
-- Выбор строительного участка, доступ к граням и перестроение пространственного плана во время строительства.
-- Расширение самостоятельного выживания: переходы между измерениями, ресурсы Незера, поиск крепости и бой в Крае. Полное прохождение проверяется как интеграционный сценарий, по фактическим игровым событиям.
+- Development **OMConnect** as a main client without Mineflayer: Special recipes, potion, effects and additional traffic; Play tests of long cross-measurements.
+- Measured responsiveness: selected time indicators for decision, Sending package and server confirmation; Comparison on identical games.
+- Spatial memory between loaded areas, hierarchical routes and a wider range of crossings: Liquids, stairs, doors and complex conflicts.
+- Performance, food reserves, tools and stations over the long term of production.
+- Re-establishment of interrupted manufacturing operations and contents of own furnaces.
+- Special recipe models, containers and production machinery of fashion packages.
+- Selection of the construction site, Access to boundaries and spatial transformation during construction.
+- Enhancing self-sustainment: Inter-measurement transitions, Neser resources, Search for a fortress and fight in the Kraj. Full pass is checked as an integration scenario, Actual Games Events.
 
-## Forge, NeoForge и Fabric
+## Forge, NeoForge and Fabric
 
-Общий bridge-контракт и namespaced ID готовы для адаптеров. Следующий слой — Java-модули для конкретных современных версий Forge и NeoForge: реестры модпака, действия на игровом потоке, отмена, локальный транспорт и игровые испытания. Fabric использует тот же контракт через свой адаптер.
+Total bridge-contract and namespaced ID Ready for adapters. Next layer — Java-modules for specific modern versions Forge and NeoForge: Modpac registers, Actions on the Game Flow, cancellation, Local transport and game trials. Fabric uses the same contract through his adapter.
 
-## Масштабирование и качество
+## Scale and quality
 
-Координация общих задач нескольких агентов, распределённые блокировки, очереди, метрики, нагрузочные миры и миграции памяти. Матрица совместимости должна содержать реально проверенные версии игры, транспорты и наборы модов. API ядра развивается независимо от приложений, которые подключают Minecraft-клиента.
+Coordination of common tasks of several agents, Distribution of locks, Releases, metrics, Transporting worlds and memory migration. The compatibility matrix must contain a truly proven game version, Transport and fashion sets. API The kernel is developed independently of the application, which connect Minecraft-client.
 
-## Направление v1.0.0
+## Direction v1.0.0
 
-Основа для ИИ-агентов: долговременная пространственная память, выбор и пересмотр целей, обучение на результатах, объяснение решений и подключаемые модели. Сценарии останутся простым входным API поверх большого ядра. Версия 1.0.0 будет обозначать готовность этих контрактов и подтверждённую матрицу возможностей, а не переименование демонстрационного бота.
+Basis for AI-Agents: long-term spatial memory, Selection and revision of objectives, Learning for results, E. Elaborating solutions and models to be included. Scenarios will remain simple entry points API on top of the large kernel. Version 1.0.0 will indicate the readiness of these contracts and the confirmed capacity matrix, Not renaming the demonstration bota.

@@ -1,15 +1,15 @@
-# Простой API агента · MCKudo Core 0.6.0
+# Simple API agent · OvermindMC 0.6.0
 
-MCKudo — библиотека принятия решений для Minecraft. KudoConnect — самостоятельный клиент, который получает состояние сервера и исполняет действия. `createMinecraftAgent` объединяет их жизненный цикл в небольшой API. Внутри используются те же планировщики, реакторы, память и подтверждения сервера, что и в расширенном API.
+OvermindMC — Decision-making library for the Minecraft. OMConnect — Independent client, who receives a server state and performs actions. `createMinecraftAgent` The fact that they are living together in a small life cycle API. The same planners are used inside, Reactors, server memory and validation, as in the extended API.
 
-Автор: **y9kudo**, лицензия MIT. Для этого примера нужны Node.js 22+ и свой offline-сервер Java 1.21.1. Версии нативного клиента перечислены в [матрице](VERSIONS.md).
+Author: **y9kudo**, licence MIT. Examples are needed Node.js 22+ And yours offline-server Java 1.21.1. The versions of the client are listed in the [matrix](VERSIONS.md).
 
-## Первый сценарий
+## First scenario
 
-В клонированном репозитории выполни `npm.cmd ci`. Создай в его корне файл `my-agent.js`:
+In a cloned repository, do it `npm.cmd ci`. Create a file to its root `my-agent.js`:
 
 ```js
-import { createMinecraftAgent } from './mckudo_core.js';
+import { createMinecraftAgent } from './overmindmc.js';
 
 const agent = createMinecraftAgent({
   name: 'Atlas',
@@ -26,47 +26,47 @@ try {
   ], { timeoutMs: 300000 });
   console.log(result.inventory);
 } catch (error) {
-  console.error('Сценарий не завершён:', error.message);
+  console.error("The script is not complete:", error.message);
 } finally {
   await agent.close();
 }
 ```
 
-Запусти `node my-agent.js`. В отдельном приложении с установленным пакетом импорт меняется на `import { createMinecraftAgent } from 'mckudo'`.
+Run `node my-agent.js`. In a separate annex with a specified package, imports change to `import { createMinecraftAgent } from 'overmindmc'`.
 
-Можно писать отдельные цели: `await agent.get('#logs', 8)`, `await agent.craft('stone_pickaxe')` и `await agent.goTo({ x: 40, y: 64, z: -20 })`. Есть запуск из обычного JSON, подсказки VS Code и подготовка мостов: [подробное руководство](MISSIONS-AND-BRIDGES.md).
+You can write separate goals: `await agent.get('#logs', 8)`, `await agent.craft('stone_pickaxe')` and `await agent.goTo({ x: 40, y: 64, z: -20 })`. There's a launch from the usual JSON, clues VS Code bridge preparation: [detailed guidance](MISSIONS-AND-BRIDGES.md).
 
-`worldId` — выбранное тобой постоянное имя мира, а не IP. Сохраняй его при перезапуске того же мира; для нового мира назначай другое значение. `name` — имя игрового клиента, латиница, цифры и подчёркивание, до 16 символов. Offline-вход не требует пароля. `memoryDirectory` включает сохранение опыта; без этого параметра память работает в текущем процессе.
+`worldId` — Your chosen permanent name for peace, I don't think so IP. Keep it on the same world's restart; for a new world, give another meaning. `name` — Game client name, Latin, numbers and emphasis, to 16 characters. Offline-The entry does not require a password. `memoryDirectory` includes the maintenance of experience; without this parameter memory is working in the current process.
 
-## Что означает цель
+## What Purpose
 
-`targets` задаёт **количество, которое должно быть в распоряжении агента на этом этапе**, а не число операций крафта. `#logs` объединяет подходящие брёвна разных пород. Ядро само выбирает доступное сырьё, ингредиенты, инструменты и станции. Сначала дерево может превратиться в доски, затем в верстак и инструмент. Ранее завершённый этап не требует постоянно сохранять его расходуемые материалы.
+`targets` it's a problem **Number, to be available to the agent at this stage**, Not the number of craft operations. `#logs` Consists of suitable logs of different species. The kernel chooses the raw material available, ingredients, Tools and stations. First, a tree can turn into a board, Then in the right and the right instrument. The previously completed phase does not require the continuous maintenance of its consumables.
 
-У `resources` используется `minecraft:имя_предмета` либо `#класс`. Например, `minecraft:stone_pickaxe` и `minecraft:furnace`. Механика сложных сценариев описана в [руководстве сценариев](SCENARIOS.md).
+For `resources` used `minecraft:item_name` either `#class`. For example, `minecraft:stone_pickaxe` and `minecraft:furnace`. The mechanics of complex scenarios are described in [of the scenario management](SCENARIOS.md).
 
-`run()` подключает клиента, заменяет очередь заданным сценарием, запускает мозг и ждёт результата. Он завершается успешно после подтверждения целей наблюдениями. Ошибка задачи, смерть, отключение, отмена или тайм-аут отклоняют Promise. В конце мозг приостанавливается, подключение остаётся открытым. Тайм-аут по умолчанию — 5 минут, диапазон — 1 секунда–30 минут, включая подключение. Прерванные изменения мира не откатываются. Одновременно выполняется один `run()`.
+`run()` connects client, replaces the sequence of the given script, ♪ start brains and wait for results ♪. It is successfully completed after validation by observations. Error of the task, Death, Disable, cancellation or time-Outwards Promise. At the end, the brain stops, Connectivity remains open. Time-default — 5 minutes, range — 1 second–30 minutes, including connection. Interrupted changes in the world do not roll back. One implemented simultaneously `run()`.
 
-## Управление
+## Management
 
-| Вызов | Результат |
+| Challenge | Result |
 |---|---|
-| `await agent.connect()` | Подключиться без запуска поведения |
-| `await agent.mission(steps, { timeoutMs, signal })` | Выполнить список простых целей `get`, `craft`, `go` |
-| `await agent.get('#logs', 8)` | Получить ресурс по ID или классу |
-| `await agent.craft('stone_pickaxe')` | Подготовить предмет и его зависимости |
-| `await agent.goTo({ x, y, z }, { bridge: true })` | Дойти участками, подготовив материалы моста при необходимости |
-| `await agent.start('stone_tools')` | Запустить постоянную цель выживания; доступны `wood`, `stone_tools`, `iron_pickaxe`, `diamond_set` |
-| `await agent.run(scenario, { timeoutMs, signal })` | Выполнить сценарий с контролем результата |
-| `agent.snapshot()` | Статус, инвентарь, задачи, обучение, пространственная память и метрики |
-| `await agent.pause()` | Отменить текущий сценарий и остановить действия мозга |
-| `await agent.respawn()` | Остановить поведение и запросить возрождение погибшего клиента |
-| `await agent.close()` | Остановить действия, сохранить память и закрыть подключение; повторный вызов допустим |
+| `await agent.connect()` | Connect without starting behavior |
+| `await agent.mission(steps, { timeoutMs, signal })` | Run the list of simple objectives `get`, `craft`, `go` |
+| `await agent.get('#logs', 8)` | Get Resource ID or Class |
+| `await agent.craft('stone_pickaxe')` | Prepare the subject and its dependence |
+| `await agent.goTo({ x, y, z }, { bridge: true })` | Go to the sites, by preparing the bridge materials as required |
+| `await agent.start('stone_tools')` | Run a permanent survival goal; available `wood`, `stone_tools`, `iron_pickaxe`, `diamond_set` |
+| `await agent.run(scenario, { timeoutMs, signal })` | Run the result control script |
+| `agent.snapshot()` | Status, equipment, objectives, Training, Space memory and metrics |
+| `await agent.pause()` | Cancel the current script and stop brain action |
+| `await agent.respawn()` | Stop the behavior and request the rebirth of the dead client |
+| `await agent.close()` | Stop Actions, Save memory and close connection; repeat call allowed |
 
-После `close()` создавай новый объект агента. Сохранённый опыт загружается по сочетанию `worldId` и `name`. Новый `run()` начинает переданный сценарий заново, учитывая текущий инвентарь. Для управления сохранённой очередью используй [менеджер и панель](DASHBOARD.md).
+After `close()` Create a new agent object. Saved experience is downloaded by combination `worldId` and `name`. New `run()` start the transferred script over again, Considering the current inventory. Use the saved line to control the saved line [Manager and Panel](DASHBOARD.md).
 
-Для отмены передай `AbortController().signal` в `run()`, а затем вызови `controller.abort()`. При завершении приложения всегда ожидай `close()`, чтобы запись памяти успела закончиться.
+Pass it to cancel `AbortController().signal` in `run()`, and then call `controller.abort()`. At the end of the application, always wait `close()`, I want the memory records to end.
 
-## Настройка поведения и расширение
+## Conduct and extension
 
 ```js
 const agent = createMinecraftAgent({
@@ -81,11 +81,11 @@ const agent = createMinecraftAgent({
 });
 ```
 
-По умолчанию профиль содержит защиту, подбор лута, питание, экипировку, ночное поведение и охоту по потребности. Отключай отдельные политики через `brainOptions`, если они не подходят твоему приложению. Сценарий заменяет только долговременную цель выживания; реакции на угрозы продолжают работать.
+By default, the profile contains protection, Lute selection, Nutrition, Equipment, Night behaviour and hunting. Disable certain policies through `brainOptions`, If they don't fit your application. The script replaces only the long-term survival goal; Responses to threats continue to work.
 
-`agent.client` даёт доступ к KudoConnect, `agent.manager` — к менеджеру. Перед ручным `client.execute()` останови автоматическую работу через `pause()`. Для своего транспорта, планировщика или набора реакторов доступны `createMinecraftBrain`, `createCore`, `createScenario` и адаптеры. [Архитектура памяти и вычислений](PLATFORM-06.md).
+`agent.client` gives access to OMConnect, `agent.manager` — to manager. Before manual `client.execute()` Stop automatic work via `pause()`. For his own transport, Reactor planner or set available `createMinecraftBrain`, `createCore`, `createScenario` and adapters. [Memory and computation architecture](PLATFORM-06.md).
 
-## Воспроизводимая проверка в Minecraft
+## Reproducible check in Minecraft
 
 ```powershell
 $env:MC_USER = 'AtlasTrial01'
@@ -94,4 +94,4 @@ $env:MC_PORT = '25565'
 npm.cmd run test:live:agent
 ```
 
-Скрипт `examples/agent-live.js` требует пустой начальный инвентарь и ставит пять целей: древесина по классу → верстак → деревянная кирка → каменная кирка → печь. Он не выдаёт предметы и не меняет правила сервера. Для изоляции проверки отключены хранилища, сон и охота. Результат, действия, метрики и восстановление памяти записываются в отдельный файл `data/agent-live-<время>.json`. Неудача сохраняется как `incomplete` и ненулевой код выхода. Это не тест полного прохождения игры.
+Script `examples/agent-live.js` requires empty start-up equipment and sets five goals: Wood by class → crafting table → wooden pick → Stone pick → Boiler. It doesn't issue items or change the server rules. Storages are disabled to isolate the check, Sleep and hunting. Result, Action, metrics and memory recovery are recorded in a separate file `data/agent-live-<timestamp>.json`. Failures maintained as `incomplete` and non-zero exit code. It's not a full-game test.

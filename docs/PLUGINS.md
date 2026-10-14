@@ -1,9 +1,9 @@
-# Плагины навыков
+# Skills plagins
 
-Плагин — JavaScript-модуль с набором навыков. Его подключает приложение; JSON только выбирает зарегистрированное действие. Ядро не скачивает и не исполняет произвольные модули из конфигурации.
+Plagin — JavaScript-Skills module. It's connected to the application; JSON only selects the registered action. The kernel does not download or execute arbitrary modules from configuration.
 
 ~~~js
-import { definePlugin } from 'mckudo';
+import { definePlugin } from 'overmindmc';
 
 export const inventoryTools = definePlugin({
   id: 'inventory-tools',
@@ -11,7 +11,7 @@ export const inventoryTools = definePlugin({
   skills: {
     'inventory-tools:report': {
       validate: args =>
-        typeof args.label === 'string' || 'Нужна строка label.',
+        typeof args.label === 'string' || 'I need a line label.',
       async execute(args, { signal, observation }) {
         signal.throwIfAborted();
         console.log(args.label, observation.inventory);
@@ -22,18 +22,18 @@ export const inventoryTools = definePlugin({
 });
 ~~~
 
-Подключение: core.use(inventoryTools). После этого имя inventory-tools:report доступно в action.skill.
+Connect: core.use(inventoryTools). After that, name inventory-tools:report available in action.skill.
 
-validate получает копию args. false или строка означают ошибку аргументов; true или undefined разрешают выполнение. Проверка может быть асинхронной, но не должна сама изменять мир. execute получает signal и снимок наблюдения. Исключение либо { ok: false, message } означает неудачу.
+validate Receives a copy args. false or row means error of argument; true or undefined Allow compliance. The test may be asynchronous, But you mustn't change the world by yourself. execute Received signal and observation. Deletion of or { ok: false, message } means failure.
 
-Для одного навыка доступно core.registerSkill(name, handler, { validate }). Плагин удобнее, когда навыки распространяются вместе.
+One skill available core.registerSkill(name, handler, { validate }). Plagin is more comfortable, When skills are shared.
 
-## Зависимости и конфликты
+## Dependence and conflict
 
-requires: ["base-plugin"] требует, чтобы указанные плагины уже были подключены. Самозависимости, дубликаты ID и конфликтующие имена навыков запрещены. Проверка выполняется до регистрации: при ошибке половина навыков не останется установленной.
+requires: ["base-plugin"] requires, I want the said plagins already connected. Independence, duplicates ID and conflicting skills names are prohibited. Check performed before registration: If you're wrong, half the skills will not be set.
 
-core.removePlugin(id) удаляет набор навыков, если от него никто не зависит и текущий шаг завершён. Во время исполняемого действия подключение и удаление плагинов запрещены. Внешними соединениями плагина управляет приложение: use/removePlugin сами их не создают и не закрывают.
+core.removePlugin(id) Removes the skills set, If no one's dependent on it and the current step is complete. During the performance of the operation, connection and removal of the plagins is prohibited. The external connections of the plagina are controlled by the application: use/removePlugin They don't create or close them themselves.
 
-Плагины исполняются в процессе Node.js и не являются изолированной песочницей. Их следует подключать как обычные доверенные зависимости приложения.
+Plagins are executed in process Node.js and are not an isolated sandbox. They should be connected as a normal application's trusted relationships.
 
-Список установленного доступен в snapshot().plugins. Пример: npm.cmd run demo:plugins.
+List of authorized available in snapshot().plugins. Example: npm.cmd run demo:plugins.

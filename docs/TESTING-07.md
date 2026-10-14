@@ -1,41 +1,41 @@
-# Проверки 0.7-dev · 12 октября 2026
+# Checks 0.7-dev · 12 October 2026
 
-Рабочая версия: `0.7.0-dev.0`; стабильный релиз 0.6.0 остаётся опубликованным отдельно. Новые проверки находятся в `test/` и `packages/kudoconnect/test/`.
+Working version: `0.7.0-dev.0`; Stable release 0.6.0 is published separately. New checks are in `test/` and `packages/omconnect/test/`.
 
-Итог: **355/355 автоматических тестов** на Windows, Node v24.19.0; строгая проверка TypeScript двух публичных примеров, `release:check` и установка обоих архивов в чистое приложение прошли. CI новой версии на GitHub в этом этапе ещё не запускался. Машиночитаемый отчёт: [verification-07.json](results/verification-07.json).
+Outcome: **355/355 Automatic tests** Total Windows, Node v24.19.0; strict inspection TypeScript Two public examples, `release:check` and the placement of both archives in a net application has passed. CI New version on GitHub No start yet. Machine Readable Report: [verification-07.json](results/verification-07.json).
 
-## Что покрывают автоматические проверки
+## Which covers automatic checks
 
-- Microsoft: идентификаторы аккаунтов, запрет паролей/готовых токенов в настройках, короткий код без `device_code`, профиль отдельно от готовности мира, закрытие во время OAuth, отсутствие позднего TCP-подключения и токенов в снимке.
-- KudoVectorize: вертикали, диагонали, swept body, частичные коллизии, неизвестные чанки, водонаполненные препятствия, воздух/резерв, отмена, изменение мира, математический предиктор элитр. Исполнитель плавания проходит интеграцию с локальной моделью физики.
-- GUI: NBT/компоненты, title/name/lore, неоднозначные селекторы, устаревшая ревизия, ответ без изменения меню, неизвестные совместимые раскладки, сохранение открытого сервером окна.
-- Транспорт: серверное подтверждение пассажира, посадка/выход, наблюдение транспорта, запрет пеших действий при поездке.
-- Машинные рецепты: цепочки, жидкости, побочные продукты, катализаторы, сохранение финальных целей, изоляция ошибочных веток, циклы и бюджеты, отсутствие исполнителей, проверка ревизии/баланса, отмена до действия.
-- Кампания: обнаружение этапа без прогресса, ограниченный журнал, отдельные состояния смерти и неподтверждённой победы. Компиляция простого `swim`-сценария и завершение по достигнутой клетке.
-- TypeScript: существующий простой API и новые публичные типы. Проверка архивов устанавливает оба пакета в отдельное приложение, импортирует `*/vectorize`, машинный граф и журнал; Mineflayer отсутствует в окружении потребителя.
+- Microsoft: Account identifiers, Prohibition of passwords/finished currents in settings, short code without `device_code`, a profile separate from the world &apos; s readiness, closure during OAuth, no late TCP-connections and currents in the image.
+- OMVectorize: vertical, diagonal, swept body, Partial conflicts, unknown cups, Water-filled obstacles, air/Reserve, cancellation, Change in the World, Mathematician of the elite. The swimmer is integrated with the local model of physics.
+- GUI: NBT/components, title/name/lore, Multiple selections, Expired audit, answer without change, unknown compatible positions, Maintaining Open Window.
+- Transport: Passenger server confirmation, Landing/exit, Transport observation, Prohibition of foot actions on travel.
+- Machine recipes: Chains, Liquids, by-products, Catalysts, Maintaining the final objectives, Isolation of Wrong Tires, cycles and budgets, Lack of perpetrators, Audit/Balance, cancellation before.
+- Campaign: Detecting a phase without progress, Limited Log, Individual states of death and unconfirmed victory. Compilation of simple `swim`-scenario and completion of the completed cell.
+- TypeScript: existing simple API and new public types. The review of the archives sets both packages as a separate annex, Imports `*/vectorize`, Engine graph and log; Mineflayer not present in consumer environment.
 
-## Реальный сервер
+## Real server
 
-Локальный offline Java 1.21.1, `127.0.0.1:25565`, агент **RowanVector07**:
+Local offline Java 1.21.1, `127.0.0.1:25565`, Agent **RowanVector07**:
 
-| Этап | Результат |
+| Phase | Result |
 |---|---|
-| Подключение и готовность мира | Пройдено, Overworld, здоровье 20 |
-| Рецепты | Получено объявление 1290 рецептов; индекс результатов строится лениво |
-| Короткий наземный маршрут | Пройдено, 0 коррекций позиции |
-| KudoVectorize на воде реальных чанков | Маршрут рассчитан; перемещение в воде этим тестом не выполнялось |
-| Завершение | Клиент закрыт, здоровье 20 |
+| Integration and peace readiness | Passed, Overworld, Health 20 |
+| Reciprocies | Announcement received 1290 prescription; The result index is lazy |
+| Short ground route | Passed, 0 of the position correction |
+| OMVectorize on water of real chocolate | Route is set; Water displacement was not performed by this test |
+| Conclusion | Client closed, Health 20 |
 
-Сырой локальный отчёт: `data/v07-live.json`. Папка `data/` исключена из Git и архива. Повтор: `npm.cmd run test:live:07`.
+Local report raw: `data/v07-live.json`. Folder `data/` deleted Git and archives. Retry: `npm.cmd run test:live:07`.
 
-## Попытки кампании и исправления
+## Campaign and correction attempts
 
-Две короткие попытки профиля до дракона начинались с пустого инвентаря и завершились гибелью на первом этапе. Вторая использовала навигационный отход; успешные действия `evade` наблюдались, но этого оказалось недостаточно для выживания. Победа не объявлялась.
+Two short-term pre-dracon profile attempts started with empty equipment and ended up with a first-stage death. The other used the navigation retreat; success `evade` observed, But it wasn't enough to survive. No victory announced.
 
-Диагностика показала, что общий лимит наблюдений был заполнен камнем и скрывал деревья, присутствующие в загруженных чанках. После выделения отдельных квот агент **RowanResources07** самостоятельно добыл древесину, изготовил верстак и деревянную кирку. За трёхминутный бюджет полный этап каменной кирки/печи не завершился: подход к некоторым каменным блокам возвращал ошибку видимости/достижимости. Здоровье в конце — 20; память восстановилась.
+Diagnostics showed, That the total observation limit was filled with stone and hidden trees, in loaded cups. After the allocation of separate quotas, agent **RowanResources07** I obtained the wood myself, He made a wood and a wood kirk. For a three-minute budget, the full phase of the stone pickaxe/The furnace is not finished: The approach to some stone blocks returned the visibility error/Feasibility. Health at the end — 20; memory restored.
 
-После добавления локальной шахтной лестницы тот же игрок продолжил с уже сделанной киркой (`MC_RESUME=1`) и добыл **2 булыжника**, сохранив здоровье 20. Это проверка исправления добычи, а не новое прохождение с нуля. До печи и следующей части кампании этот минутный прогон не дошёл. Ошибки подхода к отдельным блокам остаются открытой задачей 0.7.
+After adding the local mine ladder, the same player continued with the kirch already made (`MC_RESUME=1`) And I got it **2 Rocket**, Keeping you healthy 20. This is a test of recovery, Not a new passage from zero. The furnace and the next part of the campaign didn't get this one minute run. Errors in the approach to individual clusters remain an open task 0.7.
 
-Все тестовые клиенты закрыты; пользовательский сервер продолжает работать.
+All test clients closed; User server continues to operate.
 
-Настоящий Microsoft-вход, Realms, игровые полёты, управление лодкой, модовая фабрика и полное автономное убийство дракона пока **не подтверждены**. Проверка `node examples/dragon-expedition.js --check` подтверждает структуру 14-этапного профиля и наличие объявленных навыков, а не прохождение игры. Результаты коротких попыток кампании учитываются отдельно от победы.
+The real one Microsoft-Incoming, Realms, game flights, Boat management, Fashion factory and complete autonomous killing of dragon so far **Not confirmed**. Verification `node examples/dragon-expedition.js --check` Confirms the structure 14-Phaser profile and demonstrated skills, Not the game. Short-term campaign attempts are treated separately from winning.

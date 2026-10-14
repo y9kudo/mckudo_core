@@ -1,78 +1,82 @@
-# Аудит подготовки MCKudo / KudoConnect 1.0
+# Stable 1.0 readiness
 
-Дата: **13 октября 2026**. Аудит выполнен на рабочей сборке `0.7.0-dev.0` перед включением этих изменений в релиз 0.7.0. Автор: **y9kudo**. Этот документ оценивает готовность будущей 1.0; выпуск 0.7.0 описан [отдельно](releases/0.7.0.md).
+Current development evidence (October 14): 527 automated tests, a bounded live PPO transfer and a six-stage empty-inventory survival run passed. Native high-level actions remain verified on Java 1.21.1. Full autonomous Dragon completion and a comparative platform benchmark remain unconfirmed, so stable 1.0.0 is not declared. [Current results](results/overmind-migration-2026-10-14.md).
 
-**Решение: продолжать подготовку, версию 1.0 пока не объявлять.** Автоматические проверки и установка архивов проходят. Но последний игровой прогон пяти агентов не подтвердил получение алмазного набора, а автономное прохождение от пустого инвентаря до дракона ещё не подтверждено. Сравнительного испытания с другими платформами не проводилось.
+The audit below is the historical October 13 baseline.
 
-## Проверки
+Date: **13 October 2026**. Audit performed on work assembly `0.7.0-dev.0` before these changes are included in the release 0.7.0. Author: **y9kudo**. This document assesses the readiness of the future 1.0; Output 0.7.0 Description [separately](releases/0.7.0.md).
 
-| Проверка | Результат и границы |
+**Decision: Continue preparations, Version 1.0 Not yet announced.** Automatic checks and archives are performed. But the last game run by five agents did not confirm receipt of the diamond kit, Autonomous passage from empty equipment to dragon has not yet been confirmed. No comparative test with other platforms.
+
+## Checks
+
+| Verification | Results and boundaries |
 |---|---|
-| `npm.cmd run check` | 436 тестов прошли; конфигурация примера валидна. Симуляторы и поддельные события не заменяют Minecraft |
-| `npm.cmd run test:types` | Строгая проверка публичных деклараций и трёх примеров TypeScript прошла; добавлена в CI |
-| `npm.cmd run release:check` | Версии пакетов, авторство/MIT, состав архива, относительные импорты и ссылки документации |
-| `npm.cmd run test:package` | Архивы установлены в отдельный проект без Mineflayer; импорты, отложенные данные, миссия, CPU-воркер и завершение работы прошли |
-| `npm.cmd run test:runtime` | 20 поисков на синтетической карте, одинаковая работа: 30 000 узлов. Максимальная задержка контрольного таймера: 919,96 мс синхронно и 30,38 мс порционно |
-| `npm.cmd run test:cpu` | 13 поисковых попыток. Задержка таймера: 296,48 мс в основном потоке и 16,12 мс с воркером; время задачи около 296 и 326 мс соответственно |
-| `npm.cmd run demo:evidence` | Один отказ стартового предусловия предотвращает 19 неприменимых попыток в синтетическом мире; изменение опоры разрешает маршрут |
-| Игра, пять агентов Java 1.21.1 | Цель не достигнута. [Условия и результаты](results/cooperative-diamonds-2026-10-13.md) |
+| `npm.cmd run check` | 436 Test passed; Validin case configuration. Symulators and fake events do not replace Minecraft |
+| `npm.cmd run test:types` | Strict verification of public declarations and three examples TypeScript I'm past; added to CI |
+| `npm.cmd run release:check` | Package versions, authorship/MIT, Archiving composition, Relative imports and references of documentation |
+| `npm.cmd run test:package` | Archives are set up in a separate project without Mineflayer; imports, Data deferred, Mission, CPU-the racing and completion of work has been completed |
+| `npm.cmd run test:runtime` | 20 Search on synthetic map, Same job: 30 000 knots. Maximum delay of the control timer: 919,96 ms synchronous and 30,38 ms punc |
+| `npm.cmd run test:cpu` | 13 Search attempts. Timer delay: 296,48 ms in the main stream and 16,12 Mr. and a vorker; The task time is close 296 and 326 ms, respectively |
+| `npm.cmd run demo:evidence` | One failure to start the condition prevents 19 Inapplicable attempts in the synthetic world; Change of support leg allows route |
+| Game, Five agents Java 1.21.1 | Objective not achieved. [Conditions and results](results/cooperative-diamonds-2026-10-13.md) |
 
-Замеры вычислений сделаны на этом ПК и Node v24.19.0. Порционная обработка и воркеры улучшают доступность основного цикла, но здесь не ускорили суммарное выполнение задачи. Эти числа не являются сетевым пингом, FPS, TPS или обещанием реакции агента за 30 мс. Стоимость подготовки снимка мира и пиковая память требуют отдельного измерения; лимит JS heap воркера не ограничивает всю память приложения.
+The calculations are taken from this PC and Node v24.19.0. The pore processing and vorciers improve the accessibility of the main cycle, But there was no acceleration of the total task. These numbers are not online pinging, FPS, TPS or a promise of the agent's reaction to 30 ms. The cost of producing a world image and a peak memory requires a separate measurement; limit JS heap The vorker doesn't limit the entire memory of the app.
 
-Установка первоначально не прошла без сети: кэш npm не содержал зависимостей (`ENOTCACHED`). После разрешённой загрузки проверка прошла. Продолжительность дочерних команд проверки теперь ограничена тайм-аутом.
+The installation wasn't originally unconnected: Cash npm no addiction (`ENOTCACHED`). After the authorized download, the test passed. The duration of the sub-contracting control teams is now limited to a time-frame-Out.
 
-## Состояние подсистем
+## Subsystem status
 
-| Область | Подтверждения и оставшиеся задачи |
+| Area | Confirmations and remaining tasks |
 |---|---|
-| Транспорт | KudoConnect выполняет собственные действия и не импортирует Mineflayer. Использует библиотеки протокола, данных, чанков и NBT; самостоятельность не означает отсутствие зависимостей |
-| Версии | Нативные профили Java 1.21 / 1.21.1. Знание номера другой версии не означает готовность её исполнителя |
-| Java 26.3 | Экспериментальный профиль дошёл до чанков, устойчивый игровой цикл не принят. Не включать в перечень проверенных версий |
-| Авторизация | Microsoft-модуль и тесты отмены/сокрытия токенов существуют. Настоящий вход лицензированного владельца требует отдельной игровой проверки |
-| Крафт | Есть классы блоков, ленивый серверный каталог, подтверждение крафта и плавки. Каталог модов не означает исполнение произвольного модового механизма |
-| Движение | Наземный поиск, мосты, столб, лестницы, плавание и воздушные операции реализованы частями. Нужен общий контракт столкновений и опор между поиском и исполнением |
-| Обучение | Небольшие локальные сети ранжируют стоимость движения и действий; модель опыта выводит ограниченные гипотезы операторов. Универсальная обученная модель механик Minecraft не реализована |
-| Кооперация | Канал вне чата, заявки, резервы и квитанции есть. Последняя группа не подтвердила успешный обмен; нужны производственные договорённости и надёжные встречи |
-| Стройка | NBT/Litematica/Sponge/подмножество legacy разбираются. Постановка проверяется по миру. Большая схема не завершена: частичные опоры, декоративные состояния и временные леса остаются задачами |
-| Энд | Подготовленный Avery07 подтвердил собственные попадания и смерть дракона. Это бой со снаряжением, предоставленным человеком |
-| Панель / SDK | Есть статусы, задачи, управление и просмотр мира; декларации API проверяются TypeScript. Нужны единые причины ожидания и журнал решений |
+| Transport | OMConnect Does his own actions and does not import Mineflayer. Uses protocol libraries, Data, and NBT; Independence does not mean no dependence |
+| Versions | Personal Profiles Java 1.21 / 1.21.1. Knowledge of the number of the other version does not mean the person who performed it is ready |
+| Java 26.3 | The experimental profile came to the chunks, Sustainable game cycle not accepted. Do not list audited versions |
+| Authorization | Microsoft-Cancellation module and test/Token concealment exists. The real entry of the licensed owner requires a separate game test |
+| craft | There are blocks classes, Lazy server directory, Craft and float confirmation. Fashion catalogue does not mean the execution of an arbitrary fashion mechanism |
+| Movement | Ground search, Bridges, Pole, stairs, Swimming and air operations carried out in parts. Need a general contract of collisions and support between search and execution |
+| Learning | Small local networks rank the cost of traffic and action; The model of experience brings out limited operator hypothesis. Universally trained mechanic model Minecraft not implemented |
+| Cooperation | Channel outside the chat room, Applications, There are reserves and receipts. The latter group did not confirm the successful exchange; We need a business arrangement and a secure meeting |
+| Construction | NBT/Litematica/Sponge/Sub-group legacy They're on it. Playing is tested worldwide. Large scheme not completed: Partial supports, Decorative conditions and temporary forests remain challenges |
+| End | Prepared by Avery07 confirmed the dragon's own fall and death. It's a fight with equipment, by the person |
+| Panel / SDK | There are statuses, objectives, Global governance and viewing; Declaration API checked TypeScript. Common reasons for waiting and a decision log are needed |
 
-## Исправления аудита
+## Audit corrections
 
-1. Структурированные ошибки движения. История ядра сохраняет `failure.code` и участвующие наблюдения.
-2. [Evidence Memory](INTELLIGENCE-METHODS.md): общая память стартовых предусловий, повторная проверка при изменении участвующих блоков, изоляция миров/измерений/режимов движения, ограниченный журнал. Для остальных отказов — локальная временная задержка.
-3. Полученная книга рецептов сервера заменяет ранее включённый каталог версии, включая очистку кэша выходов.
-4. Строгая проверка TypeScript в CI; исправлен контракт дополнительных параметров физической стройки схем.
-5. Проверка установки ограничивает продолжительность дочерних команд и скрывает служебные окна Windows.
+1. Structured Movement Errors. The History of the Core Saves `failure.code` and participating observations.
+2. [Evidence Memory](INTELLIGENCE-METHODS.md): general memory of start-up preconditions, Rechecking when participating blocks change, Isolation of Worlds/of the measurement system/Traffic modes, Limited Log. For the rest of the refusals — local time delay.
+3. The server recipe book received replaces the previously introduced version directory, including cleaning of the cache of exits.
+4. Strict verification TypeScript in CI; amended contract for additional physical design parameters.
+5. Installation check limits the duration of the subsidiaries and hides service windows Windows.
 
-Новая память проверена автоматически; влияние на игровой результат ещё не измерено. Старые адаптеры без структурированных отказов пока используют прежнюю эвристику.
+New memory checked automatically; The impact on the game result is not yet measured. Old adapters without structured failures are still using old euretics.
 
-## Приоритеты до 1.0
+## Priorities before 1.0
 
-| Приоритет | Задача | Приёмка |
+| Priority | Task | Reception |
 |---|---|---|
-| P0 | Общая геометрия: плиты, ступени, дробный Y, двери/люки, лестницы | Единые формы и маршруты для поиска/физики/Vectorize; игровые проходы без циклов и систематических коррекций |
-| P0 | Подбор с доказательством получения | Связать живую сущность, текущую позицию, подход, исчезновение и слоты; чужой подбор не считается своим успехом |
-| P0 | Выход из тупика и безопасная добыча | Ограниченные повторы, известный обратный путь, бюджет здоровья/еды и объяснимая смена стратегии |
-| P0 | Производственный план группы и встречи | Алмазная цель для всей группы, подтверждённые передачи, отмена резервов после смерти, отсутствие дублирования |
-| P0 | Автономная экспедиция | Свежий мир, пустой инвентарь, без выдачи/телепортов/команд: выживание → незер → крепость → портал → кристаллы → собственный урон и смерть дракона |
-| P1 | Контракт поддержки версий | Для каждой объявленной версии: вход, чанки, движение, добыча, инвентарь, крафт, возрождение и переход измерения |
-| P1 | Строительные зависимости | Временные опоры, многоблочные объекты, замена неверных состояний, ремонт и точное сравнение итоговой схемы |
-| P1 | Наблюдаемость / скорость | p50/p95/p99 задержки срочного решения, поиска и коррекции; ограниченная очередь вычислений |
-| P1 | SDK для новичков | Установка с нуля, минимальный агент, JSON-миссия, расширение навыка и понятные ошибки; примеры в CI |
-| P1 | Microsoft / моды | Отдельные игровые испытания доступных аккаунтов и точных сочетаний загрузчик/версия/механизм |
+| P0 | General geometry: Panels, Stage, cutter Y, doors/hatches, stairs | Uniform forms and search routes/Physics/Vectorize; Playways without cycles and systematic adjustments |
+| P0 | Evidence of receipt | Linking the Living Being, Current position, approach, disappearance and the slot; A person's choice is not considered a success |
+| P0 | Breaking the impasse and safe mining | Limited repetition, A known return route, Health budget/Food and an explanation for changing strategy |
+| P0 | Group production plan and meetings | Diamond target for the whole group, confirmed transfers, De-reserves after death, No duplication |
+| P0 | Autonomous expedition | The New World, empty equipment, without extradition/Transporters/Commands: Survival → non-ser → Fort → portal → crystals → The dragon's own loss and death |
+| P1 | Version support contract | For each version announced: Incoming, Cupboards, traffic, Mining, equipment, craft, Revival and transition of measurement |
+| P1 | Construction Dependence | Temporary support, multi-unit objects, Replacement of Unbelievers, Renovation and exact comparison of the final scheme |
+| P1 | Observation / speed | p50/p95/p99 Delays in the urgent decision, Search and Correction; limited calculation line |
+| P1 | SDK For new recruits | Installation from zero, Minimum agent, JSON-Mission, The wider skills and understandable mistakes; Examples in the CI |
+| P1 | Microsoft / Fashion | Selected games tests of accessible accounts and exact downloader combinations/version/mechanism |
 
-## Предлагаемые условия релиза
+## Proposed modalities for release
 
-Это будущие критерии, а не уже достигнутые результаты:
+These are future criteria, Not the results already achieved:
 
-- Полный набор и установка архивов проходят в CI на Windows/Linux, Node 22/24.
-- Для первого vanilla-профиля: три заранее выбранных разных свежих мира, по два независимых автономных прогона. Публикуются все исходы. Целевой порог — шесть подтверждённых прохождений; изменение условий объявляется заранее.
-- Отдельный набор маршрутов проверяет шахты, частичные опоры, падения и занятые проходы. Один отказ не повторяется бесконечно без новой информации.
-- Пять агентов подтверждают алмазный набор для каждого и сохранение ресурсов в передачах; внешняя выдача исключает запуск из категории «с нуля».
-- Вычисления, event loop, соединение и нагрузка игрового сервера измеряются отдельно. CPU/RAM и число агентов входят в условия отчёта.
-- Документация перечисляет проверенные профили и механики; эксперименты обозначаются явно.
+- Full set and installation of archives are in CI Total Windows/Linux, Node 22/24.
+- For the first vanilla-profile: Three selected different fresh worlds, Two independent runs. All outcomes published. Target threshold — Six confirmed passes; Change of conditions announced in advance.
+- A selected set of routes checks mines, Partial supports, Falls and occupied passages. One refusal does not repeat itself indefinitely without new information.
+- Five agents confirm diamond kit for each and retain resources in transfers; External issuance excludes launch «from zero».
+- Calculation, event loop, The connection and the load of the game server shall be measured separately. CPU/RAM and number of agents included in the reporting.
+- Documentation lists verified profiles and mechanics; Experiments are clearly marked.
 
-Для сравнения платформ нужны одинаковые начальные миры, цель, снаряжение, наблюдения и вычислительный бюджет. Историческая гонка разных возможностей в общем мире полезна для поиска ошибок, но не доказывает превосходство платформы.
+The same primary worlds are needed to compare platforms, Objective, Equipment, Observation and computer budget. The historical race of opportunity in the world is useful in finding mistakes, But it doesn't prove the superiority of the platform.
 
-[Следующие методы](INTELLIGENCE-METHODS.md): области устойчивого приземления, производственные договорённости, репетиция действий и диагностические проверки. Их результат принимается по уменьшению ошибок и росту числа завершённых целей в одинаковых условиях.
+[The following methods](INTELLIGENCE-METHODS.md): Sustainable Land Management, Production agreements, Rehearsal and diagnostic checks. The result is to reduce errors and increase the number of targets completed under the same conditions.

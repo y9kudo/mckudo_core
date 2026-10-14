@@ -1,18 +1,18 @@
-# Стандартное поведение, сундуки и взаимодействие
+# Standard behaviour, chests and interaction
 
-MCKudo выбирает, зачем и когда действовать. KudoConnect получает игровые наблюдения и исполняет действия с проверкой ответов сервера. Эти возможности находятся в библиотеках; файлы в `examples` показывают подключение и проверку.
+OvermindMC Chooses, Why and When to Act. OMConnect Receives game observation and performs actions with server response checks. These facilities are located in libraries; files to `examples` Show connection and check.
 
-## Готовый профиль мозга
+## The brain profile is ready
 
-Из корня этого проекта можно запустить `node examples/minecraft-agent.js`. Пример подключает Henry к локальному offline-серверу Java 1.21.1. Завершение — Ctrl+C. Адрес, порт, имя и идентификатор мира меняются переменными `MC_HOST`, `MC_PORT`, `MC_USERNAME`, `MC_WORLD`.
+From the root of this project, you can start `node examples/minecraft-agent.js`. Example connects Henry Local offline-server Java 1.21.1. Conclusion — Ctrl+C. Address, port, The world name and identifier change variables `MC_HOST`, `MC_PORT`, `MC_USERNAME`, `MC_WORLD`.
 
-Минимальный код внутри проекта:
+Minimum code inside project:
 
 ```js
-import { createKudoConnect } from './kudoconnect/index.js';
-import { createMinecraftBrain } from './mckudo_core.js';
+import { createOMConnect } from './omconnect/index.js';
+import { createMinecraftBrain } from './overmindmc.js';
 
-const client = createKudoConnect({ username: 'Henry', host: '127.0.0.1', port: 25565 });
+const client = createOMConnect({ username: 'Henry', host: '127.0.0.1', port: 25565 });
 const brain = createMinecraftBrain({ client, worldId: 'my-survival-world' });
 await client.connect();
 brain.start();
@@ -23,19 +23,19 @@ process.once('SIGINT', async () => {
 });
 ```
 
-При установке подготовленных npm-пакетов импорты заменяются на `kudoconnect` и `mckudo`. Сама публикация пакетов пока не выполнена. Подробности самостоятельной установки: [KudoConnect](../packages/kudoconnect/README.md).
+When installing trained npm-Packages of imports replaced by `kudoconnect` and `mckudo`. The release of the packages has not yet been completed. Details of self-sustainment: [OMConnect](../packages/omconnect/README.md).
 
-`createMinecraftBrain` возвращает обычный `MckudoCore`: доступны `tick`, `start`, `stop`, `snapshot`, события, навыки и плагины. Создание мозга не открывает соединение; `connect()` выполняет приложение. Остановка мозга не закрывает клиент — можно передать управление другой системе.
+`createMinecraftBrain` Returns the normal `OvermindCore`: available `tick`, `start`, `stop`, `snapshot`, developments, Skills and plagins. Brain creation doesn't open the connection; `connect()` implement the annex. The brain stops don't close the client — Can be transferred to another system.
 
-По умолчанию профиль включает:
+By default, the profile includes:
 
-- Защиту от наблюдаемых враждебных мобов и ответ на два подтверждённых удара **одного** игрока за последние 10 секунд. Управляемые агенты тоже являются игроками и подчиняются этому правилу. Удары разных нападающих не складываются; неизвестный источник урона не превращается в выдуманного противника.
-- Тактический бой с приоритетом 990: выбор оружия, восстановление удара, щит при наличии, отступление при опасном здоровье. Защита может прервать добычу и подбор из сундука. Интервал проверки угроз — 50 мс; реальная задержка также зависит от сети, тика сервера и отменяемого действия.
-- Проверку ближайшего наблюдаемого сундука, сундука-ловушки, бочки или шалкера в радиусе 16 блоков. Подбор разрешён при здоровье выше 8 и свободном месте. После осмотра повторная проверка — не раньше 60 секунд. Сундук-ловушка может активировать окружающий механизм: исключай такие блоки своей политикой на картах с ловушками.
+- Protect from observed hostile obs and respond to two confirmed strikes **one** player for the last 10 seconds. The agents in charge are players and obey this rule. The strikes of the different attackers do not add up; An unknown source of damage does not turn into a fictional enemy.
+- Tactical battle with priority 990: Weapons selection, Impact recovery, board if fitted, non-derogable in case of hazardous health. The defense can interrupt extraction and rebound from the chest. Threat verification interval — 50 ms; The real delay also depends on the network, server tick and cancelable action.
+- Checking the nearest monitoring chest, chest-Traps, barrels or shalcker in a radius 16 blocks. Selection permitted in health higher 8 and a free place. After inspection, recheck — Not before 60 seconds. Craft-A trap can activate the surrounding mechanism: You're gonna have to rule out these blocks from your policy on trap maps.
 
-Это базовый профиль поведения, а не готовое полное прохождение. Он не создаёт инструменты из ничего: выбор инструмента использует уже имеющийся инвентарь. Нативные крафт, станции, плавка и цикл выживания описаны в [NATIVE-SURVIVAL](NATIVE-SURVIVAL.md).
+It's a basic behavior profile, Not ready complete passage. He doesn't make tools out of nothing: The selection of the tool uses the already available equipment. Anti-craft, Stations, the smelting and the survival cycle is described in [NATIVE-SURVIVAL](NATIVE-SURVIVAL.md).
 
-## Настройка без копирования логики
+## Settings without Logic
 
 ```js
 const brain = createMinecraftBrain({
@@ -61,19 +61,19 @@ const brain = createMinecraftBrain({
 });
 ```
 
-`trustedPlayers` исключает указанные имена из ответного PvP без учёта регистра. `defense.attackPlayers: false` отключает ответные атаки на игроков. `storage: false` отключает самостоятельный поиск сундуков, сохраняя возможность вызвать `lootChest` явно. `items` — разрешённые ID предметов; если список отсутствует, разрешён подбор любого содержимого. `maxStacks` ограничивает количество запросов переноса за действие, а не число предметов.
+`trustedPlayers` excludes the names from the response PvP without register. `defense.attackPlayers: false` Disables counter-attacks on players. `storage: false` Disables the self-search of the chests, while retaining the possibility to call `lootChest` Obviously. `items` — permitted ID items; if no list, permitted selection of any contents. `maxStacks` limit the number of requests for change for action, not the number of items.
 
-Свою логику можно добавить через `reactors`, а цели и правила — через `config`. Приоритет самостоятельного подбора из сундука равен 10. Задачам, которые должны выполняться раньше, назначь больший приоритет. Для существующего приложения с `createCore` отдельно экспортируются `createStorageReactor` и `createCombatReactor`; у общего `createCore` поведение не включается скрыто.
+You can add your logic to it by `reactors`, a Objectives and rules — Through `config`. The priority of independent selection from the chest is 10. Challenges, to be implemented first, Give more priority. For existing application c `createCore` Individually exported `createStorageReactor` and `createCombatReactor`; in total `createCore` behaviour not included hidden.
 
-## Как выбирается инструмент
+## How an instrument is selected
 
-`dig` и `gather` оценивают твёрдость блока, материал, допустимые инструменты для выпадения ресурса и базовое время разрушения. Поэтому для берёзы выбирается топор, для камня — кирка, а деревянная кирка не считается подходящей для алмазной руды. Используется конкретный слот выбранного инструмента, включая ситуацию с двумя одинаковыми предметами и разным износом.
+`dig` and `gather` assess the hardness of the block, material, Acceptable instruments for resource deposition and baseline time of destruction. So the axe is chosen for birch, for stone — Kirk, and the wooden kirch is not considered suitable for diamond ore. Use a specific slot of the selected tool, including the situation of two identical objects and different wear and tear.
 
-`combat` сравнивает мечи и топоры по базовому урону за время восстановления; наблюдаемый поднятый щит противника повышает предпочтение топора. Если оружия нет, выбирается пустая рука. Если весь инвентарь заполнен и освободить руку без выбрасывания невозможно, действие сообщает ошибку. Переключение не отменяет игровые ограничения скорости добычи и восстановления удара. Полная оценка зачарований, эффектов и серверных модификаторов ещё не реализована.
+`combat` compares swords and axes by basic damage during recovery; The observed raised enemy shield increases the preference for an axe. If there is no weapon, An empty arm is chosen. If all the equipment is full and the arm is not available without throwing away, Act indicates error. Switch does not eliminate the game speed limits of recovery and recovery. Full appreciation of charms, Effects and server modifications not yet implemented.
 
-Смена слота на панели быстрого доступа отправляется сразу. Предмет из основного инвентаря перемещается в руку с ожиданием серверного подтверждения. `chooseMiningTool(registry, block, items, { held, onGround })` доступна отдельно в KudoConnect для предварительной оценки.
+The change of slot on the quick access panel goes straight away. The item from the main inventory is moved to the hand with the server confirmation awaited. `chooseMiningTool(registry, block, items, { held, onGround })` available separately in OMConnect for preliminary assessment.
 
-## Явное действие с сундуком
+## A clear action with a chest
 
 ```js
 const result = await client.execute({
@@ -83,36 +83,36 @@ const result = await client.execute({
 console.log(result.transferred);
 ```
 
-Исполнитель подходит к блоку, открывает окно, получает содержимое и отправляет перенос через shift-click. Успех переноса требует **уменьшения исходного стака и увеличения собственного инвентаря**. Неподтверждённый запрос не добавляет предметы в локальную модель. Инвентарь может принять только часть стака. При отмене окно закрывается, уже полученные предметы остаются у агента.
+The perpetrator approaches the block, Opens the window, receives the contents and sends them through shift-click. Success in transfer requires **reduction of the initial glass and increase of the equipment**. Unconfirmed request does not add items to the local model. The inventory can only take part of the glass. The window closes when canceled, items already received remain with the agent.
 
-Поддержаны обычные/двойные сундуки, бочки и все 17 вариантов шалкера. Печи обслуживает отдельный навык `smelt`. Эндер-сундук, вклад предметов, торговые окна и точное ограничение количества внутри стака требуют дополнительных исполнителей. Если окно запрещено сервером, закрыто другим действием или недоступно, запрос завершается ошибкой. Ошибка после частичного переноса не означает откат: проверь текущий инвентарь перед повтором.
+Supported by regular/Double chests, barrels and all 17 Schalker options. The furnace serves a separate skill `smelt`. Ender-chest, Contribution of items, Trade windows and precise limitation of the quantity inside the glass require additional performers. If the window is not permitted by the server, closed by other action or not available, Request ends with error. Error after partial transfer does not mean backset: Check the current inventory before re-checking.
 
-`client.observe().storage` хранит до 128 последних осмотров с измерением, координатами, временем и содержимым. Это наблюдения, а не гарантия актуальности закрытого сундука. Профиль консервативно не начинает осмотр при отсутствии свободных слотов; явный `lootChest` также умеет дополнять подходящие неполные стаки.
+`client.observe().storage` Keeps to 128 Last inspection with measurement, coordinates, Time and contents. These are observations, Not a guarantee of the relevance of a closed chest. The profile does not start a conservative examination without free slots; A clear one `lootChest` Also knows how to supplement suitable incomplete stitches.
 
-## Игроки, взгляд и встречи
+## Players, Eyes and Meetings
 
 ```js
 console.log(client.players.snapshot());
 const watch = client.watchPlayer('Ivy', { durationMs: 10000, maxDistance: 16 });
-// Позже, когда внимание больше не нужно:
+// Later, When attention is no longer needed:
 watch.stop();
 ```
 
-Игрок в списке сервера может быть слишком далеко: в таком случае `observed: false` и `position: null`. Координаты используются только после получения игровой сущности. Взгляд привязан к UUID, учитывает движение и высоту глаз, останавливается при препятствии, исчезновении игрока или выходе за радиус. Бой, добыча и навигация имеют преимущество перед социальным взглядом.
+The player on the server list may be too far away: Then `observed: false` and `position: null`. Coordinates are used only after the game is acquired. The look is tied to UUID, takes into account movement and eye height, stops when the obstacle is, The player disappears or leaves over the radius. Fight, Mining and navigation have an advantage over social view.
 
 ```js
-import { previewInteraction, runInteraction } from './mckudo_core.js';
+import { previewInteraction, runInteraction } from './overmindmc.js';
 const from = fleet.agents.get('Henry');
 const to = fleet.agents.get('Ivy');
 console.log(previewInteraction({ from, to, kind: 'give', item: 'birch_log' }));
 const report = await runInteraction({ from, to, peers: fleet.peers, kind: 'give', item: 'birch_log', count: 1 });
 ```
 
-Для встречи нужны два управляемых клиента, которые наблюдают друг друга и находятся в одном измерении. Предпросмотр не двигает агентов. Исполнение находит доступные обеим сторонам позиции, сближает их и ждёт взаимного взгляда, подтверждённого **поворотом, полученным другим клиентом**. Затем `give` выбрасывает предмет и проверяет подбор, оба инвентаря и повторный взгляд. `meet` выполняет только встречу.
+Two run-in clients are needed for the meeting, who observe each other and are in the same dimension. Pre-screen does not move agents. The positions available to both sides are met, Draws them close and looks forward to a common vision, confirmed **turn, received by another client**. Then `give` Throws out the object and checks the rebound, both instruments and re-view. `meet` Only meets.
 
-Журнал `report.journal` показывает подготовку, прибытие, взгляд, передачу и результат. `partial` означает, что предмет покинул отправителя, но всех подтверждений завершения нет. Повтор автоматически не выполняется. Это передача через игровой предмет на земле, не атомарный обмен: третий игрок может вмешаться. Сопоставление инвентарей и события подбора не доказывает происхождение каждой единицы одинакового предмета. Пакеты кооперации проходят вне игрового чата.
+Journal `report.journal` Shows the preparation, arrival, look, Transfer and result. `partial` means, I'm sure the object left the sender, But all confirmations are not complete. Repeat not automatically executed. It's a transmission through a game object on the ground, not atomic exchange: Third player can intervene. Comparison of inventory and selection events does not prove the origin of each unit of the same object. Co-operation packages go off the game chat.
 
-## Проверки в своём мире
+## Checks in Your World
 
 ```powershell
 npm.cmd test
@@ -123,4 +123,4 @@ $env:MC_USERNAME = 'Henry'
 node examples/storage-live.js
 ```
 
-`retaliation` — ограниченный PvP-тест двух здоровых агентов без оружия: первый подтверждённый удар должен остаться без ответа, после второго ожидается ответная атака. `storage-live` ищет ближайший контейнер в полученных чанках; для полноценного теста положи туда предметы и обеспечь доступный проход. `gather-give` сначала добывает бревно по классу, затем пытается передать его. Эти примеры меняют тестовый мир обычными игровыми действиями; `npm.cmd test` запускает только автоматические тесты без входа на сервер. Отчёты сохраняются в `data/`.
+`retaliation` — limited PvP-Test of two healthy agents without a weapon: The first confirmed strike must go unanswered, The second is expected to be responded to. `storage-live` Searching for the nearest container in the cups received; Put the objects in there and make it accessible. `gather-give` First, picks up the log by class, Then he tries to pass it on. These examples change the test world by normal game action; `npm.cmd test` only run automatic tests without entering the server. Reports maintained `data/`.

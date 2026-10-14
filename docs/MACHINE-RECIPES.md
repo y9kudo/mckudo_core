@@ -1,13 +1,13 @@
-# Машинные рецепты · MCKudo 0.7
+# Machine recipes · OvermindMC 0.7
 
-`createMachineGraph` импортирует нормализованные данные о механизмах. `planMachineResources` находит зависимости, а `executeMachinePlan` вызывает установленные приложением исполнители и проверяет результат. Автор **y9kudo**, MIT.
+`createMachineGraph` imports normalized data on mechanisms. `planMachineResources` Finds Dependence, a `executeMachinePlan` causes the Annex-Described Implementing and checks the result. Author **y9kudo**, MIT.
 
-## Зачем отдельный граф
+## Why a separate graph
 
-Верстак преобразует предметы в предмет. Модовая машина может одновременно использовать предметы, жидкость, энергию и несгорающий катализатор, а возвращать несколько продуктов. Подмена такой операции обычным `craft` теряет условия рецепта.
+Versa is so transformed into an object. A fashion machine can use objects simultaneously, Liquid, energy and non-combustion catalyst, and return several products. Replacement of such an operation `craft` loses the prescription.
 
 ```js
-import {createMachineGraph,planMachineResources} from 'mckudo';
+import {createMachineGraph,planMachineResources} from 'overmindmc';
 
 const graph=createMachineGraph({
   schemaVersion:1,minecraftVersion:'1.21.1',source:'my-modpack-export',
@@ -34,42 +34,42 @@ const plan=planMachineResources({
 console.log(plan.status,plan.missingExecutors);
 ```
 
-`example:*` — учебные ID, а не утверждение о рецептах конкретного мода. Полный локальный пример: [examples/machines.js](../examples/machines.js).
+`example:*` — Training ID, Not a specific fashion recipe statement. Full local example: [examples/machines.js](../examples/machines.js).
 
-Для новичка есть готовый [machine-recipes.json](../examples/machine-recipes.json) и [JSON-схема](../schemas/machine-recipes.schema.json). VS Code подсказывает поля при редактировании этого файла; `npm.cmd run demo:machines` загружает именно его.
+For a newbie, there's a ready one [machine-recipes.json](../examples/machine-recipes.json) and [JSON-Scheme](../schemas/machine-recipes.schema.json). VS Code The field will be specified when editing this file; `npm.cmd run demo:machines` it's the one that's downloading it.
 
-## Поля
+## Fields
 
-| Поле | Смысл |
+| Field | Meaning |
 |---|---|
-| `id` | Уникальный ID рецепта, например `create:pressing/iron_ingot` |
-| `machine` | ID типа исполнителя; приложение связывает его с настоящей машиной |
-| `inputs` | Расходуемые ресурсы на одну операцию |
-| `outputs` | Гарантированные результаты на одну операцию; побочные продукты тоже сюда |
-| `catalysts` | Предметы/жидкости, которые нужны, но не расходуются |
-| `energy` | Энергия на операцию в явно названных единицах; суммируется отдельно по единицам |
-| `durationTicks` | Продолжительность операции, 20 тиков = 1 игровая секунда при нормальном TPS |
+| `id` | Unique ID prescription, for example `create:pressing/iron_ingot` |
+| `machine` | ID Type of perpetrator; The app links it to the real car |
+| `inputs` | Expendable resources per operation |
+| `outputs` | Guaranteed results per transaction; By-products here, too |
+| `catalysts` | Items/Liquids, I need you to, But they don't spend |
+| `energy` | Energy for operation in clearly named units; aggregated by unit |
+| `durationTicks` | Duration of operation, 20 Tics = 1 Playtime at normal TPS |
 
-В ресурсе `kind` по умолчанию `item`, для жидкости — `fluid`. `amount` по умолчанию 1. Единицы жидкости выбирает экспортёр согласованно с исполнителем, например миллибакеты. Предмет и жидкость с одинаковым ID остаются разными ресурсами.
+In resource `kind` default `item`, for liquid — `fluid`. `amount` default 1. Liquid units select exporter in agreement with the agent, For example, millibachetes. Subject matter and liquid with the same ID other resources.
 
-JEI называет recipe catalysts в том числе рабочие станции: это источник для поля `machine`, а не обязательно для несгораемых материалов `catalysts`. Энергия FE, RPM и механическое напряжение Create — разные величины. Скорость, давление, температура и форма многоблочной машины должны проверяться конкретным исполнителем; граф не переводит их автоматически в FE.
+JEI He does recipe catalysts of which workstations: It's a source for the field `machine`, not necessarily for non-burnable materials `catalysts`. Energy FE, RPM and mechanical voltage Create — different values. Speed, pressure, The temperature and shape of the multi-unit machine shall be checked by the specific operator; The graph does not automatically translate them into FE.
 
-Планировщик учитывает уже имеющиеся ресурсы, несколько выходов, целые партии, катализаторы и сохранение всех финальных целей. Неудачная ветка рецептов не расходует резерв другой ветки. Циклы, бюджеты поиска, недостаток исходных ресурсов и отсутствие источника возвращают `blocked` с причиной. Вероятностный результат с `chance < 1` не принимается как гарантированный. Обратные циклы производства требуют отдельного моделирования.
+The planner takes into account resources already available, Several exits, Whole lots, Catalysts and maintenance of all final goals. A failed prescription branch doesn't use another branch's reserve. Cycles, Search budgets, Lack of baseline resources and lack of source return `blocked` with cause. Probable result with `chance < 1` Not accepted as guaranteed. Reverse production cycles require separate modelling.
 
-`status: 'planned'` показывает, что материальная цепочка рассчитана. `executable: false` и `missingExecutors` означают, что цепочку нельзя запустить имеющимися драйверами. Энергия в плане — требование; доступность питания проверяет исполнитель на месте.
+`status: 'planned'` Shows, I think the material chain is calculated. `executable: false` and `missingExecutors` Mean, That the chain should not be run by existing drivers. Energy in the plan — requirement; The nutrition is checked by the person in the area.
 
 ## JEI / Forge / NeoForge / Fabric
 
-[JEI IRecipeManager](https://github.com/mezz/JustEnoughItems/blob/1.21.1/Common/src/api/java/mezz/jei/api/recipe/IRecipeManager.java) предоставляет Java API для поиска категорий, рецептов и ингредиентов внутри модового клиента. Для переноса в Node.js нужен экспортёр в соответствующем модовом окружении, который преобразует эти сведения в приведённый JSON. У типов рецептов могут быть собственные дополнительные условия; экспортёр обязан их учитывать.
+[JEI IRecipeManager](https://github.com/mezz/JustEnoughItems/blob/1.21.1/Common/src/api/java/mezz/jei/api/recipe/IRecipeManager.java) Provides Java API for categories, The use of prescription and ingredients within a fashion client. For transfer to Node.js You need an exporter in a fashion environment, which converts this information into a given JSON. The types of recipes may have their own additional conditions; The exporter must take them into account.
 
-Текущий JavaScript-импорт **не является готовым JEI-модом**, автоматическим сетевым подключением к Forge или универсальным экспортёром Create/AE/IC2. Ванильный `declare_recipes` не заменяет специфичные для модов сетевые профили. Существующий импорт JAR/datapack остаётся отдельным способом получить доступные JSON-рецепты. Формат нового графа позволяет добавить реальные экспортеры без изменения пользовательских целей.
+Current JavaScript-Import **is not ready JEI-Fashion**, automatic network connections Forge or by a universal exporter Create/AE/IC2. Vanilla `declare_recipes` does not replace specific fashion-specific network profiles. Existing imports JAR/datapack remains separately available JSON-Prescriptions. The new graph format allows real exporters to be added without changing user objectives.
 
-## Проверяемое исполнение
+## Performance checked
 
 ```js
-import {executeMachinePlan} from 'mckudo';
+import {executeMachinePlan} from 'overmindmc';
 
-// Обе функции ниже предоставляет адаптер конкретной модовой машины.
+// Both functions below provide an adapter for a specific fashion machine.
 const result=await executeMachinePlan({
   plan,
   executors:{'example:washer':machineAdapter.run},
@@ -78,8 +78,8 @@ const result=await executeMachinePlan({
 });
 ```
 
-Для исполнимого плана укажите `executors: ['example:washer']` при планировании. `observeResources` возвращает `{ revision, resources }`: реальную ревизию и ресурсы в согласованной области учёта машины. Область включает входы, выходы, жидкостные резервуары и катализаторы. Между снимками нужно исключить сторонние операции над этой областью; иначе корректное исполнение может быть отклонено из-за несовпадения баланса.
+For a plan to be implemented, indicate `executors: ['example:washer']` Planning. `observeResources` Returns `{ revision, resources }`: Actual audit and resources in the agreed area of the machine accounting. Area includes entrances, exits, Liquid tanks and catalysts. Between the images, the side effects of this area should be excluded; otherwise correct performance may be rejected from-for balance sheet differences.
 
-После действия нужна новая ревизия и точное изменение ресурсов по входам/выходам; катализатор должен сохраниться. Возвращённый драйвером `{ok:true}` сам по себе недостаточен. Ошибка останавливает следующие действия, но уже совершённые игровые операции не откатываются. Драйвер обязан реагировать на `signal`: тайм-аут перестаёт ожидать результат, но не способен остановить произвольный чужой код.
+Once operational, a new audit and exact change in inputs are required/exit; The catalyst must be retained. Returned by the driver `{ok:true}` Not enough on its own. Error Stops the following Actions, But the game operations that have already been done don't roll back. Driver has to respond `signal`: Time-Out is no longer waiting for results, But unable to stop the arbitrary code of a stranger.
 
-Планирование и контракт проверки протестированы на моделях машин. Реальная фабрика с модами пока не запускалась.
+Planning and contract of verification tested on machine models. The real fashion factory hasn't started yet.

@@ -64,102 +64,102 @@
         {
           "at": 1791750456921,
           "skill": "gather",
-          "reason": "Рядом нет jungle_log."
+          "reason": "No nearby jungle_log."
         },
         {
           "at": 1791750457145,
           "skill": "gather",
-          "reason": "Рядом нет dark_oak_log."
+          "reason": "No nearby dark_oak_log."
         },
         {
           "at": 1791750457384,
           "skill": "gather",
-          "reason": "Рядом нет mangrove_log."
+          "reason": "No nearby mangrove_log."
         },
         {
           "at": 1791750457619,
           "skill": "gather",
-          "reason": "Рядом нет cherry_log."
+          "reason": "No nearby cherry_log."
         },
         {
           "at": 1791750530617,
           "skill": "gather",
-          "reason": "Рядом нет oak_log."
+          "reason": "No nearby oak_log."
         },
         {
           "at": 1791750615181,
           "skill": "gather",
-          "reason": "Рядом нет birch_log."
+          "reason": "No nearby birch_log."
         },
         {
           "at": 1791750616685,
           "skill": "gather",
-          "reason": "Рядом нет spruce_log."
+          "reason": "No nearby spruce_log."
         },
         {
           "at": 1791750616912,
           "skill": "gather",
-          "reason": "Рядом нет acacia_log."
+          "reason": "No nearby acacia_log."
         },
         {
           "at": 1791750617142,
           "skill": "gather",
-          "reason": "Рядом нет jungle_log."
+          "reason": "No nearby jungle_log."
         },
         {
           "at": 1791750617372,
           "skill": "gather",
-          "reason": "Рядом нет dark_oak_log."
+          "reason": "No nearby dark_oak_log."
         },
         {
           "at": 1791750617606,
           "skill": "gather",
-          "reason": "Рядом нет mangrove_log."
+          "reason": "No nearby mangrove_log."
         },
         {
           "at": 1791750617830,
           "skill": "gather",
-          "reason": "Рядом нет cherry_log."
+          "reason": "No nearby cherry_log."
         },
         {
           "at": 1791750723960,
           "skill": "gather",
-          "reason": "Рядом нет oak_log."
+          "reason": "No nearby oak_log."
         },
         {
           "at": 1791750915403,
           "skill": "gather",
-          "reason": "Рядом нет birch_log."
+          "reason": "No nearby birch_log."
         },
         {
           "at": 1791750916724,
           "skill": "gather",
-          "reason": "Рядом нет spruce_log."
+          "reason": "No nearby spruce_log."
         },
         {
           "at": 1791750916956,
           "skill": "gather",
-          "reason": "Рядом нет acacia_log."
+          "reason": "No nearby acacia_log."
         },
         {
           "at": 1791750917176,
           "skill": "gather",
-          "reason": "Рядом нет jungle_log."
+          "reason": "No nearby jungle_log."
         },
         {
           "at": 1791750917407,
           "skill": "gather",
-          "reason": "Рядом нет dark_oak_log."
+          "reason": "No nearby dark_oak_log."
         },
         {
           "at": 1791750917644,
           "skill": "gather",
-          "reason": "Рядом нет mangrove_log."
+          "reason": "No nearby mangrove_log."
         },
         {
           "at": 1791750917872,
           "skill": "gather",
-          "reason": "Рядом нет cherry_log."
+          "reason": "No nearby cherry_log."
         }
       ],
       "diamondEvidence": null,
@@ -347,7 +347,7 @@
       "commit": "6743220b04695cdf52e7290eadd6fb8d64dafcd4",
       "archiveSHA256": "afb3072cade39e0a26ce058707ade4366c4230d16b5c7e415aadf26efd0130ff",
       "sourceSHA256": "999abcb04f8d2dcaf3a46aaa4f33785d41c404c3502ce13be21ed73f57590ef6",
-      "transport": "kudoconnect",
+      "transport": "omconnect",
       "status": "time-limit",
       "startSkewMs": 1,
       "health": 20,
@@ -381,102 +381,102 @@
         {
           "at": 1791750563142,
           "skill": "navigate",
-          "reason": "Истёк бюджет движения по шагу."
+          "reason": "Movement step time budget expired."
         },
         {
           "at": 1791750574045,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750579314,
           "skill": "navigate",
-          "reason": "Истёк бюджет движения по шагу."
+          "reason": "Movement step time budget expired."
         },
         {
           "at": 1791750600193,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750616158,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750629208,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750641267,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750687346,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750689867,
           "skill": "dig",
-          "reason": "Нет достижимой позиции с видимостью целевого блока."
+          "reason": "No reachable position with line of sight to the target block."
         },
         {
           "at": 1791750696166,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750696761,
           "skill": "dig",
-          "reason": "Нет достижимой позиции с видимостью целевого блока."
+          "reason": "No reachable position with line of sight to the target block."
         },
         {
           "at": 1791750712244,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750712783,
           "skill": "dig",
-          "reason": "Нет достижимой позиции с видимостью целевого блока."
+          "reason": "No reachable position with line of sight to the target block."
         },
         {
           "at": 1791750738487,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750744758,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750745005,
           "skill": "dig",
-          "reason": "Нет достижимой позиции с видимостью целевого блока."
+          "reason": "No reachable position with line of sight to the target block."
         },
         {
           "at": 1791750785057,
           "skill": "dig",
-          "reason": "Нет достижимой позиции с видимостью целевого блока."
+          "reason": "No reachable position with line of sight to the target block."
         },
         {
           "at": 1791750830894,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750865197,
           "skill": "dig",
-          "reason": "Нет достижимой позиции с видимостью целевого блока."
+          "reason": "No reachable position with line of sight to the target block."
         },
         {
           "at": 1791751025352,
           "skill": "dig",
-          "reason": "Нет достижимой позиции с видимостью целевого блока."
+          "reason": "No reachable position with line of sight to the target block."
         }
       ],
       "diamondEvidence": null,
@@ -491,7 +491,7 @@
       "commit": "05eb9477cbbd3dc5647272127c28fba94e4fe35b",
       "archiveSHA256": "099e2b80bf0c390db60a5b8fdd022f7f3c568ad9410f9fe6c2bfa0243ff81f12",
       "sourceSHA256": "850c2d22ca9211324297f3fab2bd3dc4938c644a9e85102dc47f3601a7117b47",
-      "transport": "kudoconnect",
+      "transport": "omconnect",
       "status": "time-limit",
       "startSkewMs": 0,
       "health": 20,
@@ -525,102 +525,102 @@
         {
           "at": 1791750764509,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750771043,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750777610,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750793771,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750800376,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750806967,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750813568,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750842194,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750853769,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750865544,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791750882063,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791751043135,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791751054724,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791751066426,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791751083022,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791751109541,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791751121168,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791751132745,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791751149075,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         },
         {
           "at": 1791751175557,
           "skill": "collect",
-          "reason": "Подбор не подтверждён обновлением инвентаря."
+          "reason": "Pickup was not confirmed by an inventory update."
         }
       ],
       "diamondEvidence": null,
@@ -635,7 +635,7 @@
       "commit": "e3541b8842213a6bfd1e08f21357b1e432138dfa",
       "archiveSHA256": "6710afe47e96de78a2e031754d5c35346fb09f94ef1c96c8242cc922624acfb7",
       "sourceSHA256": "7608c435a9dc788ee0d152b0be4cfa0e60dc9da876b8f159b61226d96dccd6b1",
-      "transport": "kudoconnect",
+      "transport": "omconnect",
       "status": "time-limit",
       "startSkewMs": 1,
       "health": 20,
@@ -682,102 +682,102 @@
         {
           "at": 1791751171708,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751171948,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751172182,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751172417,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751172664,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751172909,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751173144,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751173425,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751173679,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751173918,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751174177,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751174421,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751174665,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751174914,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751175160,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751175442,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751175683,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751175930,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751176186,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         },
         {
           "at": 1791751176432,
           "skill": "navigate",
-          "reason": "Нет пути в наблюдаемой области с заданными правилами."
+          "reason": "No route through observed terrain under the current rules."
         }
       ],
       "diamondEvidence": null,

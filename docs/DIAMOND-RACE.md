@@ -1,21 +1,21 @@
-# Кооперативная гонка шести версий
+# Cooperative race six versions
 
-Автор **y9kudo**. В одном реальном мире Java 1.21.1 одновременно работают агенты на MCKudo 0.2.0, 0.3.0, 0.4.0, 0.5.0, 0.6.0 и 0.7.0-dev.0. Цель — первым самостоятельно добыть алмаз; участники могут помогать материалами. Это командный игровой эксперимент: его результаты нельзя считать изолированным сравнением скорости версий.
+Author **y9kudo**. In one real world Java 1.21.1 The agents are working simultaneously on the OvermindMC 0.2.0, 0.3.0, 0.4.0, 0.5.0, 0.6.0 and 0.7.0-dev.0. Goal — First to obtain the diamond by itself; Participants can assist in materials. It's a team game experiment: Its results cannot be considered as an isolated comparison of the speed of the versions.
 
-## Подготовка
+## Training
 
-Нужен полный Git-клон истории `mckudo_core`, Node.js 22+ и зависимости, включая старые клиентские адаптеры: `npm.cmd ci --ignore-scripts`. Для 0.3.0 нужен настоящий сохранённый архив `mckudo_core-v0.3.0.zip`: в доступной истории Git отдельного коммита этой версии нет. По умолчанию он ищется рядом с каталогом проекта; другой путь задаётся через `$env:MC_V03_ARCHIVE = 'C:\archives\mckudo_core-v0.3.0.zip'`. При отсутствии архива подготовка останавливается; другой код под номером 0.3.0 не подставляется.
+Need full Git-History clone `mckudo_core`, Node.js 22+ and dependency, including old client adapters: `npm.cmd ci --ignore-scripts`. For 0.3.0 You need a real stored archive `mckudo_core-v0.3.0.zip`: in accessible history Git No separate commite of this version. By default, it is searched near the project catalogue; The other way is set through `$env:MC_V03_ARCHIVE = 'C:\archives\mckudo_core-v0.3.0.zip'`. In the absence of the archive, the training is suspended; other code under number 0.3.0 not subject.
 
 ```powershell
 npm.cmd run benchmark:diamonds:prepare
 npm.cmd run benchmark:diamonds:check
 ```
 
-Подготовка создаёт отдельные снимки исходников в исключённой из Git папке `data/diamond-sources-*`. Для каждой версии сохраняются Git SHA либо SHA256 оригинального архива, версия из `package.json` и хеш содержимого. При старте проверяется также версия исполняемого ядра. Текущий рабочий код и старые снимки друг друга не заменяют. В Windows общие установленные зависимости доступны снимкам через directory junction; версии и хеш текущего lock-файла записываются в отчёт. Это сравнение исторического кода на общей транспортной среде, а не воспроизведение всех старых зависимостей.
+The training produces separate images of the originals in the excluded Git folder `data/diamond-sources-*`. Saved for each version Git SHA either SHA256 Original archive, version from `package.json` and hash contents. The startup shall also verify the version of the kernel being performed. The current work code and old pictures don't replace each other. B Windows Common defined relationships available via images directory junction; Current version and hash lock-Files are recorded in the report. This is a comparison of historical code in the general transport environment, Not replicating all old addictions.
 
-## Запуск
+## Starting
 
-На offline-сервере должно быть шесть свободных мест, режим survival и протокол 767 (Java 1.21.1). Сервер не изменяется административными командами. Имена получают случайный суффикс, чтобы не загрузить инвентари предыдущих участников.
+At offline-The server should have six available seats, mode survival and protocol 767 (Java 1.21.1). The server isn't changed by the administrative teams. Names received by random suffix, To avoid loading the inventory of previous participants.
 
 ```powershell
 $env:MC_HOST = '127.0.0.1'
@@ -24,19 +24,19 @@ $env:MC_TEST_MINUTES = '15'
 npm.cmd run benchmark:diamonds
 ```
 
-Все шесть клиентов сначала подключаются, проверяют пустые инвентари и выживание, затем получают общий момент старта. При неготовности хотя бы одного гонка не начинается. `startSkewMs` показывает реальную погрешность старта каждого процесса. Клиенты живут в отдельных Node.js-процессах; расход CPU и памяти записывается для каждого процесса. CPU включает служебную работу измерителя; сетевой пинг и TPS сервера этим показателем не измеряются.
+All six clients first connect, Check empty inventory and survival, Then they get the total start point. At least one race doesn't start when you're not ready. `startSkewMs` shows the real error of starting each process. Clients live in separate homes Node.js-processes; flow CPU and memory is recorded for each process. CPU includes the service function of the meter; online ping and TPS servers are not measured by this indicator.
 
-Панель: `http://127.0.0.1:4181/`. Для другого порта используйте `MC_RACE_UI_PORT`. Она слушает только localhost и позволяет читать состояние; команд управления через HTTP нет.
+Panel: `http://127.0.0.1:4181/`. Use it for another port `MC_RACE_UI_PORT`. She only listens localhost and allows you to read state; control command command via HTTP no.
 
 ```powershell
 npm.cmd run benchmark:diamonds:status
 ```
 
-Для корректной остановки нажмите Ctrl+C в терминале запуска либо создайте пустой `stop.request` в текущем каталоге отчёта, показанном при старте. Лимит времени — 0.5–120 минут. На смерти завершается первая жизнь этого участника; автоматического возрождения нет. По победе, лимиту или остановке закрываются только процессы тестовых ботов. Minecraft-сервер продолжает работать.
+To correct stop press Ctrl+C in the launch terminal or create an empty `stop.request` in the current report catalogue, as shown at start-up. Time limitation — 0.5–120 minutes. The participant's first life ends at death; No automatic revival. Winning, Only test bots processes are closed or stopped. Minecraft-server continues to operate.
 
-## Продолжение после лимита
+## Continuation after limit
 
-Чтобы продолжить незавершённую гонку, запустите **тот же сохранённый мир**, затем укажите её отчёт:
+To continue the unfinished race, run **The same world that was saved**, Then give her the report:
 
 ```powershell
 $env:MC_RACE_RESUME = 'data/diamond-2026-10-11T20-24-42-065Z/report.json'
@@ -44,48 +44,48 @@ $env:MC_TEST_MINUTES = '15'
 npm.cmd run benchmark:diamonds
 ```
 
-Новый этап использует прежние имена, позиции и инвентари, сохранённые Minecraft-сервером. Старый отчёт не перезаписывается. `continuation.previousRunId` связывает этапы; `activeElapsedMs` и времена предметов суммируют только время испытаний, исключая паузу. Общий старт текущего этапа остаётся в `startedAt`. `fromEmptyInventory` описывает начало всей серии, `segmentFromEmptyInventory` — текущий этап. Политики и память перезапускаются: это продолжение с сохранёнными игровыми ресурсами, а не непрерывный процесс. Погибшие участники, незакрытые процессы, другой сервер, изменённые исходники или зависимости отклоняются.
+The new phase uses the old names, Positions and investments, Saved Minecraft-server. The old report is not re-recorded. `continuation.previousRunId` Connects steps; `activeElapsedMs` and the time of the objects only add up the time of the test, excluding pause. The current phase &apos; s overall start remains `startedAt`. `fromEmptyInventory` describes the beginning of the entire series, `segmentFromEmptyInventory` — current phase. Policies and memory re-start: It's a sequel with stored game resources, Not a continuous process. Dead actors, processes not closed, Other server, modified reference points or relationships are rejected.
 
-Исходники исторических библиотек остаются неизменными. Общая обвязка может исправляться между этапами: каждый новый отчёт записывает `runnerSHA256`, поэтому влияние изменений логистики следует указывать отдельно. В частности, помощник теперь сохраняет единственный верстак, не дарит его версии без крафта и может передать младшую кирку после получения лучшей. Это исправление приложения бенчмарка, а не обновление исторического ядра.
+The sources of historical libraries remain unchanged. The overall bandage may be corrected between stages: Every new report is recording `runnerSHA256`, The impact of logistics changes should therefore be indicated separately. In particular, The assistant now saves the only crafting table, Doesn't give it a version without a craft and can pass the younger kirk after getting the best. It's a correction to the application of the benchmarking, Not the upgrade of the historical core.
 
-Для **новой** гонки с пустыми инвентарями уберите параметр продолжения:
+For **new** An empty race with empty equipment remove the extension parameter:
 
 ```powershell
 Remove-Item Env:MC_RACE_RESUME -ErrorAction SilentlyContinue
 ```
 
-## Разные версии — разные доступные возможности
+## Miscellaneous versions — Different opportunities available
 
-| Версия | Профиль в приложении бенчмарка | Ограничение |
+| Version | Profile in the application of the benchmarking | Limitation |
 |---|---|---|
-| 0.2.0 · Atlas02 | Обычные правила: запас древесины; добыча алмазной руды при наличии полученной железной/алмазной/незеритовой кирки | Нет крафта и готового автономного выживания |
-| 0.3.0 · Brooks03 | Опубликованный профиль верстака/палок и его операторы; дополнительная цель алмаза, требующая подходящего инструмента | Нет установки верстака в адаптере; недостижимая цель может блокировать планировщик |
-| 0.4.0 · Carter04 | Собственный `planResources` по наблюдаемым источникам, реальным станциям и месту для установки; выполнение через собственный Core | Подготовленный сценарий приложения, поиск источников ограничен старым радиусом 24 |
-| 0.5.0 · Dylan05 | Собственный `createMinecraftBrain` и KudoConnect, цель `diamond: 1` | Поведение исторического кода без исправлений из 0.6/0.7 |
-| 0.6.0 · Elliot06 | Собственный мозг и клиент, та же цель | Холодный старт памяти; новые исправления восприятия не переносятся |
-| 0.7-dev · Flynn07 | Собственный мозг, клиент и та же цель | Не гарантирует достижение цели; неудачи фиксируются |
+| 0.2.0 · Atlas02 | Normal rules: wood reserve; Mining of diamond ore, if obtained/Diamond/Non-heritite curly | No craft and no self-sustaining survival |
+| 0.3.0 · Brooks03 | Published Versta profile/sticks and their operators; diamond additional target, requiring a suitable instrument | No crafting table in the adapter; An elusive goal can block the planner |
+| 0.4.0 · Carter04 | Own `planResources` by observed sources, stations and installation; implementation through its own Core | Annex scenario prepared, The search for sources is limited by the old radius 24 |
+| 0.5.0 · Dylan05 | Own `createMinecraftBrain` and OMConnect, Objective `diamond: 1` | Conduct of historical code without correction 0.6/0.7 |
+| 0.6.0 · Elliot06 | The brain and client, same objective | Cold start of memory; No new corrections to perception carried over |
+| 0.7-dev · Flynn07 | Your own brain, customer and same purpose | Does not guarantee the achievement of the goal; failures are being recorded |
 
-Настройки целей и правил находятся в общем драйвере `examples/benchmark/diamond-worker.js`, а исходники библиотек берутся только из снимков. Для современных профилей отключены добыча из сундуков, сон, необязательная охота и нападения на игроков. Обычная защита и доступные механизмы еды остаются частью соответствующей версии. Новые гонки используют новые имена; для продолжения требуется явный `MC_RACE_RESUME`.
+The objectives and rules are in the general driver `examples/benchmark/diamond-worker.js`, The library sources are taken from only the images. For modern profiles, the extraction from the chests has been disabled, Sleep, Non-binding hunting and attacks on players. Normal protection and accessible food arrangements remain part of the version. New races use new names; The need for a clear continuation `MC_RACE_RESUME`.
 
-## Как устроена помощь
+## How Aid Works
 
-Общий логистический помощник вне исторических мозгов читает снимки инвентаря через IPC. Он предлагает передать излишки дерева, досок, палок, верстаков, булыжника, железа и инструментов нуждающемуся участнику поблизости. Донор физически подходит, смотрит на получателя и выбрасывает имеющиеся предметы. Старые клиенты используют Mineflayer `toss`, новые — свой навык `drop`. Общения в игровом чате, телепортаций и изменения инвентарей нет.
+Common logistics assistant outside the historical brain reads images of the equipment through IPC. He's offering to pass the surplus of the tree, board, Tails, crafting tables, Rocket, iron and tools for a nearby participant. The donor is physically fit, Looks at the recipient and throws out the items. Old clients use Mineflayer `toss`, new — Your skills `drop`. Gambling chatter, No transport and change of equipment.
 
-Алмазы и алмазные/незеритовые предметы не передаются. Сохраняются резервы материалов; помощь может не состояться из-за перемещения получателя, отсутствия пути или изменения инвентаря. `requested`, `failed` и `dropped` — разные записи. **`dropped` подтверждает выбрасывание донором, но не получение конкретным адресатом**: предмет может подобрать другой участник. Такой шум является частью общего мира и не объявляется успешной адресной передачей.
+Diamonds and diamond/Non-serite items not transferred. Material reserves maintained; assistance may not be provided-for the movement of the recipient, no route or change of inventory. `requested`, `failed` and `dropped` — Different entries. **`dropped` Confirms the release of the donor, but not received by a specific addressee**: The other participant may choose the subject. Such noise is part of the world and is not declared a successful target.
 
-## Критерий победы и отчёты
+## Victory and reports criterion
 
-Одного алмаза в инвентаре недостаточно. Нужны успешная собственная добыча `diamond_ore`/`deepslate_diamond_ore`, наблюдаемый подбор алмаза рядом с добытым блоком и положительный счётчик инвентаря. Наблюдения должны относиться к текущему старту и укладываться в ограниченное окно корреляции. Случайные алмазы от игроков или чужих смертей без собственной добычи победой не считаются. Это подтверждение по наблюдениям клиента; серверный журнал происхождения предметов не используется.
+One diamond in inventory is not enough. We need a successful mine `diamond_ore`/`deepslate_diamond_ore`, Observed diamond picking near the mine block and positive inventory counter. Observations should be relevant to the current start and be placed in a limited correlation window. Random diamonds from players or from other people's deaths without their own mining are not considered to be a victory. This is a confirmation from client observations; No server log of origin.
 
-`data/diamond-<время>/` содержит:
+`data/diamond-<timestamp>/` contains:
 
-- `report.json`: источники версий, старт, состояние, ошибки, добыча и передачи;
-- `results.csv`: время первого появления ресурсов/инструментов и подтверждённого алмаза;
-- `report.html`: сохранённая итоговая таблица;
-- отдельные технические логи клиентов.
+- `report.json`: Sources of versions, Start, State, Errors, Production and transfer;
+- `results.csv`: The time when resources first arrived/instruments and confirmed diamond;
+- `report.html`: saved final table;
+- Individual client technical logs.
 
-Время появления инструмента в инвентаре может означать как собственный крафт, так и подбор подарка. Отдельно смотрите `actions` и журнал передачи; по одному столбцу CSV нельзя приписывать предмет самостоятельному крафту. Не передавайте участникам предметы вручную во время прогона и не используйте команды выдачи: иначе это должно быть отмечено как вмешательство в общий мир.
+The time the tool appeared in the inventory could mean as a craft of its own, So the selection of the gift. Watch it separately `actions` and the transmission log; One column CSV You can't attribute an object to an independent craft. Do not hand over items to participants during the run and do not use the issuing command: otherwise it should be marked as interference in the common world.
 
-Если алмаз никто не добыл, результат — `incomplete`, а не выдуманный победитель. Начальные позиции, живой мир, общие ресурсы, разные профили и помощь не позволяют по одному такому прогону объявить версию универсально быстрее. Для строгого сравнения потребуются повторения на копиях одного мира с фиксированным стартом.
+If no one has obtained the diamond, result — `incomplete`, Not a fake winner. Initial positions, living world, Total resources, Different profiles and help do not allow one such run to declare a universal version faster. A strict comparison will require repetition on copies of a fixed start world.
 
-Сохранённые результаты: [этап 1](results/diamond-race-2026-10-12-stage1.md), [этап 2](results/diamond-race-2026-10-12-stage2.md). [Исправления рабочего 0.7 и отдельная диагностика](RACE-FIXES-07.md) не подменяют исторические результаты.
+Saved Results: [phase 1](results/diamond-race-2026-10-12-stage1.md), [phase 2](results/diamond-race-2026-10-12-stage2.md). [Workmen &apos; s corrections 0.7 and separate diagnostics](RACE-FIXES-07.md) not substitute historical results.

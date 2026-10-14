@@ -1,21 +1,21 @@
-# Первый алмаз в исправленной сборке · 12 октября 2026
+# First diamond in corrected assembly · 12 October 2026
 
-**Подтверждённая добыча алмаза за 93,353 секунды** в отдельной диагностике рабочего MCKudo/KudoConnect после исправлений гонки. Автор: **y9kudo**.
+**Accompanied diamond mining for 93,353 seconds** in a separate diagnostic of the working OvermindMC/OMConnect after the corrections of the race. Author: **y9kudo**.
 
-Это продолжение живого участника после двух этапов гонки, **с сохранённой железной киркой, ресурсами и позицией Y=−2**. Это не прохождение с нуля. Результат не включён в рейтинг шести исторических версий: их 30 минут закончились без подтверждённого победителя.
+It's a live follow-up after two stages of the race, **with a fixed iron pick, resources and position Y=−2**. It's not a pass from scratch. The result is not included in the six historical versions: their 30 The minutes ended without a confirmed winner.
 
-| Проверка | Наблюдение |
+| Verification | Observation |
 |---|---|
-| Сервер | Offline Java 1.21.1, обычные игровые действия |
-| Спуск | От Y=−2 до алмазной руды на Y=−12 |
-| Подтверждение | Успешное разрушение `deepslate_diamond_ore`, собственный подбор выпавшего `diamond`, рост инвентаря с 0 до 1 |
-| Действия | 16 успешных переходов, 37 добытых блоков, 2 успешных подбора |
-| Неудачные действия | 0 за этот короткий прогон |
-| Здоровье | 19 в начале и конце |
-| Завершение | Клиент закрыт после подтверждения алмаза |
+| server | Offline Java 1.21.1, Normal game activities |
+| Down | From Y=−2 to diamond ore Y=−12 |
+| Confirmation | Successful destruction `deepslate_diamond_ore`, your own selection of the fallen `diamond`, growth of equipment with 0 to 1 |
+| Actions | 16 Successful transitions, 37 Units produced, 2 successful selection |
+| Failure | 0 for this short run |
+| Health | 19 At the beginning and end |
+| Conclusion | Client closed after confirmation of diamond |
 
-Рабочая сборка использовала сбережение железной кирки, перебор подходов к луту, увеличивающуюся паузу повторных подборов и память недоступных маршрутов. Регрессионные проверки этих механизмов выполнены отдельно; один игровой прогон не изолирует вклад каждого исправления. Последующий перезапуск политик и изменение окружения тоже влияют на маршрут.
+The assembly used the preservation of the iron kirk, I'm going to go over the approaches to the lute, Increasing pause in rebounds and memory of inaccessible routes. Regressive checks of these mechanisms have been performed separately; One game run doesn't isolate every correction contribution. The subsequent re-start of politics and environmental change also affect the route.
 
-При первой попытке запуска диагностического приложения обнаружена ошибка проверки режима (`survival` вместо числового `0`). Она исправлена в приложении до этого прогона; та попытка не выполняла игровых действий.
+Mode verification error detected at first attempt to start diagnostic application (`survival` for numerical `0`). It's corrected in the annex before the run; I'm sorry, but I didn't do any games.
 
-[Доказательства, хеши исправленных файлов и обезличенные данные](race-fix-probe-2026-10-12.json) · [Изменения 0.7](../RACE-FIXES-07.md) · [Исторический этап 2](diamond-race-2026-10-12-stage2.md)
+[Evidence, Fishes of corrected files and impersonal data](race-fix-probe-2026-10-12.json) · [Changes 0.7](../RACE-FIXES-07.md) · [Historical phase 2](diamond-race-2026-10-12-stage2.md)

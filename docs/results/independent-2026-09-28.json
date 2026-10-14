@@ -1,7 +1,7 @@
 {
   "date": "2026-09-28",
   "core": "0.4.0",
-  "kudoconnect": "0.1.0",
+  "omconnect": "0.1.0",
   "minecraft": "1.21.1",
   "unitTests": {
     "total": 130,
@@ -46,7 +46,7 @@
     },
     "ten": {
       "status": "failed",
-      "reason": "Сервер отключил клиента: \"{\\\"translate\\\":\\\"multiplayer.disconnect.server_full\\\"}\"",
+      "reason": "Server disconnected the client: \"{\\\"translate\\\":\\\"multiplayer.disconnect.server_full\\\"}\"",
       "serverReportedMax": 8
     },
     "gather": {

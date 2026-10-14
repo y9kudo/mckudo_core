@@ -1,10 +1,10 @@
-# API MCKudo 0.4
+# API OvermindMC 0.4
 
-Публичный вход — mckudo_core.js. Основные экспорты: createCore, MckudoCore, MckudoRuntime, definePlugin, validateConfig, ConfigError, matches, MCKUDO.
+Public entrance — overmindmc.js. Main exports: createCore, OvermindCore, OvermindRuntime, definePlugin, validateConfig, ConfigError, matches, OVERMIND.
 
-Каталог, классы блоков, рецепты, маршруты, исследование, Reactor, питание и строительство описаны в [AUTOMATION.md](AUTOMATION.md). Полный список сигнатур находится в [mckudo_core.d.ts](../mckudo_core.d.ts).
+Catalogue, Block classes, Prescriptions, routes, research, Reactor, Food and construction described in [AUTOMATION.md](AUTOMATION.md). The full list of signatures is in [overmindmc.d.ts](../overmindmc.d.ts).
 
-## Один агент
+## One agent
 
 ~~~js
 const core = createCore({ config, adapter, memory, planning, reactors, preemptionMs: 100 });
@@ -15,28 +15,28 @@ core.resume();
 await core.stop();
 ~~~
 
-config — результат чтения JSON или обычный объект. adapter реализует describe/observe/execute. memory необязательна. planning требуется при наличии goals; см. [Planner](BRAIN.md). clock — необязательная функция времени для детерминированных тестов.
+config — Read result JSON or a common object. adapter implemented describe/observe/execute. memory optional. planning required when available goals; see. [Planner](BRAIN.md). clock — Non-mandatory time function for determinable tests.
 
-tick() выполняет один цикл наблюдение → выбор → действие. Одновременные вызовы используют общую блокировку. start() включает автоматический цикл; интервал начинается после завершения предыдущего шага. resume() снимает паузу, но не запускает отдельный таймер, если start() не использовался.
+tick() Conducts one observation cycle → choice → Action. Simultaneous calls use a common lock. start() includes automatic cycle; interval begins after the previous step. resume() takes a pause, but does not start a separate timer, If start() not used.
 
-## Контракт отмены
+## Contract for cancellation
 
-Тайм-аут, pause, stop и срочный Reactor передают AbortSignal. Адаптер обязан реально остановить действие и завершить Promise. Ядро не запускает другую задачу до этого подтверждения. Если навык игнорирует сигнал, ожидание может продолжаться; библиотека не умеет принудительно остановить произвольный игровой поток. `observeThreats` — необязательный быстрый read-only метод адаптера для срочных реакций. Он может вызываться во время действия, обязан завершаться при отмене и не должен менять мир. Без него используется `observe`.
+Time-Out, pause, stop and urgent Reactor Transmitted AbortSignal. The adapter has to actually stop and complete Promise. The kernel does not start another task before this confirmation. If skill ignores signal, Waiting can continue; The library can't force the arbitrary flow of play. `observeThreats` — non-mandatory fast read-only adapter method for urgent reactions. It can be called during action, must be completed upon abolition and must not change the world. Used without it `observe`.
 
-## Наблюдаемость
+## Observation
 
-snapshot() возвращает копию:
-- observation — последние подтверждённые наблюдения;
-- decision — выбранное правило или шаг и альтернативы;
-- workflows — прогресс задач;
-- plugins — подключённые наборы навыков;
-- history — последние результаты;
-- listenerErrors — последние десять ошибок подписчиков;
-- brain — состояние целей, план и бюджет вызовов;
-- trace — последняя трасса решения;
-- engine — версия и авторство MCKudo.
+snapshot() Returns the copy:
+- observation — Last confirmed observations;
+- decision — chosen rule or step and alternatives;
+- workflows — progress in the tasks;
+- plugins — Skills sets connected;
+- history — Recent results;
+- listenerErrors — Last ten subscription errors;
+- brain — Status of objectives, challenge plan and budget;
+- trace — Final course of decision;
+- engine — Version and Authorship OvermindMC.
 
-При обычном правиле observation — снимок перед действием. При шаге с until он обновляется после действия для проверки результата.
+Under normal rule observation — Photo before action. At step c until It is updated after action to verify the result.
 
 ~~~js
 core.on('state', snapshot => render(snapshot));
@@ -44,14 +44,14 @@ core.on('action:start', decision => log(decision));
 core.on('action:finish', result => persistResult(result));
 ~~~
 
-События состояния изолируют ошибки подписчиков, включая отклонённые Promise: ошибка интерфейса не меняет результат игрового действия. Подписчики получают отдельные копии данных. Их асинхронные операции не задерживают игровой цикл; если требуется подтверждённое сохранение до следующего действия, вызывай tick и сохранение последовательно в своём цикле.
+Status events isolate subscription errors, including rejected Promise: An interface error does not change the result of the game action. Subscribers receive separate copies of data. Their asynchronous operations do not delay the game cycle; if confirmed retention is required until next action, Call tick and keeping it in sequence.
 
-Результаты: success, failure, cancelled и progress. Последний означает, что действие выполнилось, но until ещё не достигнуто.
+Results: success, failure, cancelled and progress. Last means, I'm sure the action was done, but until Not yet achieved.
 
-## Память
+## Memory
 
 ~~~js
-import { FileMemory } from 'mckudo/memory';
+import { FileMemory } from 'overmindmc/memory';
 
 const store = new FileMemory('./data/world-one.json');
 const core = createCore({ config, adapter, memory: await store.load() });
@@ -59,11 +59,11 @@ await core.tick();
 await store.save(core.exportMemory());
 ~~~
 
-Сохранение явное. FileMemory использует временный файл и переименование; для одного файла должен быть один писатель. Повреждённый файл не затирается. worldId должен совпадать. Счётчики, история и прогресс задач сохраняются; инвентарь и игровой мир — нет.
+Maintaining clear. FileMemory uses temporary file and renaming; For one file, there should be one writer. The damaged file is not wiped. worldId must coincide. The meter, History and progress of the challenges still exists; Equipment and the game world — no.
 
-Форматы памяти 1, 2 и 3 читаются новой версией. При наличии мозга память записывается в формате 3, иначе — 2; обратная совместимость со старой библиотекой не гарантируется. Изменённые определения задач требуют явной миграции. [Подробности восстановления](WORKFLOWS.md).
+Memory Formats 1, 2 and 3 read by the new version. If a brain exists, memory is recorded in format 3, other — 2; Retro-compatibility with the old library is not guaranteed. Changing definition of objectives requires clear migration. [Details of recovery](WORKFLOWS.md).
 
-## Игровой адаптер
+## Game adapter
 
 ~~~js
 const adapter = {
@@ -78,20 +78,20 @@ const adapter = {
     return { self: { health: 20 }, inventory: {} };
   },
   async execute({ skill, args }, { signal }) {
-    // Реализуй фактическое действие через API игрового транспорта.
-    throw new Error('Навык ещё не реализован.');
+    // Implement actual action through API for games.
+    throw new Error('Skills not yet realized.');
   }
 };
 ~~~
 
-В наблюдение передаётся обычный JSON, без сокетов и объектов классов. Максимальный размер — 256 КиБ. Адаптер объявляет только реализованные навыки. Неподдерживаемое действие блокируется с объяснением. Исключение или { ok: false, message } означают неудачу.
+The regular monitor is passed on JSON, free of juices and class objects. Maximum size — 256 KiB. Adaptationr declares only the skills that have been implemented. Unsupported action is blocked with explanation. Exemption or { ok: false, message } Meaning failure.
 
-## Расширение
+## Extension
 
-- registerSkill(name, handler, { validate }) — отдельный навык.
-- use(plugin), removePlugin(id) — наборы навыков.
-- resetWorkflow(id) — заново запустить всю задачу.
-- retryGoal(goalId) — явное восстановление цели (без сброса бюджета вызовов Planner).
-- retryStep(workflowId, stepId) — повтор ошибочного или прерванного шага.
+- registerSkill(name, handler, { validate }) — separate skills.
+- use(plugin), removePlugin(id) — Skills sets.
+- resetWorkflow(id) — Restart the whole task.
+- retryGoal(goalId) — a clear restoration of the target (without budget challenges Planner).
+- retryStep(workflowId, stepId) — repeat error or interruption.
 
-Эти операции описаны в [плагинах](PLUGINS.md) и [задачах](WORKFLOWS.md). TypeScript-объявления входят в основной пакет. В ветке 0.x фиксируй точную версию зависимости.
+These transactions are described in [Plagins](PLUGINS.md) and [objectives](WORKFLOWS.md). TypeScript-The announcements are part of the core package. In a branch 0.x a correct version of the relationship.

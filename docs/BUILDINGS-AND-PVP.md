@@ -1,23 +1,23 @@
-# Постройки, навигация и бой
+# Construction, navigation and combat
 
-MCKudo выбирает ресурс и тактику, KudoConnect проверяет и исполняет действие. Защита построек находится в самом клиенте и работает без MCKudo. Она включена по умолчанию для встроенных навыков.
+OvermindMC Selects resource and tactics, OMConnect Checks and executes the action. Building protection is in the client's own location and works without OvermindMC. It's default for built-in skills.
 
-## Что изменилось
+## What Changed
 
-Агент не должен добывать стену дома ради короткого маршрута или принимать деревянную балку за ближайшее дерево. Перед расчисткой пути и обычной добычей клиент проверяет строительные признаки и защищённые области. Ресурсный мозг исключает такие источники ещё при выборе дерева или руды. Если обхода нет, действие сообщает об ошибке; разрешение `excavate:true` не отключает защиту.
+The agent shouldn't be getting a wall from the house for a short route or taking a wooden beam for the nearest tree. Before clearing the route and the usual mining, the customer checks building signs and protected areas. Resource brains rule out such sources when they pick wood or ore. If there's no bypass, The action indicates error; Resolution `excavate:true` does not disable the protection.
 
-Исправлено боковое метание возле стены после спуска на блок: проверка обхода игроков ограничивается расстоянием до текущей точки торможения. Геометрия за этой точкой больше не отвергает допустимое короткое движение назад. Конечная позиция полного следа игрока проверяется даже между промежуточными отсчётами коридора.
+Lateral throwing near the wall after reset: The verification of the players &apos; bypass is limited to the distance to the current stop point. Geometry behind this point no longer rejects the allowed short movement back. The final position of the full tracker is checked even between the intermediate reports of the corridor.
 
-Автоматическая проверка считает доски, булыжник, кирпичи, стекло, двери, лестницы, кровати, хранилища и рабочие станции признаками постройки. Природный блок в пределах двух блоков от такого признака также не добывается. Брёвна и листва сами по себе не считаются постройкой: обычная берёза остаётся источником класса `#logs`.
+Automatic checks count boards, Rocket, bricks, glass, doors, stairs, beds, Warehouses and workstations. The natural block within two blocks of such a topic is also not mined. Brooks and leaves are not considered as a building in themselves: The usual birch remains a class source `#logs`.
 
-Это консервативная эвристика: она может сохранять природные структуры и камень возле станции. По сетевым обновлениям блока нельзя надёжно установить его владельца. Для дома из земли, камня или отдельных брёвен задайте область явно. Границы области включаются в защиту, координаты округляются вниз, измерения проверяются отдельно.
+It's conservative heuristic: It can preserve natural structures and stones near the station. The unit cannot be identified with reliability by network updates. For a house from the ground, Rock or separate logs, give the area clearly. The boundaries of the area are included in defence, The coordinates shall be rounded down, The measurements shall be checked separately.
 
-## Защитить свой дом
+## Protect Your Home
 
-Для проекта, использующего MCKudo из исходников:
+For the project, using OvermindMC from source:
 
 ```js
-import { createMinecraftAgent } from './mckudo_core.js';
+import { createMinecraftAgent } from './overmindmc.js';
 
 const agent = createMinecraftAgent({
   name: 'Harper',
@@ -38,11 +38,11 @@ const agent = createMinecraftAgent({
 await agent.start('wood');
 ```
 
-`min` и `max` — противоположные углы объёма дома. Включите стены, крышу, подвал и небольшой запас снаружи. Для группы передайте одинаковую настройку `connection` менеджеру агентов. У каждого клиента своя политика; изменение одного экземпляра не меняет остальные.
+`min` and `max` — The opposite angles of the size of the house. Turn on the walls, roof, basement and small reserve outside. For group, give the same settings `connection` to the agent manager. Every customer has a policy; The change of one copy does not change the rest.
 
-В самостоятельном KudoConnect настройки передаются непосредственно в `createKudoConnect({ protection: {...} })`. Для установленной библиотеки MCKudo используются импорты `mckudo` и `mckudo/connect`; для самостоятельной — `kudoconnect`.
+In self-standing OMConnect Setup is directly transmitted to `createOMConnect({ protection: {...} })`. For an established library OvermindMC imports used `mckudo` and `overmindmc/connect`; for self-contained — `kudoconnect`.
 
-## Изменить области во время работы
+## Change Areas during Work
 
 ```js
 agent.client.protection.add({
@@ -59,35 +59,35 @@ agent.client.on('protectedEdit', event => {
 });
 ```
 
-Повторный `add` с тем же ID заменяет область. Максимум — 128 областей. `regions` возвращает копию. Изменения во время работы живут в текущем клиенте: сохраните их в собственной JSON-конфигурации, если они нужны после перезапуска.
+Re-schedule `add` with the same ID replaces area. Maximum — 128 Areas. `regions` Returns the copy. Changes during work live in the current client: Keep them in your own JSON-configuration, If you need them after restart.
 
-В области разрешено ходить, смотреть и сражаться. Встроенные действия не добывают и не ставят там блоки, в том числе мосты, столбы, кровати и части порталов. Добыча повторно проверяет разрешение после поворота и перед завершающим пакетом; появившийся запрет отменяет продолжение. Отменить уже обработанное сервером изменение невозможно.
+In the region, you are allowed to walk, To watch and fight. Intended actions do not produce or plant blocks, including bridges, Poles, beds and parts of portals. The mining re-checks the resolution after the turn and before the end package; The ban that has appeared cancels the continuation. Unable to cancel the server-processed change.
 
-Защита не управляет открытием хранилищ, передачей предметов или использованием существующей кровати. Настройте эти политики отдельно. Это правило клиента, а не серверный плагин: собственный навык с прямой записью сетевых пакетов должен сам вызывать `client.protection.check(...)`.
+The defense doesn't manage the opening of storage facilities, the transfer of objects or the use of the existing bed. Set these policies separately. It's a client rule, Not a server plagin: The personal skills with direct recording of network packages should be self-made `client.protection.check(...)`.
 
-## Собственные строительные блоки
+## Own building blocks
 
-Клиент запоминает до 4096 подтверждённых собственных установок. Их разрешено разбирать, если они не находятся в явной защищённой области. После серверного обновления блока эта отметка удаляется. Запоминание не переносится на другого агента или новый экземпляр клиента.
+Client memorizes before 4096 approved own facilities. They're allowed to be taken apart, If they are not in a clear protected area. After the server upgrade of the block, this mark is removed. The memory is not transferred to another agent or a new copy of the client.
 
-Если приложению нужна полностью своя классификация построек, `protection: { structures: false, regions: [...] }` отключает только эвристику. Явные области продолжают действовать. `structureRadius` задаёт радиус эвристики 0–3; значение по умолчанию — 2.
+If the application needs a complete classification of the buildings, `protection: { structures: false, regions: [...] }` Only turns off the euristic. Clear Areas Continue to Work. `structureRadius` it sets the radius of heuristics 0–3; default value — 2.
 
-## PvP и преследование
+## PvP and Prosecution
 
-Ответ на игрока в стандартном профиле MCKudo по-прежнему требует двух подтверждённых ударов; доверенные игроки исключаются через `defense.trustedPlayers`. Щит, восстановление оружия, смена на топор против активного щита и обычный прыжок для критического удара учитываются исполнителем. [Официальное описание роли топора в бою](https://www.minecraft.net/fr-ca/article/taking-inventory--axe).
+Response to a standard profile player OvermindMC Under-still requires two confirmed strikes; Trusted players are excluded through `defense.trustedPlayers`. Shield, Weapons reconstruction, change in axe against active shield and normal jump for critical impact are taken into account by the performing officer. [Official description of the role of the axe in combat](https://www.minecraft.net/fr-ca/article/taking-inventory--axe).
 
-Для обхода препятствия боевой исполнитель использует короткий A* по наблюдаемым блокам: до 1600 узлов, дистанция 16 блоков, падение максимум на один блок. Он не копает и не строит мосты. Маршрут действует до 800 мс и перепроверяется при изменении мира или позиции цели. Доступная ступень преодолевается обычным прыжком с физикой клиента.
+The fighter uses short-term measures to circumvent the obstacle A* by observed blocks: to 1600 knots, distance 16 blocks, Drop by one block, maximum. He doesn't dig or build bridges. The route is still in motion 800 ms and reverified when changing the world or the goal position. The available step is overrun by a simple jump with client physics.
 
-Между короткими кадрами боя сохраняется прогресс преследования. Хождение кругами не считается сближением. Без сближения в течение трёх секунд либо после 15 секунд преследования без отправленного удара действие прекращается. Радиус от места встречи ограничен удвоенным `maxDistance`. Отправленный удар не считается подтверждённым уроном. Ошибка одной цели не создаёт общую паузу для всех боевых действий.
+Progress in the pursuit of the fight between short-term personnel. Walking in circles is not considered a convergence. No convergence within three seconds or after 15 no-reverse-impact pursuit seconds cease. The radius from the meeting point is limited to double `maxDistance`. A hit that was sent is not considered to be a confirmed damage. A single target error does not create a general pause for all hostilities.
 
-Стандартный мозг на пять секунд исключает цель неудачного боя из выбора, чтобы можно было защититься от другого противника. Смещение агента или цели на два блока, смена измерения или новый подтверждённый удар позволяют пересмотреть её раньше. При низком здоровье и опасности крипера ограничение не подавляет решение об отходе. Для собственного `createCombatReactor` вне готового мозга подключите `reactor.attach(core)` либо передавайте исходы в `recordResult`.
+Standard brain for five seconds excludes a target from a choice, to protect yourself from another enemy. :: De-positioning of agent or target into two blocks, Change of measurement or new confirmed impact allows for a review earlier. In the event of poor health and risk, the limit does not suppress the decision to leave. For my own `createCombatReactor` Off-the-brain plug in `reactor.attach(core)` or transmit the outcome to `recordResult`.
 
-Бой и ходьба используют те же ограничения сервера: неизвестные чанки не считаются пустыми, дальность удара не увеличивается, координаты не телепортируются. Эти изменения не подтверждают победу над драконом или универсальную силу в PvP.
+Fight and walking use the same server limitations: unknown cups are not considered empty, Impact range not increased, coordinates not teleported. These changes do not confirm victory over the dragon or universal force in the PvP.
 
-## Проверки
+## Checks
 
 ```powershell
 npm.cmd run check
 npm.cmd run test:live:protection
 ```
 
-Первый запуск проверяет маршруты вокруг дома, защиту деревянных балок при поиске дерева, запрет мостов, отмену добычи при новом запрете, обход в бою, подъём по ступени и независимость ошибок разных целей. Второй подключает одного клиента к offline-серверу Java 1.21.1, проверяет отказ от изменений внутри временной области и выполняет короткий маршрут без добычи. Отчёт сохраняется локально в `data/protection-live.json`.
+The first launch checks the routes around the house, Wood beam protection in wood search, Prohibition of bridges, Production cancelled under new ban, The roundabouts in battle, Step-up and independence of error of different objectives. The second connects one client to the offline-server Java 1.21.1, Checks for non-change within the temporal area and conducts a short route without mining. Report maintained locally in `data/protection-live.json`.

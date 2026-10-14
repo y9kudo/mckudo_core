@@ -1,12 +1,12 @@
-# JSON для автоматизации Minecraft
+# JSON for automation Minecraft
 
-JSON описывает данные: объекты {}, списки [], строки в двойных кавычках, числа, true и false. Комментарии и запятая после последнего поля не допускаются. В VS Code схема проекта подсказывает имена полей и типы.
+JSON describes the data: Facilities {}, Lists [], The two-digit lines, Number, true and false. Comments and decimals after the last field are not allowed. B VS Code Project design gives the names of the fields and types.
 
-## Самостоятельная конфигурация
+## Self-contained configuration
 
 ~~~json
 {
-  "$schema": "./node_modules/mckudo/schemas/agent.schema.json",
+  "$schema": "./node_modules/overmindmc/schemas/agent.schema.json",
   "schemaVersion": 2,
   "name": "ResourceAgent",
   "worldId": "my-world",
@@ -14,7 +14,7 @@ JSON описывает данные: объекты {}, списки [], стр
     {
       "id": "wood-reserve",
       "priority": 10,
-      "description": "Поддерживать запас дубовых брёвен.",
+      "description": "Maintain the supply of oak logs.",
       "when": { "fact": "/inventory/minecraft:oak_log", "lt": 8 },
       "action": { "skill": "gather", "args": { "block": "minecraft:oak_log", "count": 1 } }
     }
@@ -22,42 +22,42 @@ JSON описывает данные: объекты {}, списки [], стр
 }
 ~~~
 
-Выполнится правило: «Если брёвен меньше восьми — добудь ещё одно». priority задаёт важность, большее число выбирается раньше. При равном приоритете реактивные правила идут перед задачами; внутри списка сохраняется порядок JSON.
+Rule will be implemented: «If the log is less than eight — Get another one». priority it makes a difference, more is chosen first. With equal priority, the jet rules go ahead with the tasks; The order of the list remains JSON.
 
-Имя name относится к агенту ядра. Игровой ник задаётся адаптером. worldId отделяет память разных миров.
+Name name is related to the kernel agent. Game Nick is a gamer. worldId Separating the Memory of Different Worlds.
 
-## Основные поля
+## Main fields
 
-| Поле | Значение |
+| Field | Value |
 |---|---|
-| schemaVersion | 4 для ядра с Reactor; 3 для целей; 1 и 2 сохраняют прежние форматы |
-| rules | Реактивные правила, максимум 64 |
-| goals | Желаемые состояния, до 16; см. [мозг MCKudo](BRAIN.md) |
-| workflows | Конечные многошаговые задачи, максимум 16 |
-| tickIntervalMs | Пауза между завершёнными шагами; по умолчанию 1000 мс |
-| actionTimeoutMs | Время до запроса отмены шага; по умолчанию 15000 мс |
-| failureBackoffMs | Начальная пауза после ошибки обычного правила; по умолчанию 5000 мс |
-| maxHistory | Количество последних результатов; по умолчанию 50, максимум 200 |
+| schemaVersion | 4 for kernel with Reactor; 3 for purposes; 1 and 2 Maintain previous formats |
+| rules | Reactive regulations, maximum 64 |
+| goals | Desired states, to 16; see. [brain OvermindMC](BRAIN.md) |
+| workflows | Final multi-step tasks, maximum 16 |
+| tickIntervalMs | Pause between completed steps; default 1000 ms |
+| actionTimeoutMs | Time to request a step cancellation; default 15000 ms |
+| failureBackoffMs | Initial pause after a customary error; default 5000 ms |
+| maxHistory | Number of recent results; default 50, maximum 200 |
 
-Нужно хотя бы одно правило, задача, цель или подключённый через JavaScript Reactor. Формат 4 разрешает конфигурацию без списков поведения, если `createCore` получает `reactors`. Имена правил, задач и шагов должны быть уникальны в своих списках. Ошибки указывают путь к полю, например $.workflows[0].steps[1].dependsOn.
+I need one rule, Objective, target or connected via JavaScript Reactor. Format 4 allows configuration without behavioral lists, If `createCore` Received `reactors`. Names of rules, The tasks and steps should be unique in their lists. Errors indicate a path to the field, for example $.workflows[0].steps[1].dependsOn.
 
-В 0.4 действие `gather` принимает и класс, например `"block": "#logs"`. Для цели «восемь досок любого доступного вида» используй `planResourceClasses` или `createResourceReactor`, а не условие о количестве одного фиксированного вида дерева. Параметры дальности находятся в отдельном [perception.json](../examples/perception.json), который приложение передаёт адаптеру. Примеры: [AUTOMATION.md](AUTOMATION.md).
+B 0.4 Action `gather` He also accepts the class, for example `"block": "#logs"`. For purpose «eight boards of any kind available» Use it `planResourceClasses` or `createResourceReactor`, Not the condition of a fixed tree number. Range parameters are in separate [perception.json](../examples/perception.json), which the app transmits to adapter. Examples: [AUTOMATION.md](AUTOMATION.md).
 
-## Наблюдения и условия
+## Observations and conditions
 
-fact — JSON Pointer к данным адаптера: /self/food, /self/health, /inventory/minecraft:bread.
+fact — JSON Pointer to adapter data: /self/food, /self/health, /inventory/minecraft:bread.
 
-| Оператор | Смысл |
+| Operator | Meaning |
 |---|---|
-| lt | Меньше |
-| lte | Меньше или равно |
-| gt | Больше |
-| gte | Больше или равно |
-| eq | Равно с учётом типа значения |
-| ne | Не равно с учётом типа значения |
-| exists | Факт присутствует или отсутствует |
+| lt | Less |
+| lte | Less or equal |
+| gt | More |
+| gte | More or equal to |
+| eq | Equal to the type of value |
+| ne | Not equal to the type of value |
+| exists | Fact present or not |
 
-Число 16 отличается от строки "16". Если факт отсутствует, сравнение возвращает false, включая ne. Для отсутствия используется exists: false. Адаптер должен документировать доступные факты; ноль предметов и неизвестное количество — разные состояния.
+Number 16 different from the line "16". If not, The comparison returns false, including ne. For absence used exists: false. Adaptation should document available facts; zero objects and unknown number — Different states.
 
 ~~~json
 {
@@ -68,19 +68,19 @@ fact — JSON Pointer к данным адаптера: /self/food, /self/health
 }
 ~~~
 
-all требует выполнения всех условий, any — хотя бы одного, not инвертирует одно условие. Вложенность ограничена восемью уровнями. В простом условии нужно ровно одно сравнение. Символ / внутри имени ключа записывается как ~1, а ~ — как ~0.
+all requires that all conditions be met, any — At least one, not invert one condition. Investment limited to eight levels. In a simple condition, one comparison is needed. Symbol / inside the key name is written as ~1, a ~ — How ~0.
 
-## Навыки
+## Skills
 
-action.skill — имя навыка, action.args — его аргументы. JSON не содержит исполняемый JavaScript. Для нового действия разработчик реализует навык в адаптере или плагине.
+action.skill — Skills name, action.args — His arguments. JSON does not contain an execution JavaScript. For a new action, the developer has the skills to adapt or plagina.
 
-| Навык | Доступность и параметры |
+| Skill | Accessibility and parameters |
 |---|---|
-| eat | Симулятор и Mineflayer; item для Mineflayer |
-| gather | Симулятор и Mineflayer; block и count от 1 до 16 |
-| goto | Mineflayer; x, y, z, необязательный range |
-| craft | Симулятор и Mineflayer; item и times (1–16 применений рецепта) |
+| eat | Symulator and Mineflayer; item for Mineflayer |
+| gather | Symulator and Mineflayer; block and count from 1 to 16 |
+| goto | Mineflayer; x, y, z, non-binding range |
+| craft | Symulator and Mineflayer; item and times (1–16 Prescription applications) |
 
-Симулятор знает доски, палки и верстак. Это ограниченный тестовый мир. Mineflayer использует рецепты клиента и проверяет результат инвентарём; для 3×3 нужен установленный верстак.
+The simulator knows the boards, Sticks and sticks. It's a limited test world. Mineflayer uses client's prescriptions and checks the results with the inventory; for 3×3 I need a set of rules.
 
-Для цепочек действий переходи к [учебнику задач](WORKFLOWS.md), для собственного поведения — к [плагинам](PLUGINS.md).
+For action chains, go to [the task book](WORKFLOWS.md), for their own behavior — to [Plagins](PLUGINS.md).

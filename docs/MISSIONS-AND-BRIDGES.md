@@ -1,13 +1,13 @@
-# Простые цели, планирование и мосты · 0.6.0
+# Simple objectives, Planning and bridges · 0.6.0
 
-MCKudo задаёт цели и выбирает следующий шаг. KudoConnect получает мир с сервера и исполняет шаг через сетевой протокол и физику игрока. Пользователю библиотеки достаточно указать желаемый предмет или координаты. Автор обеих систем — **y9kudo**.
+OvermindMC sets targets and picks the next step. OMConnect Gets the world from the server and takes a step through the player's online protocol and physics. A library user will be required to indicate the desired object or coordinates. Author of both systems — **y9kudo**.
 
-## Минимальный код
+## Minimum code
 
-В корне скачанного проекта создай `my-agent.js`:
+In the original download project, create `my-agent.js`:
 
 ```js
-import { createMinecraftAgent } from './mckudo_core.js';
+import { createMinecraftAgent } from './overmindmc.js';
 
 const agent = createMinecraftAgent({
   name: 'Atlas',
@@ -26,23 +26,23 @@ try {
 }
 ```
 
-Установи зависимости командой `npm.cmd ci`, запусти offline-сервер Java 1.21.1, затем выполни `node my-agent.js`. В своём приложении с локально установленным пакетом импортируй `createMinecraftAgent` из `mckudo`. Инструкция установки: [первый запуск](SIMPLE-AGENT.md).
+Set up a command-to-command relationship `npm.cmd ci`, run offline-server Java 1.21.1, Then execute `node my-agent.js`. Import in your locally installed package app `createMinecraftAgent` from `mckudo`. Installation instruction: [launch](SIMPLE-AGENT.md).
 
-`await` означает «дождаться результата». `finally` закрывает подключение даже при ошибке. `worldId` — постоянное имя сохранения мира; для другого мира выбирай другое имя. Имя игрока пишется латиницей, до 16 символов. В каждый момент агент выполняет одну миссию; последовательные `await` сохраняют порядок.
+`await` means «Wait for the result». `finally` Closes the connection even when it is wrong. `worldId` — the permanent name of peace; For another world, choose another name. The player's name is written by Latin, to 16 characters. At every moment, the agent carries out one mission; consecutive `await` Keeps order.
 
-## Три команды
+## Three teams
 
-| Команда | Что нужно написать | Что делает ядро |
+| Command | What needs to be written | What makes the core |
 |---|---|---|
-| Получить | `await agent.get('#logs', 8)` | Выбирает доступные породы древесины и добывает до нужного количества |
-| Подготовить предмет | `await agent.craft('stone_pickaxe')` | Планирует ингредиенты, инструменты и верстак, учитывая уже имеющиеся предметы |
-| Дойти | `await agent.goTo({ x: 100, y: 64, z: -20 })` | Рассчитывает наблюдаемые участки маршрута, проверяет опоры и при необходимости готовит мост |
+| Get | `await agent.get('#logs', 8)` | Selects accessible wood and produces to the right amount |
+| Prepare subject | `await agent.craft('stone_pickaxe')` | Planes ingredients, tools and tools, Considering the items already available |
+| Go | `await agent.goTo({ x: 100, y: 64, z: -20 })` | Calculates observed sections of the route, Checks the support and prepares the bridge if necessary |
 
-Количество означает **сколько предметов нужно иметь**, включая подходящую надетую экипировку. `craft('furnace', 2)` требует две печи в распоряжении; это не приказ сделать ещё две, если они уже есть. Оба ресурсных метода используют общий планировщик получения: найденный подходящий предмет также может удовлетворить цель. `#logs` — класс стволов; `#tree` включает листву и не является синонимом древесины для крафта. У `craft` указывают конкретный ID. Префикс `minecraft:` в простом API можно опустить.
+Quantity means **How many items to have**, including suitable gear. `craft('furnace', 2)` requires two ovens at the disposal of the; It's not an order to make two more, If they already exist. Both resource methods use a common receipt planner: The appropriate object found can also satisfy the purpose. `#logs` — Heading class; `#tree` includes leaves and is not synonymous with wood for craft. Uh-huh `craft` specify ID. Prefix `minecraft:` in simple API may be deleted.
 
-При недоступных ингредиентах или проходе ядро показывает причину в `agent.snapshot().taskState`. Тайм-аут, смерть и отключение завершают вызов ошибкой. Успех подтверждается инвентарём или позицией, а не фактом отправки действия. Уже потраченные материалы и изменения мира при отмене сохраняются.
+If the ingredients are not available or the kernel passes, it shows the cause in `agent.snapshot().taskState`. Time-Out, Death and power-off end the call by error. Success is demonstrated by equipment or position, Not the fact of sending the act. The material already spent and the changes in the world are retained upon cancellation.
 
-## Миссия одним массивом
+## Mission in one array
 
 ```js
 await agent.mission([
@@ -54,13 +54,13 @@ await agent.mission([
 ], { timeoutMs: 600000 });
 ```
 
-В каждом шаге выбирается одна команда: `get`, `craft` или `go`. `count` по умолчанию равен 1, допустимо 1–4096; шагов — 1–64. Тайм-аут задаётся в миллисекундах: 600000 — десять минут. `get` и `craft` также принимают `{ timeoutMs, signal }` третьим аргументом. `mission` и `goTo` принимают эти параметры вторым аргументом. Общий диапазон — 1 секунда–30 минут, включая подключение.
+One team is selected at each step: `get`, `craft` or `go`. `count` default is equal 1, Acceptable 1–4096; Steps — 1–64. Time-It's in milliseconds: 600000 — 10 minutes. `get` and `craft` Also accept `{ timeoutMs, signal }` Third argument. `mission` and `goTo` Accept these parameters by second argument. Total range — 1 second–30 minutes, including connection.
 
-Для отмены передай `AbortController().signal` и вызови `abort()`, либо используй `await agent.pause()`. После миссии мозг приостанавливается, а подключение остаётся открытым до `close()`.
+Pass it to cancel `AbortController().signal` And call `abort()`, Either use it `await agent.pause()`. After the mission, the brain stops, and the connection remains open until `close()`.
 
-## Только JSON
+## Only JSON
 
-Можно обойтись без собственного JavaScript. Создай `mission.json`:
+You can do without your own JavaScript. Create `mission.json`:
 
 ```json
 [
@@ -70,7 +70,7 @@ await agent.mission([
 ]
 ```
 
-Проверь файл и запусти:
+Check the file and run it:
 
 ```powershell
 node examples/mission.js mission.json --check
@@ -80,21 +80,21 @@ $env:MC_PORT = '25565'
 node examples/mission.js mission.json
 ```
 
-`--check` проверяет структуру без подключения. Наличие ресурса в конкретном мире определяется после входа. Для демонстрационного файла доступны `npm.cmd run mission:check` и `npm.cmd run demo:mission`.
+`--check` Checks structure without connection. Resource availability in a given world is determined after entry. Available for demonstration file `npm.cmd run mission:check` and `npm.cmd run demo:mission`.
 
-В VS Code подключена схема `schemas/mission.schema.json`: для `mission.json` и файлов `examples/missions/*.json` работают подсказки и проверка полей. JSON использует двойные кавычки; комментарии и запятая после последнего элемента не допускаются. Схему можно подключить и в своём проекте через настройку `json.schemas`.
+B VS Code Scheme connected `schemas/mission.schema.json`: for `mission.json` and files `examples/missions/*.json` Field checks and tips. JSON uses double quotations; comment and comma after the last element not allowed. You can also connect the scheme to your project by setting up `json.schemas`.
 
-Для расширенного API `defineMission(steps, { name: 'My mission' })` возвращает обычный валидированный `Scenario`. Его можно назначить в очередь менеджера. Подробности: [сценарии](SCENARIOS.md).
+For extended API `defineMission(steps, { name: 'My mission' })` Returns normal, validated `Scenario`. He can be assigned in line for manager. Details: [scenarios](SCENARIOS.md).
 
-## Как ядро планирует движение
+## How the core plans to move
 
-Цель `go` задаётся целыми координатами ног в текущем измерении. `range` от 0 до 8 задаёт допустимое отклонение по каждой координате; при 0 нужно попасть в заданную ячейку. Завершение требует опоры под игроком. Смена измерения останавливает эту цель с объяснением; следующий маршрут задаётся уже в новом измерении.
+Goal `go` is specified by the full leg coordinates in the current measurement. `range` from 0 to 8 sets the tolerance for each coordinate; to 0 You gotta get into the designated cell. Completion requires a support under player. Change of measurement stops this purpose with explanation; The next route is already in the new dimension.
 
-Поиск A* работает порциями через общую очередь вычислений. Один расчёт цели исследует до 4096 узлов в пределах 32 блоков от текущей позиции, с пределом времени 2,5 секунды. Если конечная точка дальше, ядро выбирает проверенный промежуточный участок, проходит его и заново считает маршрут по новым наблюдениям. Неизвестный чанк остаётся неизвестным: для продвижения нужна подтверждённая опора и свободный проход. Промежуточный успех не завершает всю миссию.
+Search A* works in portions through the total calculation line. One goal calculation is going to be investigated 4096 knots within 32 of the current position, with time limit 2,5 seconds. If the end point goes on, The kernel selects a proven intermediate area, it passes and re-considers the route for new observations. Unknown cup remains unknown: A confirmed support and free passage are required for the movement. Interim success does not complete the entire mission.
 
-В стоимость пути входят движение, падения, установка и разрешённая расчистка блоков. Обучаемая стоимость навигации дополняет эти обязательные проверки. Неудачный пункт временно исключается на десять секунд, затем может быть проверен снова. Обновление прочитанных чанков, позиции, защищённых областей или запаса материалов заставляет пересчитать план. Ошибки не снимают ограничения безопасности.
+The cost of the journey includes traffic, Decline, Installation and permitted clearance of blocks. The training cost of navigation complements these mandatory checks. A failed point is temporarily deleted for 10 seconds, Then can be checked again. Updating of the readings, Position, protected areas or material reserves make it possible to re-calculate the plan. Errors do not remove safety restrictions.
 
-По умолчанию расчистка выключена. Чтобы разрешить обычный грунт с сохранением защищённых построек:
+By default clearance is off. To allow the normal soil to be preserved with protected structures:
 
 ```js
 await agent.goTo({ x: 120, y: 64, z: 50 }, {
@@ -105,22 +105,22 @@ await agent.goTo({ x: 120, y: 64, z: 50 }, {
 });
 ```
 
-Для полного запрета строительства передай `bridge: false`. Защищённые области задаются через `connection.protection`; [пример защиты дома](BUILDINGS-AND-PVP.md). Планировщик цели допускает спуск до трёх блоков за переход с оценкой урона и резерва здоровья. Нативный исполнитель также проверяет каждую опору перед движением и прекращает маршрут при повторных коррекциях сервера.
+To ban construction completely pass `bridge: false`. Protected areas are asked via `connection.protection`; [An example of home protection](BUILDINGS-AND-PVP.md). Target planner allows up to three blocks per transition with an assessment of the damage and health reserve. The offensive performer also checks each support before moving and stops the route when the server is readjusted.
 
-Технический `planRoute({ ..., allowPartial: true })` возвращает `partial: true` и `target` для промежуточного участка. По умолчанию `allowPartial` выключен, поэтому существующие вызовы продолжают требовать маршрут до своей цели. Для подключения навигации к собственному транспорту `createScenario` принимает `navigationFactory(step)` с методами `react(observation)` и `recordResult(event, action)`. Метод `react` возвращает `null` после подтверждённого достижения; `createMinecraftAgent` подключает реализацию автоматически.
+Technical `planRoute({ ..., allowPartial: true })` Returns `partial: true` and `target` for the intermediate site. By default `allowPartial` off, The challenges continue to require a route to its objective. To connect navigation to its own transport `createScenario` accepts `navigationFactory(step)` with methods `react(observation)` and `recordResult(event, action)`. Method `react` Returns `null` after the confirmed achievement; `createMinecraftAgent` connects the implementation automatically.
 
-## Мосты над глубокими пропастями
+## Bridges over deep-seated missing persons
 
-Высота не превращает пропасть в допустимое падение. Ядро рассматривает последовательную установку горизонтальной опоры на уровне ног: известное пустое место → блок → проверка → шаг. Глубина под мостом может быть большой; двигаться по неизвестной или неподтверждённой опоре запрещено.
+Height doesn't turn the gap into a permissible fall. The kernel considers the progressive installation of a horizontal leg level support: a known empty place → block → verification → step. The depth under the bridge can be large; No movement on unknown or unconfirmed support.
 
-При нехватке материалов цель навигации создаёт ресурсную подцель `#stone`. Обычный планировщик готовит нужный инструмент и добывает подходящую разновидность камня. Уже имеющиеся безопасные полные блоки, в том числе грунт и доски, учитываются в запасе. Гипотетическая подготовка за один расчёт ограничена 32 блоками; длинная дорога выполняется участками. Нативный KudoConnect самостоятельно использует имеющиеся материалы; автоматическую подготовку добавляет MCKudo.
+If there is a lack of material, the purpose of navigation creates a resource sub-target `#stone`. The ordinary planner prepares the right tool and extracts the right kind of stone. Existing safe, complete blocks, including soils and boards, are recorded in reserve. Hypothetical training per unit is limited 32 Clusters; Long road is run by sections. Gross OMConnect self-uses existing materials; Automatic training adds OvermindMC.
 
-Исполнитель выбирает расходуемые полные неподвижные блоки с учётом их ценности и резерва. Песок, гравий, функциональные станции, контейнеры и ценные рудные блоки не расходуются как случайный материал. Во время строительства он включает приседание на сервере и в физике, гасит скорость, наводится на опорную грань и ждёт подтверждения блока и уменьшения его количества в инвентаре. На узком участке приседание удерживает игрока у края. На наблюдаемой широкой поверхности возвращается обычное движение. Отмена освобождает управление.
+The perpetrator selects expendable, complete fixed blocks, taking into account their value and reserve. Sand, gravel, Functional stations, Containers and valuable ore blocks are not used as accidental material. During construction, it includes a server and physics seat, Speed's dropping, :: On the base line and awaiting confirmation of the block and reduction in the quantity of the equipment. On a narrow section, the sitter holds the player at the edge. On observed wide surface, normal movement returns. Cancellation releases control.
 
-Для этой архитектуры полезны описанные в [Baritone принципы A*, расчёта по сегментам и стоимости установки блоков](https://github.com/cabaletta/baritone/blob/master/FEATURES.md). В MCKudo высокоуровневая цель остаётся частью библиотеки принятия решений, а сетевое исполнение — частью самостоятельного KudoConnect.
+The architecture described in the [Baritone principles A*, The total number of units per segment and unit cost](https://github.com/cabaletta/baritone/blob/master/FEATURES.md). B OvermindMC High-level goal remains part of the decision-making library, a Net execution — part of the independent OMConnect.
 
-## Проверки
+## Checks
 
-`npm.cmd run check` проверяет всё ядро и клиент. Новые случаи проверяют простой формат, подготовку материалов, устаревший план, временное исключение неудачной точки, подтверждение прибытия, удержание на прямом/диагональном краю, мост на высоте 100 блоков, расход инвентаря и отмену. Проверка высотного моста использует моделируемый мир с реальной функцией физического шага; она не заменяет игровой прогон высотного строительства.
+`npm.cmd run check` Checks all core and client. New cases check simple format, Production of materials, An outdated plan, Temporary exclusion of a failed point, Check-in of arrival, Hold on to direct/diagonal edge, Bridge at altitude 100 blocks, consumption and cancellation of. High bridge verification uses a simulated world with a real physical step function; It doesn't replace the high-rise game run.
 
-`npm.cmd run test:live:mission` запускает проверку координатной цели и добычи с пустого инвентаря. `node examples/mission-live.js --navigation-only` проверяет отдельно переход к наблюдаемой точке. Для повторов выбирай новое английское имя через `MC_USER`. Серверные команды выдачи предметов и телепортации не используются. Отчёт со списком этапов сохраняется в `data/mission-live-*.json`; незавершённый прогон возвращает ненулевой код. Фактические результаты: [журнал проверок](TESTING-06.md).
+`npm.cmd run test:live:mission` start checking the target and the empty equipment. `node examples/mission-live.js --navigation-only` Checks separately the transition to the observed point. For repeat, choose a new English name through `MC_USER`. No items and teleporting server. The report with the steps list is maintained in `data/mission-live-*.json`; Uncompleted running returns the non-zero code. Actual results: [Audit log](TESTING-06.md).

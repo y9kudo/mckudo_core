@@ -1,26 +1,26 @@
-# Живая гонка за алмазами · этап 1 · 12 октября 2026
+# A Living Diamond Race · phase 1 · 12 October 2026
 
-Автор проекта: **y9kudo**. Статус: **incomplete**. Подтверждённых победителей: **0**. Продолжительность этапа — 15:00, суммарное активное время серии — 15:00. Все шесть участвовали одновременно в одном существующем мире Java 1.21.1.
+Drafter: **y9kudo**. Status: **incomplete**. Confirmed Winners: **0**. Duration of phase — 15:00, Total active time series — 15:00. All six participated simultaneously in the same existing world Java 1.21.1.
 
-| Историческое ядро | Деревянная кирка | Каменная кирка | Железная кирка | Собственный алмаз |
+| Historical core | Wooden pickaxe | Stone pickaxe | Iron pick | Diamond of their own |
 |---|---:|---:|---:|---|
-| 0.2.0 | — | — | — | не подтверждён |
-| 0.3.0 | — | — | — | не подтверждён |
-| 0.4.0 | 1:50 | 6:36 | — | не подтверждён |
-| 0.5.0 | 6:37 | — | — | не подтверждён |
-| 0.6.0 | — | — | — | не подтверждён |
-| 0.7.0-dev.0 | 1:16 | 3:53 | 12:07 | не подтверждён |
+| 0.2.0 | — | — | — | Not confirmed |
+| 0.3.0 | — | — | — | Not confirmed |
+| 0.4.0 | 1:50 | 6:36 | — | Not confirmed |
+| 0.5.0 | 6:37 | — | — | Not confirmed |
+| 0.6.0 | — | — | — | Not confirmed |
+| 0.7.0-dev.0 | 1:16 | 3:53 | 12:07 | Not confirmed |
 
-Время — первое появление предмета в инвентаре с начала серии, включая подарки. Оно не доказывает самостоятельный крафт. Начальные инвентари всех участников были пустыми; погрешность общего старта — 22 мс.
+Time — The first item in the inventory since the beginning of the series, including gifts. It doesn't prove independent craft. The original inventory of all participants was empty; error of overall start-up — 22 ms.
 
-За этап зафиксировано 25 физических выбрасываний для передачи ресурсов, 10 неудачных передач. Подтверждение выбрасывания не гарантирует получение адресатом. Кирок передано: 0. Все клиенты закрыты: да.
+The phase is recorded 25 Physical emissions for resource transfer, 10 failed gears. Confirmation of discharge does not guarantee receipt by the addressee. Kirok transferred: 0. All clients closed: yes.
 
-## Что показал тест
+## What the Test Showed
 
-- У опубликованного 0.7-dev есть прогресс до железной кирки, но автономная добыча алмаза этим испытанием не подтверждена.
-- Повторный подбор недоступных предметов и повтор недостижимых переходов требуют исправления и повторной проверки.
-- Циркуляция верстаков относится к общему логистическому помощнику бенчмарка; это не ошибка исторического ядра.
+- Published 0.7-dev There's been progress to the iron cur, But the autonomous diamond mining has not been confirmed by this test.
+- Re-selection of inaccessible items and repetition of unreachable crossings require correction and re-checking.
+- The Verstack Circle is a common logistics assistant to the benchmarking; It's not a mistake of the historical core.
 
-Общий мир, разные стартовые позиции, профили и взаимопомощь влияют на результат. Из этой гонки нельзя вывести универсальный рейтинг скорости версий. Исторические исходники проверены по хешам; современные исправления в участников не подмешивались. Калибровочные запуски исключены из зачёта, но ранее изменяли этот же мир. Около 20:28:17–20:28:41 UTC параллельно выполнялись локальные проверки проекта; это дополнительная нагрузка на ПК.
+World, Different starting positions, Profiles and mutual assistance affect the outcome. You can't get a universal version speed rating out of this race. Historical sources checked by hash; The modern corrections to the participants were not mixed. Calibration launches excluded, But they've changed the world before. Around 20:28:17–20:28:41 UTC Local project audits were performed in parallel; This is an extra load on the PC.
 
-[Машиночитаемые результаты и происхождение версий](diamond-race-2026-10-12-stage1.json) · [Условия запуска и продолжения](../DIAMOND-RACE.md)
+[The results and origins of the versions are readable](diamond-race-2026-10-12-stage1.json) · [Conditions for launching and continuation](../DIAMOND-RACE.md)

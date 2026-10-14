@@ -41,9 +41,9 @@
     "productionInstall": true,
     "mineflayerInstalled": false,
     "imports": [
-      "mckudo",
-      "mckudo/connect",
-      "mckudo/adapters/kudoconnect"
+      "overmindmc",
+      "overmindmc/connect",
+      "mckudo/adapters/omconnect"
     ]
   },
   "independentClient": {

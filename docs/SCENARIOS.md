@@ -1,23 +1,23 @@
-# Как писать сценарии MCKudo Core
+# How to Write Scenarios OvermindMC
 
-Для первого агента можно начать с `await agent.mission([{ get: '#logs', count: 3 }, { craft: 'stone_pickaxe' }])`. Это простой формат целей с планированием внутри ядра. Есть JSON-файл и команда запуска без собственного JavaScript: [миссии, движение и мосты](MISSIONS-AND-BRIDGES.md).
+For the first agent, you can start with `await agent.mission([{ get: '#logs', count: 3 }, { craft: 'stone_pickaxe' }])`. It's a simple goal format with planning inside the core. Yes JSON-file and start-up command without own JavaScript: [Mission, and bridges](MISSIONS-AND-BRIDGES.md).
 
-Готовые реакции защиты, подбор из сундуков, инструменты и взаимный взгляд включаются через [стандартный профиль мозга](BEHAVIOR.md). Их не нужно реализовывать заново в сценарии.
+Ready for defence response, A selection from the chests, instruments and mutual vision are included through [Standard brain profile](BEHAVIOR.md). They don't need to be re-exaggerated in the script.
 
-Для выбора альтернатив после провала, обучения по наблюдениям и согласования работы нескольких агентов см. [Опыт и адаптивные сценарии](ADAPTIVE.md). Самостоятельный клиент описан в [KudoConnect](../packages/kudoconnect/README.md).
+To choose alternatives after failure, For training in surveillance and harmonization of several agents see. [Experience and adaptive scenarios](ADAPTIVE.md). Self-contained client described in [OMConnect](../packages/omconnect/README.md).
 
-Сценарий описывает желаемые действия или результаты. Игровой клиент живёт в приложении, а MCKudo выбирает следующий шаг и проверяет наблюдения. ИИ-провайдер для обычного сценария не нужен.
+Scenario describes desired actions or results. Player lives in the app, a OvermindMC Selects the next step and checks observations. I.E-Provider not required for normal scenario.
 
-## Первый JSON
+## First JSON
 
-В JSON имена полей и строки заключаются в двойные кавычки. Числа пишутся без кавычек. После последнего поля запятая не ставится. Комментарии в JSON не допускаются.
+B JSON The names of the fields and rows are double quotations. Numbers are written without quotations. No decimal place after the last field. Comments in JSON Not allowed.
 
-Пример одной задачи для KudoConnect:
+Example of one task for OMConnect:
 
 ```json
 {
   "schemaVersion": 4,
-  "name": "Сбор древесины",
+  "name": "Wood collection",
   "worldId": "my-world",
   "actionTimeoutMs": 60000,
   "workflows": [{
@@ -34,34 +34,34 @@
 }
 ```
 
-`name` — подпись приложения, `worldId` — выбранный тобой идентификатор мира. Не используй один `worldId` для разных сохранений памяти. `workflows` — список задач. `steps` — их шаги. `skill` выбирает навык адаптера, `args` передаёт его параметры. `maxAttempts` ограничивает повторы при ошибках. Порядок и зависимости подробнее описаны в [WORKFLOWS](WORKFLOWS.md).
+`name` — signature of the annex, `worldId` — The world identifier you chose. Don't use one `worldId` for different memory storage. `workflows` — List of tasks. `steps` — their steps. `skill` Chooses adapter skills, `args` transmits its parameters. `maxAttempts` limits repetitions for errors. The order and dependence are described in more detail in the [WORKFLOWS](WORKFLOWS.md).
 
-`#logs` включает разные породы стволов; `minecraft:birch_log` требует именно берёзу. `#tree` включает также листву и не подходит как синоним добычи древесины.
+`#logs` includes different types of stem; `minecraft:birch_log` demands the birch. `#tree` Also includes leaves and is not suitable as a synonym for wood production.
 
-## Загрузка файла
+## File upload
 
-Установку приложения и подключение смотри в [руководстве KudoConnect](KUDOCONNECT.md). Вместо встроенного объекта `config` прочитай JSON:
+The application and connection are to be checked in [Management OMConnect](OMCONNECT.md). Instead of built-in object `config` Read it JSON:
 
 ```js
 import { readFile } from 'node:fs/promises';
-import { createCore, validateConfig } from 'mckudo';
+import { createCore, validateConfig } from 'overmindmc';
 
 const config = validateConfig(JSON.parse(await readFile('./wood.json', 'utf8')));
-const core = createCore({ config, adapter }); // adapter создан приложением
+const core = createCore({ config, adapter }); // adapter created by the Annex
 core.on('action:finish', result => console.log(result));
 core.start();
 ```
 
-Когда приложение заканчивает работу, дождись `core.stop()`, вызови `adapter.dispose()` и `client.close()`. Повторный вход не равен сбросу мира или инвентаря.
+When the application ends, Wait `core.stop()`, Call `adapter.dispose()` and `client.close()`. Reentry is not equal to dumping of peace or equipment.
 
-## Цели вместо отдельных нажатий
+## Objectives instead of separate pressures
 
-Есть более высокий формат `Scenario`, у него отдельный `schemaVersion: 1`. Не смешивай его с конфигурацией ядра формата 4:
+There's a higher format `Scenario`, He has a separate `schemaVersion: 1`. Don't mix it with the shape of the kernel 4:
 
 ```json
 {
   "schemaVersion": 1,
-  "name": "Первые инструменты",
+  "name": "First tools",
   "steps": [
     { "id": "wood", "type": "resources", "targets": { "minecraft:wooden_pickaxe": 1 } },
     { "id": "stone", "type": "resources", "targets": { "minecraft:stone_pickaxe": 1 } }
@@ -70,7 +70,7 @@ core.start();
 ```
 
 ```js
-import { createScenario } from 'mckudo';
+import { createScenario } from 'overmindmc';
 const controller = createScenario({ scenario, catalog, stations, getBlock });
 const core = createCore({
   config: { schemaVersion: 4, name: 'MyApplication', worldId: 'my-world' },
@@ -80,33 +80,33 @@ const core = createCore({
 console.log(controller.snapshot());
 ```
 
-`catalog` содержит данные конкретной версии. `stations` задаёт наблюдаемые станции или свободные координаты для их установки. `getBlock(position)` возвращает наблюдаемый блок либо `null`; неизвестные блоки нельзя подменять воздухом. Ядро заново выбирает действие по текущему инвентарю и источникам. Уже имеющиеся материалы предпочитаются новой добыче; среди источников учитывается расстояние.
+`catalog` contains data from a particular version. `stations` sets the monitored stations or the free coordinates for their installation. `getBlock(position)` returns the monitored block, or `null`; unknown blocks cannot be replaced by air. The core re-choices the current inventory and sources. The material already available is preferred to new production; The distance between sources is taken into account.
 
-## Типы высокоуровневых этапов
+## Types of high-level steps
 
-| `type` | Параметры | Условие завершения |
+| `type` | Parameters |  Completion condition |
 |---|---|---|
-| `resources` | `targets`: ID/#класс → количество | Нужные предметы наблюдаются в инвентаре |
-| `shelter` | — | На наблюдаемой ровной площадке построены стены, крыша и дверь; материалы добываются по плану |
-| `collect` | `item`, `count` | Подбор подтверждён инвентарём |
-| `netherPortal` | необязательные `origin`, `axis` | Все шесть блоков проёма являются активным порталом |
-| `travel` | `dimension` | Подтверждено новое измерение |
-| `blazeRods` | `count` | Нужное количество стержней получено |
-| `enderPearls` | `count` | Нужное количество жемчуга получено |
-| `eyes` | `count` | Каталог/крафт довели число глаз до цели |
-| `stronghold` | — | Обнаружена рамка End-портала |
-| `endPortal` | — | Наблюдается активный End-портал |
-| `dragon` | — | Получено событие смерти дракона |
+| `resources` | `targets`: ID/#Grade → Number | The items required are seen in the inventory |
+| `shelter` | — | Walls built on a flat site, roof and door; materials are being produced as planned |
+| `collect` | `item`, `count` | The selection is confirmed by the inventory |
+| `netherPortal` | Non-binding `origin`, `axis` | All six blocks of the gap are active portals |
+| `travel` | `dimension` | New measurement confirmed |
+| `blazeRods` | `count` | The required number of rods received |
+| `enderPearls` | `count` | The necessary amount of pearls received |
+| `eyes` | `count` | Catalogue/craft has brought the number of eyes to the target |
+| `stronghold` | — | Box found End-portal |
+| `endPortal` | — | Active End-portal |
+| `dragon` | — | The dragon's death occurred |
 
-Набор этапов — интерфейс планирования. Для исполнения каждого шага нужен адаптер с соответствующими навыками. KudoConnect исполняет добычу, крафт, печь, постройку и вход в порталы; успешный план всё равно проверяется наблюдениями сервера. `shelter` строит компактный дом на уже существующем ровном грунте и не сносит занятые блоки. Если площадка неизвестна или недостижима, этап остаётся заблокированным либо продолжает исследование. Подмена адаптера не происходит автоматически.
+Summarization of steps — Planning interface. Each step requires an adapter with appropriate skills. OMConnect He's doing the mining, craft, Boiler, Construction and portal access; The successful plan is still being tested by server observations. `shelter` Builds a compact house on a flat ground already in place and doesn't tear down the occupied blocks. If site unknown or not feasible, The phase remains blocked or research continues. Substitution of adapter does not occur automatically.
 
-Блоки рамки End-портала в survival не создаются крафтом: этап ищет существующую структуру и вставляет глаза. Триангуляция оценивает область крепости по наблюдаемым броскам, но не выдаёт скрытые координаты портальной комнаты.
+Boxes End-portal in survival not created by craft: The stage looks for the existing structure and makes eyes. Triangulation estimates the area of the fortress by observed flips, But it doesn't give out hidden coordinates of the portal room.
 
-## Примеры испытаний
+## Examples of tests
 
-В `examples/scenarios/` находятся `first-tools.json`, `collect-log.json`, `nether.json`, `stronghold.json`, `dragon.json`, `survival-to-dragon.json`. Последний — экспериментальная полная последовательность, а не подтверждённое прохождение любого мира. Если нет источника материалов, доступного прохода или исполнителя, этап остаётся заблокированным с причиной.
+B `examples/scenarios/` in the field `first-tools.json`, `collect-log.json`, `nether.json`, `stronghold.json`, `dragon.json`, `survival-to-dragon.json`. Last — experimental full sequence, Not the confirmed passage of any world. If no material source is available, accessible passage or operator, The stage remains blocked with cause.
 
-Для старого адаптера из репозитория:
+For the old adapter from the repository:
 
 ```powershell
 node examples/scenario-mineflayer.js examples/scenarios/first-tools.json --check
@@ -114,14 +114,14 @@ $env:MC_AUTH='offline'
 node examples/scenario-mineflayer.js examples/scenarios/first-tools.json
 ```
 
-Для цепочек плавки загрузи полный каталог через `MC_DATA_ARCHIVE` с путём к JAR Java 1.21.1. `MC_MINUTES` ограничивает время, `MC_MAX_ACTIONS` — количество действий, `MC_REPORT` — файл отчёта. Тест останавливается при смерти, отключении, трёх последовательных ошибках или исчерпании бюджета.
+For the circuit flounders, load the full catalogue via `MC_DATA_ARCHIVE` with JAR Java 1.21.1. `MC_MINUTES` Limiting time, `MC_MAX_ACTIONS` — Number of actions, `MC_REPORT` — Report file. The test stops at death, Disable, Three consecutive mistakes or budget exhaustion.
 
-## Как разбирать результат
+## How to Deal With Results
 
-Подпишись на `action:finish` и смотри `outcome` и `detail`. Состояние контроллера: `pending`, `running`, `blocked`, `completed`. `blocked` содержит конкретную причину; увеличение числа попыток не исправляет отсутствие инструмента или недоступный маршрут.
+Sign on `action:finish` And look `outcome` and `detail`. Control status: `pending`, `running`, `blocked`, `completed`. `blocked` contains a specific reason; The increased number of attempts does not correct the lack of a tool or the inaccessible route.
 
-В End отдельно учитываются выстрел, взрыв рядом с ранее наблюдаемым кристаллом, исчезновение этого кристалла, смерть дракона и подтверждённый урон агента. Уход сущности из загрузки не считается убийством. Флаг `victoryVerified` в экспериментальном отчёте требует смерти дракона, собственного подтверждённого урона и подтверждения всех десяти исходных кристаллов. Полное автономное прохождение пока не подтверждено игровым отчётом.
+B End Shots taken separately, explosion near a previously observed crystal, The disappearance of this crystal, Dragon death and confirmed agent damage. Leaving a thing out of a load is not murder. Flag `victoryVerified` In the experimental report, requires the death of a dragon, The original and original original crystals. Full autonomous passage is not yet confirmed by the game report.
 
-Автор сценария управляет простыми целями; разработчик ядра расширяет исполнители, механику, каталоги и доказательства результата. Правила, Workflow и Reactor остаются доступными для более точного управления.
+The script author manages simple goals; Core developer expands performers, mechanic, Catalogues and evidence of result. Rules, Workflow and Reactor remain accessible for better management.
 
-Готовый профиль без ручного перечисления рецептов: [NATIVE-SURVIVAL](NATIVE-SURVIVAL.md).
+Complete profile without manual prescription listing: [NATIVE-SURVIVAL](NATIVE-SURVIVAL.md).

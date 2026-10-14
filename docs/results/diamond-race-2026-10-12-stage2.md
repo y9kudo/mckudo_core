@@ -1,30 +1,30 @@
-# Живая гонка за алмазами · этап 2 · 12 октября 2026
+# A Living Diamond Race · phase 2 · 12 October 2026
 
-Автор проекта: **y9kudo**. Статус: **incomplete**. Подтверждённых победителей: **0**. Продолжительность этапа — 15:00, суммарное активное время серии — 30:00. Все шесть участвовали одновременно в одном существующем мире Java 1.21.1.
+Drafter: **y9kudo**. Status: **incomplete**. Confirmed Winners: **0**. Duration of phase — 15:00, Total active time series — 30:00. All six participated simultaneously in the same existing world Java 1.21.1.
 
-| Историческое ядро | Деревянная кирка | Каменная кирка | Железная кирка | Собственный алмаз |
+| Historical core | Wooden pickaxe | Stone pickaxe | Iron pick | Diamond of their own |
 |---|---:|---:|---:|---|
-| 0.2.0 | — | — | — | не подтверждён |
-| 0.3.0 | — | — | — | не подтверждён |
-| 0.4.0 | 1:50 | 6:36 | — | не подтверждён |
-| 0.5.0 | 6:37 | — | — | не подтверждён |
-| 0.6.0 | — | — | — | не подтверждён |
-| 0.7.0-dev.0 | 1:16 | 3:53 | 12:07 | не подтверждён |
+| 0.2.0 | — | — | — | Not confirmed |
+| 0.3.0 | — | — | — | Not confirmed |
+| 0.4.0 | 1:50 | 6:36 | — | Not confirmed |
+| 0.5.0 | 6:37 | — | — | Not confirmed |
+| 0.6.0 | — | — | — | Not confirmed |
+| 0.7.0-dev.0 | 1:16 | 3:53 | 12:07 | Not confirmed |
 
-Время — первое появление предмета в инвентаре с начала серии, включая подарки. Оно не доказывает самостоятельный крафт. Второй этап сохраняет прежние имена, позиции и инвентари; память политик перезапущена, пауза исключена. Логистика приложения исправлена между этапами.
+Time — The first item in the inventory since the beginning of the series, including gifts. It doesn't prove independent craft. Second stage retains previous names, Positions and investments; The memory of the politician is re-started, No pause. Application logic corrected between stages.
 
-За этап зафиксировано 2 физических выбрасываний для передачи ресурсов, 10 неудачных передач. Подтверждение выбрасывания не гарантирует получение адресатом. Кирок передано: 1. Все клиенты закрыты: да.
+The phase is recorded 2 Physical emissions for resource transfer, 10 failed gears. Confirmation of discharge does not guarantee receipt by the addressee. Kirok transferred: 1. All clients closed: yes.
 
-## Что показал тест
+## What the Test Showed
 
-- У опубликованного 0.7-dev есть прогресс до железной кирки, но автономная добыча алмаза этим испытанием не подтверждена.
-- Повторный подбор недоступных предметов и повтор недостижимых переходов требуют исправления и повторной проверки.
-- Циркуляция верстаков относится к общему логистическому помощнику бенчмарка; это не ошибка исторического ядра.
+- Published 0.7-dev There's been progress to the iron cur, But the autonomous diamond mining has not been confirmed by this test.
+- Re-selection of inaccessible items and repetition of unreachable crossings require correction and re-checking.
+- The Verstack Circle is a common logistics assistant to the benchmarking; It's not a mistake of the historical core.
 
-Общий мир, разные стартовые позиции, профили и взаимопомощь влияют на результат. Из этой гонки нельзя вывести универсальный рейтинг скорости версий. Исторические исходники проверены по хешам; современные исправления в участников не подмешивались. Суммарные счётчики действий наследуются из первого этапа; число передач относится только к текущему этапу.
+World, Different starting positions, Profiles and mutual assistance affect the outcome. You can't get a universal version speed rating out of this race. Historical sources checked by hash; The modern corrections to the participants were not mixed. The total action counters will be inherited from the first phase; Number of gears only for the current phase.
 
-[Машиночитаемые результаты и происхождение версий](diamond-race-2026-10-12-stage2.json) · [Условия запуска и продолжения](../DIAMOND-RACE.md)
+[The results and origins of the versions are readable](diamond-race-2026-10-12-stage2.json) · [Conditions for launching and continuation](../DIAMOND-RACE.md)
 
-К концу второго этапа погибли участники 0.2, 0.3, 0.4 и 0.6. У старых клиентов 0.2–0.4 сработало автоматическое возрождение Mineflayer перед закрытием процесса, поэтому последний снимок здоровья показывает 20 при статусе `dead`. Участие прекращено по первой смерти, победа не засчитана. В следующей обвязке явно установлен `respawn: false`, а доказательство алмаза после первой смерти отклоняется. Причины смерти без серверных журналов не устанавливались.
+By the end of the second phase, participants had died 0.2, 0.3, 0.4 and 0.6. Old clients 0.2–0.4 Automatic revival has been implemented Mineflayer before the trial closes, So the last picture of health shows 20 Status `dead`. Participation terminated upon first death, No victory counted. The next bandage is clearly installed `respawn: false`, and evidence of the diamond after the first death is denied. No cause of death without server logs.
 
-0.7-dev закончил этап на **Y=−2**: спуск от поверхности выполнен, выход к алмазному слою не завершён. После исчезновения железной кирки агент подготовил печь и новую кирку, но затем повторял недоступные переходы. Это основание для проверки сбережения инструментов и памяти неудачных маршрутов, а не подтверждение добычи алмазов.
+0.7-dev finished phase **Y=−2**: surface descent achieved, The diamond layer is not complete. After the iron kirk disappeared, the agent prepared the furnace and a new kirk, But then he repeated the unreachable crossings. This is a basis for checking the savings of tools and the memory of failed routes, Not evidence of diamond mining.

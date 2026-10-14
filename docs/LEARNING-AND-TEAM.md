@@ -1,62 +1,62 @@
-# Обучение, планирование и команда
+# Learning, planning and team
 
-MCKudo содержит две небольшие локальные нейросети. Им не нужны API-ключи и платный сервер. Они начинают с начальных весов и обучаются на результатах игры; это не предобученная языковая модель и не доказательство универсального интеллекта.
+OvermindMC contains two small local neuronets. They don't need API-Keys and a paid server. They start with the initial weights and learn from the results of the game; It's not a pre-trained language model or proof of universal intelligence.
 
-## Что он крафтит и почему
+## What he's krafting and why
 
-Приложение задаёт цель, например деревянную кирку. Ядро запрашивает соответствующие рецепты текущего сервера, раскрывает зависимости до доступных материалов и проверяет инвентарь перед каждым шагом. Для кирки цепочка может включать брёвна, доски, палки и верстак. Если берёза доступнее дуба, класс древесины позволяет использовать её.
+The application sets the target, e.g. wooden pick. The kernel requests appropriate prescriptions from the current server, Unlocks the dependence to accessible materials and checks the equipment before each step. For a curly, a chain may include logs, boards, Sticks and sticks. If the birch is more accessible than the oak, Wood class allows use of wood.
 
-Планировщик `24 → 24 → 1` оценивает вероятность неудачи действий по здоровью, запасам, инструментам, дистанции, измерению и признакам предмета/рецепта. Обратное распространение ошибки и буфер до 256 эпизодов обновляют веса после действий. После первых восьми примеров оценка добавляет ограниченную стоимость к выбору. Неудачный источник может уступить другому. Отмена ради защиты не записывается как ошибка обучения. Урон после успешно выполненного действия считается плохим исходом.
+Planner `24 → 24 → 1` Assesses the probability of failure of health action, Reserves, instruments, Distances, measurement and features of the subject/prescription. Reverse error and buffer before 256 The sequences are updated after action. After the first eight examples, the evaluation adds limited value to the selection. A failed source can give way to another. Cancellation for protection is not recorded as a learning error. Damage after successful action is considered a bad outcome.
 
-Рецепты и физические ограничения проверяются обычным кодом. Нейросеть ранжирует допустимые варианты, а не создаёт предметы или новые рецепты. Наличие обновлений весов само по себе не означает улучшение результатов: это проверяется отдельными тестами.
+The prescriptions and physical limitations are checked by the normal code. The neirs are ranked by the acceptable options, Not create objects or new recipes. Having updated weights does not in itself mean improving results: It's tested by separate tests.
 
 ```js
-import {createKudoConnect} from '../kudoconnect/index.js';
-import {createMinecraftBrain} from '../mckudo_core.js';
+import {createOMConnect} from '../omconnect/index.js';
+import {createMinecraftBrain} from '../overmindmc.js';
 
-const client = createKudoConnect({
+const client = createOMConnect({
   host: '127.0.0.1', port: 25566, version: '1.21.1', username: 'Alice'
 });
 await client.connect();
 const brain = createMinecraftBrain({
   client,
-  worldId: 'my-world-1', // Новому миру — новый идентификатор памяти.
+  worldId: 'my-world-1', // The New World — New memory identifier.
   survival: {targets: {'minecraft:wooden_pickaxe': 1}},
   storage: false
 });
 brain.start();
-// После появления наблюдений:
+// After observations:
 console.log(brain.survival.snapshot().plan);
 console.log(brain.cognition.snapshot());
-// В конце приложения: await brain.stop(); await client.close();
+// At the end of the application: await brain.stop(); await client.close();
 ```
 
-Пути импорта в примере рассчитаны на файл в `examples/`. Для установленного пакета используй `mckudo` и `mckudo/connect`.
+Import routes in the example are designed for a file in `examples/`. Use the package for the package `mckudo` and `overmindmc/connect`.
 
-`cognition: false` отключает обучаемое ранжирование действий. `neural: false` отдельно отключает обучение навигации. `brain.cognition.export()` возвращает веса и опыт; передай их в `cognition: {memory}` при следующем создании мозга с тем же `worldId`. Менеджер с `memoryDirectory` делает это автоматически. Папку памяти не следует публиковать вместе с кодом.
+`cognition: false` Disables the learning ranking of actions. `neural: false` Separately shuts down navigation training. `brain.cognition.export()` Returns weight and experience; Pass them to `cognition: {memory}` And then the next brain is made with the same `worldId`. Manager with `memoryDirectory` It does it automatically. The memory folder should not be published with the code.
 
-## Исследование и движение
+## Research and movement
 
-Нейросеть навигации `12 → 16 → 1` обучается на выполненных переходах. A* учитывает её оценку вместе с опорой, столкновениями, уроном от падения и другими игроками. Исследование снижает привлекательность недавно пройденных окрестностей и направлений с плохим опытом, затем проверяет маршрут. Неизвестные блоки не считаются воздухом.
+No seagoing `12 → 16 → 1` Trained in completed crossings. A* takes into account its assessment with the support, Collision, The fall and other players. The study reduces the attractiveness of newly completed areas and areas of poor experience, then check the route. Unknown blocks are not considered air.
 
-Поворот ограничен по скорости и сглажен. Спринт и прыжки включаются только на проверенном участке с запасом места; во время опасного сближения с другим игроком скорость снижается. Это контролируемое поведение, а не обещание полного сходства с человеком.
+Turn is limited in speed and smooth. Sprint and jumps are only activated at a proven site with a reserve; during dangerous encounter with another player, speed drops. It's controlled behavior, Not a promise of complete resemblance to a person.
 
-## Боевая политика Java 1.21/1.21.1
+## Combating policy Java 1.21/1.21.1
 
-- Удары ждут восстановления выбранного оружия. При смене предмета учитывается новая задержка.
-- Топор выбирается против наблюдаемого поднятого щита, обращённого к агенту. Щит во второй руке во время еды не считается блокированием.
-- Собственный щит переносится во вторую руку один раз с подтверждением инвентаря; выбор оружия восстанавливается. Пакет `set_cooldown` запрещает использование временно отключённого щита.
-- Во время защиты агент продолжает смотреть на противника. При низком здоровье выбирается отход, при восстановлении удара — щит или безопасное боковое движение. Против топора щит не является универсальным ответом.
-- При достаточном здоровье и свободной площадке агент может совершить обычный прыжок и попытаться ударить при падении без спринта. Пакет атаки не считается подтверждением критического урона.
-- При постороннем игроке возле цели предпочтителен топор, чтобы избежать массового удара мечом. При отсутствии подходящего безопасного варианта удар откладывается.
+- The strikes await the recovery of the weapon selected. The change of subject takes into account the new delay.
+- The axe is selected against the shield observed, Called to an agent. The second-hand shield during meal is not considered to be a lock.
+- The shield is moved into the second hand once with the equipment confirmed; Weapons selection is being restored. Packet `set_cooldown` Prohibits the use of temporarily disabled shields.
+- During the defense, the agent keeps looking at the enemy. In poor health, a exit is selected, for re-entry — shield or safe lateral movement. The shield is not a universal answer against the axe.
+- With sufficient health and a free area, the agent can make a simple jump and try to hit a fall without a sprint. An attack package is not considered to be evidence of critical damage.
+- With a stranger outside the target, the ax is preferred, To avoid a sword-bang. In the absence of a suitable safe option, the impact is delayed.
 
-Основа исследования: официальные материалы Mojang о [мечах и восстановлении атаки](https://www.minecraft.net/en-us/article/taking-inventory--sword), [топорах против щита](https://www.minecraft.net/en-us/article/taking-inventory--axe), [направленной защите щитом](https://www.minecraft.net/de-de/article/taking-inventory--shield), а также [API PlayerEntity 1.21.1](https://maven.fabricmc.net/docs/yarn-1.21.1%2Bbuild.3/net/minecraft/entity/player/PlayerEntity.html). Старые статьи содержат обзорную информацию; таблица оружия и протокольные проверки в коде относятся к нативному профилю 1.21/1.21.1.
+Basis of the study: Official materials Mojang o [swords and the reconstruction of the attack](https://www.minecraft.net/en-us/article/taking-inventory--sword), [Axes against shield](https://www.minecraft.net/en-us/article/taking-inventory--axe), [shielded](https://www.minecraft.net/de-de/article/taking-inventory--shield), and [API PlayerEntity 1.21.1](https://maven.fabricmc.net/docs/yarn-1.21.1%2Bbuild.3/net/minecraft/entity/player/PlayerEntity.html). Old Articles contain overview information; The weapons table and protocol checks in the code refer to the native profile 1.21/1.21.1.
 
-Эта тактика проверена автоматическими тестами. Победы против сильного человека, критические попадания и отключение чужого щита должны отдельно подтверждаться игровыми испытаниями.
+This tactic is tested by automatic tests. Victory against a Strong Man, Critical impact and blackout of another's shield shall be separately demonstrated by game trials.
 
-## Двадцать агентов
+## Twenty agents
 
-Нужен сервер минимум с 21 слотом, если ты играешь вместе с двадцатью агентами. Для отдельного Java-сервера установи `max-players=32` в `server.properties` и перезапусти его. Нативный клиент использует offline-профиль; локальный тестовый сервер ограничивай `server-ip=127.0.0.1`.
+Need a server minimum c 21 Slot, If you're playing with 20 agents. For a separate Java-The servers are installed `max-players=32` in `server.properties` And restart it. The Nate client uses offline-profile; Local test server limit `server-ip=127.0.0.1`.
 
 ```powershell
 $env:MC_PORT = '25566'
@@ -67,10 +67,10 @@ $env:MC_KEEP_OPEN = '1'
 npm.cmd run test:live:fleet-learning
 ```
 
-Имена: Alice, Blake, Charlie, Dylan, Ella, Finn, Grace, Henry, Ivy, Jack, Kai, Leo, Mia, Nora, Oliver, Parker, Quinn, Ruby, Sam, Theo. Цель — деревянная кирка у каждого. Тест задаёт цель, отключает побочные задачи сна/охоты и пишет отчёт; вся логика действий работает в библиотеке. Панель — `http://127.0.0.1:4180`. После завершения с `MC_KEEP_OPEN=1` агенты на паузе, панель остаётся открытой. Без этой переменной соединения закрываются.
+Names: Alice, Blake, Charlie, Dylan, Ella, Finn, Grace, Henry, Ivy, Jack, Kai, Leo, Mia, Nora, Oliver, Parker, Quinn, Ruby, Sam, Theo. Goal — Each one has a wooden pick. Test sets a target, Disables sleep side tasks/Hunting and writing a report; All logic works in the library. Panel — `http://127.0.0.1:4180`. After completion of c `MC_KEEP_OPEN=1` agents on pause, The panel stays open. Without this variable connection, close.
 
-Кооперация использует `KudoPeer`: заявки на блоки содержат стоимость подхода с учётом нейросетевого опыта. Владение выбирается по ставке и стабильному порядку имён. Сообщения передаются между агентами вне игрового чата. Это встроенный протокол согласования, не самостоятельно изобретённый нейросетями язык.
+Cooperative uses `OMPeer`: Cluster requests include the cost of a neural experience approach. The ownership is chosen according to the rate and the order of the names. Messages are transmitted between agents outside the game chat room. It's an integrated harmonization protocol, Not self-invented language by neurostrots.
 
-Менеджер может предложить обмен или подарок избытка, сохраняя нужные инструменты и резервы. Потребности учитывают текущие зависимости крафта. Передача требует наблюдаемых изменений обоих инвентарей и события подбора; отправленное сообщение не доказывает доставку.
+Manager can offer exchange or gift over-supplies, by maintaining the tools and reserves. Needs take into account the current craft relationships. Transfer requires observed changes in both instruments and selection events; The message sent does not prove delivery.
 
-`data/fleet-learning-live.json` содержит результат входа, действия, ошибки, обучение, достижение целей и журнал обменов. `passed` означает достижение целей всеми участниками и заявки минимум двух агентов; факт успешного подарка проверяй отдельно в `transfers`. Ошибка `server_full` останавливает испытание до запуска целей. При смене мира меняй `MC_WORLD`; для строго пустого начального инвентаря используй новые имена через `MC_NAMES`.
+`data/fleet-learning-live.json` contains the result of the entry, Action, Errors, Training, achieving the goals and the exchange log. `passed` means the achievement of objectives by all participants and the application of a minimum of two agents; ♪ ♪ ♪ ♪ I'm gonna be ♪ ♪ ♪ you can check it out ♪ ♪ `transfers`. Error `server_full` stops the test before starting the targets. Change the world `MC_WORLD`; for strictly empty primary equipment, use new names through `MC_NAMES`.

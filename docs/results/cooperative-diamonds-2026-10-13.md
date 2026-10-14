@@ -1,43 +1,43 @@
-# Пять агентов: кооперативная добыча алмазного набора
+# Five agents: Cooperative diamond mining
 
-Дата: 13 октября 2026. Рабочая версия: `0.7.0-dev.0` с локальными изменениями. Minecraft Java vanilla 1.21.1, offline, общий мир. Имена заданы пользователем. Это публичное описание результатов; сырые журналы и состояние мира остаются в игнорируемой папке `data/`.
+Date: 13 October 2026. Working version: `0.7.0-dev.0` Locally modified. Minecraft Java vanilla 1.21.1, offline, world. Name given by user. This is a public description of the results; raw magazines and the state of the world remain in the ignored folder `data/`.
 
-## Результат
+## Result
 
-**Испытание завершено без выполнения цели: 0 из 5 агентов получили полный алмазный набор.** Во втором этапе ни у одного агента нет алмазов. У MrGiraffe6614 подтверждены два железных слитка в последнем серверном инвентаре.
+**Test completed without target: 0 from 5 agents received a full diamond kit.** In the second phase, no diamond agent has any. Uh-huh MrGiraffe6614 two iron bars in the last server inventory confirmed.
 
-Второй этап: 13:01:36.372–13:10:20.974 UTC, 8 минут 44,602 секунды по отметкам отчёта. Это интервал процесса, включающий подключение и выдачу стартовых припасов. Он закончился отключением всех клиентов. Пользователь затем завершил испытание; новый игровой прогон во время аудита не запускался.
+Second phase: 13:01:36.372–13:10:20.974 UTC, 8 minutes 44,602 seconds from report. This is a process interval, including connection and release of start-up supplies. It ended up shutting down all clients. User then completed test; No new game run during audit.
 
-| Агент | Текущий этап плана | Смерти / возрождения второго этапа | Ошибки навигации | Ошибки подбора |
+| Agent | Current phase of the plan | Death / Second-stage regeneration | Navigational errors | Rectine Errors |
 |---|---|---:|---:|---:|
-| ArKaDiU656 | Подготовка печи | 2 / 2 | 2 | 42 |
-| `_FISTFIGHT_` | Подготовка печи | 1 / 1 | 6 | 51 |
-| MrGiraffe6614 | Подготовка железной кирки | 0 / 0 | 3 | 12 |
-| DERTKE | Подготовка железной кирки | 0 / 0 | 156 | 18 |
-| LazyP1nk | Подготовка железной кирки | 1 / 1 | 49 | 16 |
+| ArKaDiU656 | Preparation of the furnace | 2 / 2 | 2 | 42 |
+| `_FISTFIGHT_` | Preparation of the furnace | 1 / 1 | 6 | 51 |
+| MrGiraffe6614 | Iron bar preparation | 0 / 0 | 3 | 12 |
+| DERTKE | Iron bar preparation | 0 / 0 | 156 | 18 |
+| LazyP1nk | Iron bar preparation | 1 / 1 | 49 | 16 |
 
-«Подготовка железной кирки» — намерение планировщика. Это не подтверждение наличия железной кирки. Milestone-журнал может сохранять ранее достигнутый этап после потери предмета при смерти.
+«Iron bar preparation» — Planner &apos; s intention. This is not proof of the iron curry. Milestone-The log can maintain the previous stage after the loss of the object at death.
 
-Координация записала 290 сообщений и 199 заявок на ресурсы. Единственная запись попытки обмена: MrGiraffe6614 → DERTKE, `failed`. Эти счётчики подтверждают работу канала координации, но не успешное совместное производство или передачу предметов.
+Coordination recorded 290 communications and 199 resource requests. The only record of an attempt to exchange: MrGiraffe6614 → DERTKE, `failed`. These counters confirm the coordination channel, but not successful joint production or transfer of items.
 
-## Условия и происхождение ресурсов
+## Conditions and origin of resources
 
-Первый этап начинался с пустых инвентарей. Пользователь предоставил сундуки с элитрами и ракетами; это внешние припасы, не результат крафта агентов. После гибели ArKaDiU656 другой агент подобрал его вещи. Подбор выпавших предметов не считается согласованной передачей.
+The first phase started with empty equipment. User provided chests with elites and missiles; These are external supplies, Not the result of the agent craft. After death ArKaDiU656 Another agent picked up his stuff. Selection of fallen objects is not considered to be an agreed transfer.
 
-Второй этап продолжал тот же мир и серверные инвентари; `initiallyEmpty=false`. Поэтому весь результат нельзя использовать как чистый замер добычи с нуля. Распределение припасов осталось неполным: три агента не смогли вернуться к поверхностным хранилищам.
+The second phase continued the same world and server equipment; `initiallyEmpty=false`. So the whole result cannot be used as a net measurement of the output from zero. Distribution of supplies remained incomplete: Three agents failed to return to surface storage.
 
-Предварительная попытка Java 26.3 была отдельной проверкой совместимости. Вход и получение чанков состоялись, но устойчивый игровой цикл не прошёл. Пользователь переключил сервер обратно на 1.21.1 до этого испытания.
+Preliminary attempt Java 26.3 was a separate compatibility test. The entrance and receipt of the chancs took place, But the steady-state game cycle didn't go through. User switched the server back to 1.21.1 Prior to this test.
 
-## Обнаруженные проблемы
+## Problems identified
 
-1. Отказ «Старт не подтверждён как свободная ячейка с опорой» не попадал в старую классификацию по словам «путь/маршрут». Повторные попытки копились без смены стратегии.
-2. Наземный планировщик требует полную кубическую опору; физика имеет более подробные формы столкновений. Их представления необходимо согласовать для ступеней, плит и дробной высоты ног.
-3. Подбор лута часто не получает подтверждения инвентарём. Отчёт не позволяет установить одну общую причину: нужны трассы подхода, удаления сущности, движения предмета и изменения слотов.
-4. Заявки на ресурсы не заменяют распределение производственных зависимостей и достижимые места встречи.
-5. Несколько смертей и неудачные отходы требуют отдельной проверки приоритетов защиты, еды и безопасного выхода из шахты.
+1. Refuse «Start cell is not confirmed clear and supported» was not classified as old as «path/route». Retryings were made without changing strategy.
+2. Ground planner requires full cubic support; physics has more detailed impact patterns. Their submissions need to be harmonized for steps, Tubes and foot chopping.
+3. Lute selection often does not receive confirmation by inventory. The report does not allow for a single common reason: I need a path to approach, de-evaluation, moving item and changing slots.
+4. Resource requests do not replace the distribution of production dependence and the achievable meeting places.
+5. Several deaths and waste require separate protection priorities, Food and safe exit from the mine.
 
-## Изменения после остановки
+## Changes after stop
 
-Добавлены структурированные коды отказов и [память условий отказа](../INTELLIGENCE-METHODS.md). Подтверждённый отказ стартовой геометрии может использоваться другим агентом, если он заново видит те же условия. Изменение опоры разрешает повторную проверку. Временные помехи получают ограниченную паузу.
+Structured failure codes added and [failure storage](../INTELLIGENCE-METHODS.md). A confirmed failure of starting geometry can be used by another agent, If he sees the same condition again. Change of support leg allows rechecking. Temporary disturbances are limited to pause.
 
-Новые изменения проверены автоматически и в синтетическом примере. **Повторное игровое подтверждение исправления 156 отказов DERTKE ещё не выполнено.** Согласование геометрии и надёжность командного производства остаются задачами [подготовки 1.0](../V1-READINESS.md).
+New changes are checked automatically and in the synthetic example. **Replaying Game Proof 156 refusals DERTKE Not yet implemented.** Harmonization of geometry and reliability of command production remain challenges [Training 1.0](../V1-READINESS.md).

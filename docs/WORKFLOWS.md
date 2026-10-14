@@ -1,19 +1,19 @@
-# Задачи и зависимости
+# Challenges and relationships
 
-Workflow — задача, которую нужно завершить один раз: подготовить мастерскую, доставить материалы, выполнить производственную операцию. Она отличается от rules, которые реагируют на мир постоянно.
+Workflow — Objective, I'm sorry, but I'm sorry: Training workshop, deliver materials, perform a production transaction. It's different from rules, Who respond to the world continuously.
 
-## Шаги
+## Steps
 
-У каждого шага есть id и action. Доступны дополнительные поля:
+Every step has a id and action. Additional fields available:
 
-| Поле | Назначение |
+| Field | Appointment |
 |---|---|
-| dependsOn | ID шагов, которые должны завершиться раньше |
-| until | Наблюдаемый факт, подтверждающий результат |
-| maxAttempts | Общий лимит запусков действия, по умолчанию 32 |
-| retryDelayMs | Начальная задержка после ошибки; по умолчанию failureBackoffMs |
+| dependsOn | ID Steps, which should be completed sooner |
+| until | Observed fact, validation |
+| maxAttempts | Total launch limit, default 32 |
+| retryDelayMs | Initial delay after error; default failureBackoffMs |
 
-Если dependsOn пропущен, шаг зависит от предыдущего. Пустой список [] делает шаг независимым. В одном агенте одновременно выполняется только одно действие, даже если граф допускает несколько готовых шагов.
+If dependsOn missing, the step depends on the previous one. A Clear List [] Makes it independent. One agent carries out only one action simultaneously, Even if the graph allows several steps to be taken.
 
 ~~~json
 {
@@ -39,31 +39,31 @@ Workflow — задача, которую нужно завершить один
 }
 ~~~
 
-Это запускаемый сценарий для симулятора. Граф проверяется до начала работы: неизвестные зависимости, циклы и повторные ID отклоняются.
+It's a script for a simulation. The count shall be checked before starting: Unknown Dependence, cycles and re-emerging ID Reverse.
 
-## Когда шаг завершён
+## When the Step Is Completed
 
-1. Если until уже выполнено и зависимости готовы, действие пропускается, шаг считается завершённым.
-2. Иначе вызывается навык.
-3. При наличии until ядро повторно наблюдает мир и проверяет результат.
-4. Если факт ещё не достигнут, результат — progress. Шаг повторится на следующем подходящем такте.
-5. Если until не задано, успешного завершения навыка достаточно.
+1. If until already implemented and dependents ready, pass, Step is considered completed.
+2. Otherwise, you're called by skill.
+3. Where available until The core is re-observing the world and checking the result.
+4. If not yet achieved, result — progress. Step will repeat at next appropriate tactic.
+5. If until not specified, a successful completion is enough.
 
-Каждый запуск действия расходует одну попытку, включая progress. Отмена пользователем возвращает попытку. Ошибки добавляют паузу с увеличением задержки до пяти минут. Если лимит исчерпан, шаг получает failed; остальные шаги этой задачи больше не запускаются.
+Each trigger takes one try, including progress. Cancel by user returns attempt. Errors add a pause with a delay of up to five minutes. If limit is exceeded, Step gets failed; The rest of the task is no longer being started.
 
-Состояние задачи доступно в snapshot().workflows: completed/total, статусы каждого шага, attempts, retryAt и error. Реактивное правило более высокого приоритета может выполниться между шагами. Текущее действие автоматически не прерывается: для срочной отмены приложение вызывает pause().
+Status of the task available in snapshot().workflows: completed/total, Status of each step, attempts, retryAt and error. A higher priority jet rule can be implemented between steps. Current action not automatically interrupted: for immediate withdrawal pause().
 
-## Активация и повтор
+## Activation and repetition
 
-У workflow может быть when. После первого выполнения условия задача активируется и остаётся активной, даже если условие позднее стало ложным. Завершённая задача не запускается заново автоматически.
+Uh-huh workflow Maybe when. Once the condition has been met, the task is activated and remains active, Even if the condition later became false. The completed task does not start again automatically.
 
 ~~~js
 await core.pause();
-core.resetWorkflow('materials'); // Повтор всей задачи
+core.resetWorkflow('materials'); // Re-doing the whole task
 core.resume();
 ~~~
 
-Для ошибочного или прерванного шага, сохранив остальные выполненные этапы:
+For an erroneous or interrupted step, Save the remaining stages completed:
 
 ~~~js
 await core.pause();
@@ -71,18 +71,18 @@ core.retryStep('materials', 'boards');
 core.resume();
 ~~~
 
-retryStep начинает новый бюджет попыток только для выбранного шага. Менять прогресс во время незавершённого действия нельзя.
+retryStep Starts a new budget for attempts just for the chosen step. No change in progress during unfinished action.
 
-## Сохранение и восстановление
+## Conservation and rehabilitation
 
-exportMemory() включает прогресс задач. Сохраняй его после подтверждённых действий с помощью FileMemory или своей базы данных. Сами игровые предметы и мир в памяти ядра не сохраняются.
+exportMemory() includes progress in the tasks. Keep it after proven action with help FileMemory or its database. The game objects themselves and the world is not preserved in the memory of the core.
 
-При восстановлении:
-- завершённые шаги не повторяются;
-- ожидающие шаги сохраняют зависимости и бюджет;
-- сохранённый running становится interrupted: неизвестно, завершилось ли игровое действие после последней записи. Нужен явный retryStep или resetWorkflow;
-- изменённое определение существующей задачи отклоняется по отпечатку. Для новой редакции используй новый ID задачи или сознательно очисти соответствующую память.
+In recovery:
+- Completed steps do not repeat;
+- The pending steps remain dependent and budget;
+- saved running becomes interrupted: unknown, Whether the game action was completed after the last recording. Need a clear one retryStep or resetWorkflow;
+- modified definition of existing task is rejected by print. Use the new version ID task or consciously clear the relevant memory.
 
-Это не гарантия «ровно один раз» при аварии между игровым действием и сохранением файла. Для необратимых действий транспорт должен поддерживать собственные идентификаторы и подтверждения.
+It's not a guarantee «Just once» In an accident between game action and file preservation. For irreversible actions, transport must maintain its own identifiers and confirmations.
 
-Максимум: 16 задач, 64 шага в задаче, 256 шагов суммарно на агента. Живой пример — examples/workflow.js.
+Maximum: 16 tasks, 64 step in the task, 256 Step total per agent. Living Example — examples/workflow.js.

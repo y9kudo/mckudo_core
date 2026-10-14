@@ -11,9 +11,9 @@
   "elapsedToDiamondMs": 93353,
   "sourceSHA256": {
     "src/survival-brain.js": "c092f1fab219bf8cef6380441a18f6bd4ccfabbc8c8a31fceee8323984beb0b6",
-    "packages/kudoconnect/src/collection.js": "9fbacf9cfb0aee143c10aca4abcb997bc1ad6d8eb2745351bd47810644e033e5",
-    "packages/kudoconnect/src/equipment.js": "71960a82f11a73c7592afdab1efe3fb231e483a026771f39bccf7dd65ad21807",
-    "packages/kudoconnect/src/actions.js": "a9b5b421af603b339eb6959806805dfb75a14268b4828d89e05ab3ccb56e2bae"
+    "packages/omconnect/src/collection.js": "9fbacf9cfb0aee143c10aca4abcb997bc1ad6d8eb2745351bd47810644e033e5",
+    "packages/omconnect/src/equipment.js": "71960a82f11a73c7592afdab1efe3fb231e483a026771f39bccf7dd65ad21807",
+    "packages/omconnect/src/actions.js": "a9b5b421af603b339eb6959806805dfb75a14268b4828d89e05ab3ccb56e2bae"
   },
   "rawReportSHA256": "1e54c0145c9b6d8094b0eb5395548f0c7bb87cdd669dfe7613bf8662dc076cbe",
   "initial": {

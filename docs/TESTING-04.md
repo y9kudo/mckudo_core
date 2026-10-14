@@ -1,35 +1,35 @@
-# Проверки MCKudo Core 0.4.0
+# Checks OvermindMC 0.4.0
 
-## Независимый клиент и адаптация — 28 сентября 2026
+## Independent client and adaptation — 28 September 2026
 
-- KudoConnect v0.1.0 упакован и установлен в отдельное приложение. Импорты `mckudo` и `mineflayer` в нём недоступны; клиент, группа из 10 объектов и баллистика работают.
-- В реальном Minecraft Java 1.21.1: Alice/Blake и группа из семи клиентов получили чанки/позиции, обменялись сообщениями и одинаково выбрали исполнителя. У группы семи — 49 доставок, 0 chat-пакетов.
-- Вход группы десяти проверен дважды: сервер сообщает `players.max = 8` и отклоняет Henry с `multiplayer.disconnect.server_full`. Все ранее вошедшие клиенты закрываются. Десять одновременных игровых подключений пока не подтверждены.
-- Alice через обновлённый независимый клиент добыла и подобрала одно бревно; серверный инвентарь вырос с 0 до 1, коррекций движения не было.
-- Модельные проверки: вывод оператора без каталога, отзыв после провала, новый эффект, планирование по опыту, смена стратегии без смены цели, TTL/дубликаты намерений, жидкости/особые поверхности, баллистическое упреждение, отмена натяжения лука и подтверждение разрядки арбалета.
-- Специальные поверхности, попадание стрелы, работа печей/зелий и полное прохождение новым клиентом в игре ещё не подтверждены. Предупреждение декодера `declare_recipes` остаётся открытым.
+- OMConnect v0.1.0 packed and attached to a separate annex. Imports `mckudo` and `mineflayer` It's not accessible; customer, Group from 10 Facilities and ballistics are operational.
+- Real Minecraft Java 1.21.1: Alice/Blake And a group of seven clients got cups/Position, Exchanged messages and selected the same artist. Group 7 — 49 Delivery, 0 chat-Packages.
+- Group of 10 entrance checked twice: server reports `players.max = 8` And turns away Henry with `multiplayer.disconnect.server_full`. All previously in-house clients close. Ten simultaneous games are not confirmed yet.
+- Alice through the updated independent client, she obtained and picked up one log; The server equipment grew with 0 to 1, No traffic correction.
+- Model tests: operator output without catalog, withdrawal after failure, new effect, Experience planning, change of strategy without changing target, TTL/duplicate intentions, Liquids/Special surfaces, ballistic pre-emptive, Rescission of onions and confirmation of crossbow discharge.
+- Special surfaces, Arrow hit, Combustion/The new client's full-time gelium is still not confirmed. Decoder warning `declare_recipes` stays open.
 
-Сводка: [independent-2026-09-28.json](results/independent-2026-09-28.json). Сырые отчёты находятся в игнорируемой папке `data/`.
+Summary: [independent-2026-09-28.json](results/independent-2026-09-28.json). The raw reports are in a ignored folder `data/`.
 
-## Автоматические проверки
+## Automatic checks
 
-На Node.js 24.19.0 под Windows выполнены проверки конфигураций и 130 тестов, включая 14 самостоятельных тестов KudoConnect. Проверены прежние правила, Workflow, GoalBrain, память, runtime и bridge, а также новые сценарии:
+At Node.js 24.19.0 Under Windows configuration and configuration checks performed 130 tests, including 14 Self-tests OMConnect. The old rules are checked, Workflow, GoalBrain, memory, runtime and bridge, and new scenarios:
 
-- Все 1060 блоков реестра 1.21.1 получают классы; листва и глубинные руды сохраняют родительские метки.
-- Деревянная кирка планируется из акации без дуба; цель `#planks` выбирает доступные доски.
-- Обычная и глубинная железная руда сопоставляются одному сырью и подходящему инструменту.
-- A* обходит препятствия, соблюдает бюджеты, требует известную опору и не принимает неизвестную ячейку за воздух.
-- Мост планируется только с достаточным материалом; тестовый исполнитель подтверждает блок перед следующим движением.
-- Добыча отменяется при угрозе; атака начинается после завершения отмены, попытка Workflow сохраняется.
-- Питание выбирает готовую еду, зрелую культуру или разрешённую добычу; игроки исключены из охоты.
-- Приготовление в коптильне проверяет выход и закрывает окно.
-- Восприятие использует новые радиусы, запрос чанков и сброс кэша; срочная проверка не повторяет сканирование блоков.
-- Ресурсный Reactor перестраивает решение по текущему инвентарю, исследование исключает посещённые точки.
-- Импортёр JAR/ZIP читает данные без извлечения файлов и отклоняет повреждённые границы.
+- All 1060 Register blocks 1.21.1 Receive classes; leaves and deep ores retain parental marks.
+- Wooden kirk is planned from acacia without oak; Objective `#planks` Selects the board available.
+- The normal and deep iron ore is compared with the same raw and suitable instrument.
+- A* Overcoming Barriers, Compliance with budgets, requires a known support and does not accept an unknown cell for air.
+- The bridge is only planned with sufficient material; Test performer confirms block before next motion.
+- Mining is cancelled when threatened; The attack begins after the cancellation is completed, try Workflow retained.
+- Nutrition picks ready food, mature culture or permitted mining; Players excluded from hunting.
+- The coptile cooking checks the exit and closes the window.
+- The perception uses new radii, Checking for the jar and dropping the cache; Emergency check does not repeat the scan of the blocks.
+- Resource Reactor Renovating the decision on the current inventory, Research excludes visited points.
+- Importer JAR/ZIP Reads data without extracting files and rejects damaged boundaries.
 
-`demo:library` в модели выполняет 34 ресурсных действия и строит 97 блоков укрытия; достигает вех дерева, деревянных/каменных/железных инструментов. `demo:navigation` рассчитывает мост из двух блоков. Проверка TypeScript в строгом режиме проходит для основных новых API и импорта Mineflayer-адаптера.
+`demo:library` in model 34 and building 97 shelter blocks; At least it's a tree's wind, wood/Stone/Rail instruments. `demo:navigation` == sync, corrected by elderman == @elder_man. Verification TypeScript The main new developments in the field of transport and transport API and Imports Mineflayer-adapter.
 
-Команды воспроизведения:
+Play Commands:
 
 ```powershell
 npm.cmd ci
@@ -38,46 +38,46 @@ npm.cmd run demo:library
 npm.cmd run demo:navigation
 ```
 
-## Полнота данных 1.21.1
+## Data completeness 1.21.1
 
-Реестры взяты из `minecraft-data`, файлы рецептов и тегов прочитаны из локальной установленной Java 1.21.1. [Отчёт импорта](results/catalog-1.21.1.json): 1060 блоков, 1333 предмета, 1290 рецептов, 184 тега блоков и 147 тегов предметов. У 990 записей есть поддерживаемая модель исполнения. Все остальные записи также индексируются с исходными данными и причиной отсутствия исполнителя.
+Register taken from `minecraft-data`, The recipe and tag files are read from the local installed Java 1.21.1. [Import report](results/catalog-1.21.1.json): 1060 blocks, 1333 item, 1290 prescription, 184 package tags and 147 item tags. Uh-huh 990 Records are a supported model of performance. All other entries are also indexed with the source data and the reason for the absence of the performer.
 
-Проверка каталога подтверждает наличие и согласованность записей. Она не является игровым выполнением каждого рецепта.
+Catalogue check confirms the existence and consistency of records. It's not a game-working recipe.
 
-## Игровые проверки
+## Game tests
 
-28 сентября 2026 года по местному времени на доступном vanilla 1.21.1 выполнены первые испытания **KudoConnect без Mineflayer**:
+28 September 2026 Local Time Year vanilla 1.21.1 First tests performed **OMConnect without Mineflayer**:
 
-- Offline-вход, получение координат, здоровья, инвентаря и чанков.
-- Добыча ствола через класс `#logs` и подбор: сервер подтвердил разрушение, в инвентаре появилось бревно.
-- Самостоятельное перемещение по короткому маршруту; в успешных испытаниях сервер не присылал коррекций позиции.
+- Offline-Incoming, Collection of coordinates, Health, equipment and jar.
+- Mining guns through the classroom `#logs` and selection: The server confirmed the destruction, The log appeared in the inventory.
+- Self-movement along a short route; The server did not send any position correction in successful tests.
 
-Первоначальная попытка подбора провалилась: маршрут строился к падающему предмету в воздухе. После исправления исполнитель выбирает достижимую опору рядом с предметом и подтверждает получение инвентарём. [Отчёт KudoConnect](results/kudoconnect-1.21.1.json).
+Initial rebound failed: The route was built for a falling object in the air. After correction, the performer selects an achievable support near the subject and confirms receipt of the equipment. [Report OMConnect](results/kudoconnect-1.21.1.json).
 
-В этом же сеансе прежний сценарий Mineflayer достиг деревянной кирки, затем остановился после трёх ошибок поиска пути/подбора на каменном этапе. Этот прогон не считается прохождением Minecraft. Игровых подтверждений боя со щитом, полного Nether/End-пути и смерти дракона нет. Модельные проверки покрывают выбор тактики, отмену, триангуляцию, рамку портала и отсутствие ложного зачёта победы.
+In the same session, the old script Mineflayer reached the wooden curly, Then stopped after three mistakes in finding a path/Rock-stage selection. This run is not considered to be passing Minecraft. Game confirmations of shield fight, Total Nether/End-There is no way and no dragon dies. Model tests cover the choice of tactics, cancellation, Triangulation, Portal frame and no false victory.
 
-На сервере зафиксирована ошибка зависимости при разборе пакета `declare_recipes`. Она сохранена в отчёте; текущие проверки KudoConnect не используют этот пакет для крафта. Подробности и текущие границы игрового исполнителя — в [KUDOCONNECT](KUDOCONNECT.md).
+The server has a bug in the package selection `declare_recipes`. It's saved in the report; Current inspections OMConnect Don't use this craft bag. Details and current limits of the playwriter — in [OMCONNECT](OMCONNECT.md).
 
-### Предыдущие испытания
+### Previous tests
 
-22 сентября 2026 года на vanilla 1.21.1 выполнен отдельный тест ранней реализации 0.4: пустой инвентарь → добыча дуба → доски → установка верстака → палки → деревянная кирка. Выполнены 10 подтверждённых действий. [Отчёт](results/vanilla-1.21.1-04.json).
+22 September 2026 Year vanilla 1.21.1 separate early implementation test 0.4: empty equipment → Oak mining → boards → Installation of the cerstack → Sticks → wooden pick. Implemented 10 confirmed actions. [Report](results/vanilla-1.21.1-04.json).
 
-После добавления новых классов, навигации, мостов, питания и прерываний сервер `127.0.0.1:25565` отклонял подключение (`ECONNREFUSED`). Эти новые возможности в этом запуске проверены автоматическими тестами и моделями API; новый игровой прогон ещё требуется. Предыдущий успех добычи/крафта не засчитывается как проверка новых механизмов.
+After adding new classes, navigation, bridges, server power and interruption `127.0.0.1:25565` rejected connection (`ECONNREFUSED`). These new capabilities in this launch are tested by automatic tests and models API; A new game run is still required. Previous success of mining/craft is not counted as testing new tools.
 
-Полный дом, добыча железа с плавкой, собственное движение/мосты, ферма, охота, защита и длительное выживание должны получить отдельные отчёты из Minecraft. Полное прохождение до Дракона края запланировано следующим интеграционным сценарием; победа пока не подтверждена.
+Full house, Iron and smelting, movement/Bridges, Farm, Hunting, Protection and long-term survival should receive separate reports from Minecraft. Full passage to the Dragon of the Province is planned for next integration scenario; Winning has not yet been confirmed.
 
-## Порядок следующего игрового испытания
+## Next game test procedure
 
-1. Запустить свой vanilla-сервер 1.21.1 и выбрать участок для действий агента.
-2. Проверить источник древесины, свободную ячейку станции и начальный инвентарь.
-3. Запустить `demo:resources:mineflayer`: получение деревянной кирки из доступного дерева с реакциями защиты и питания.
-4. Отдельно проверить `navigate` по плоской земле, затем подъём/спуск и двухблочный разрыв с настоящим материалом моста.
-5. На своём участке проверить зрелую культуру и повторную посадку; отдельно — приготовление пищи в пустой печи/коптильне.
-6. Проверить отмену добычи при мобе и прекращение движения. PvP-политику включать только для специально выбранного теста.
-7. Сохранять наблюдаемый инвентарь, изменения блоков, результаты действий и ошибки. При смерти/отключении тест останавливается и фиксирует причину.
+1. Run Yours vanilla-server 1.21.1 and select a location for agent action.
+2. Check the source of wood, Free station cell and initial equipment.
+3. Start `demo:resources:mineflayer`: Receive wood curry from accessible wood with protection and nutritional responses.
+4. Check separately `navigate` flat ground, Then get up/the descent and the two-block break with the actual bridge material.
+5. Checking mature culture and replanting at their site; separately — Cooking in an empty furnace/Coptilene.
+6. Check the cancellation of the production in the mobe and stop the movement. PvP-include only for a specially selected test.
+7. Maintain observed equipment, Change of blocks, results and errors. Death/The test stops and records the cause.
 
-Тестовое приложение подключает Minecraft; MCKudo остаётся импортируемым ядром. Модельные тесты, полнота данных и игровые результаты учитываются раздельно.
+Test application connects Minecraft; OvermindMC remains imported core. Model tests, Data completeness and game results are recorded separately.
 
-## Установка собранного пакета
+## Installation of the package collected
 
-Архив `mckudo-0.4.0.tgz` установлен в отдельное приложение. Проверены публичные импорты ядра и адаптеров. По полному каталогу 1.21.1 выполнена модельная цепочка из 21 действия: акация + камень + глубинная железная руда → железная кирка. Результат подтверждён состоянием отдельного симулятора. [Сводка проверок](results/verification-04.json).
+Archives `mckudo-0.4.0.tgz` specified in a separate annex. Public imports of kernels and adapters verified. By full catalogue 1.21.1 Model chain from 21 Action: Acacia + Rock + Deep Iron Ore → Iron pick. The result is confirmed by the state of the individual simulator. [Audit summary](results/verification-04.json).

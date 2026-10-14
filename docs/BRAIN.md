@@ -1,37 +1,37 @@
-# Мозг MCKudo: цели и Planner
+# Brain OvermindMC: objectives and objectives Planner
 
-MCKudo принимает цель и строит последовательность действий, а игровой адаптер исполняет выбранное действие. Встроенный символический Planner работает локально: модель языка, ключи API и платные сервисы не требуются.
+OvermindMC Adoptes the purpose and builds a sequence of actions, and the game adapter performs the action chosen. In-line symbolic Planner is locally operated: Language model, Keys API and no fee-paying services required.
 
-## Три способа задавать поведение
+## Three Ways to Ask for Behavior
 
-| Способ | Когда использовать |
+| Method | When to Use |
 |---|---|
-| `rules` | Повторяемая реакция: поесть при голоде |
-| `workflows` | Известный порядок действий и зависимостей |
-| `goals` | Известен результат; порядок выбирает Planner по модели операторов |
+| `rules` | Repeated Response: Eat in the Hunger |
+| `workflows` | Known modus operandi and dependence |
+| `goals` | Acquired result; The order is chosen Planner Model of operators |
 
-Кандидаты сравниваются по `priority`. При равном приоритете правила идут раньше задач, задачи — раньше целей. Реакции выполняются между действиями, а не прерывают произвольное действие посередине. Перед исполнением результата Planner ядро повторно читает мир: изменение значимых фактов или появление более приоритетной реакции откладывает действие до следующего тика.
+Candidates are compared by `priority`. With equal priority, the rules go ahead of tasks, objectives — before the objectives. Reactions are implemented between actions, Not interrupt arbitrary action in the middle. Before delivering the result Planner Core rereads the world: change of significant facts or the emergence of a higher priority reaction postpones action to the next tick.
 
-Цель описывает поддерживаемое состояние. Когда её `desired` выполнено, она получает `achieved`. Если результат исчезнет из инвентаря, ядро может снова планировать в пределах оставшегося `maxActions`. Для однократной задачи используй workflow или останови приложение после достижения цели.
+The objective describes the state of support. When her `desired` implemented, She gets `achieved`. If the result disappears from the inventory, The kernel may be scheduled again within the remaining space `maxActions`. Use it for a single task workflow or stop the application after achieving the target.
 
-## Быстрый запуск
+## Quick launch
 
-Из корня исходников:
+From the root of the original:
 
 ```powershell
 npm.cmd run demo:brain
 ```
 
-Пример использует [brain.json](../examples/brain.json) и [operators.json](../examples/operators.json). Из пустого инвентаря он получает верстак и четыре палки за шесть действий симулятора. Начальное состояние меняет результат планирования: если доски уже есть, добывать лишние брёвна не нужно.
+Example uses [brain.json](../examples/brain.json) and [operators.json](../examples/operators.json). From empty inventory, he gets a verstock and four sticks for six moves of the simulation. Initial state changes planning results: If there are boards, No need to get extra wood.
 
-## Импорт в приложение
+## Imports to the Annex
 
-Установи библиотеку в своё приложение по локальному пути, как описано в [README](../README.md). Скопируй в приложение `brain.json` и `operators.json` из примеров. Укажи `"type": "module"` в его `package.json`.
+Put the library on your local route app, as described in [README](../README.md). Copy to the application `brain.json` and `operators.json` from examples. Specify `"type": "module"` to his `package.json`.
 
 ```js
 import { readFile } from 'node:fs/promises';
-import { createCore, createSymbolicPlanner } from 'mckudo';
-import { createSimulator } from 'mckudo/adapters/simulator';
+import { createCore, createSymbolicPlanner } from 'overmindmc';
+import { createSimulator } from 'overmindmc/adapters/simulator';
 
 const read = async file => JSON.parse(await readFile(new URL(file, import.meta.url), 'utf8'));
 const core = createCore({
@@ -51,11 +51,11 @@ core.start();
 process.once('SIGINT', async () => { await core.stop(); });
 ```
 
-Если `planner` пропущен, используется `createSymbolicPlanner()`. Для Minecraft замени симулятор на `createMineflayerAdapter` после появления клиента в мире. [Готовый запуск для 1.21.1](LIVE-1.21.1.md).
+If `planner` missing, used `createSymbolicPlanner()`. For Minecraft replace simulation with `createMineflayerAdapter` After the client has appeared in the world. [Ready Launch for 1.21.1](LIVE-1.21.1.md).
 
-## Формат цели и операторов
+## Purpose and operator format
 
-Цели требуют `schemaVersion: 3`. Пример отдельной цели:
+Objectives require `schemaVersion: 3`. Example of a separate objective:
 
 ```json
 {
@@ -66,7 +66,7 @@ process.once('SIGINT', async () => { await core.stop(); });
 }
 ```
 
-Оператор описывает один известный способ изменить мир. Это модель результата, которая проверяется после реального действия:
+Operator describes one known way to change the world. It's a model of results, which is tested after actual operation:
 
 ```json
 {
@@ -81,38 +81,38 @@ process.once('SIGINT', async () => { await core.stop(); });
 }
 ```
 
-`requires` — предпосылки; `effects` — ожидаемые изменения; `cost` — условная стоимость от 1 до 1000. Меньшая стоимость предпочтительнее. Это не денежная цена и не гарантированное время выполнения. `add` меняет числовой факт, `set` присваивает примитив JSON. Пересекающиеся эффекты запрещены. Для действия нужен реализованный навык, для вычисления эффекта — известный факт наблюдения.
+`requires` — Preconditions; `effects` — Expected changes; `cost` — Contingent value of 1 to 1000. Lower cost preferable. It's not a monetary price or a guaranteed time of execution. `add` changes the number fact, `set` Acquires the primitive JSON. Interception effects are prohibited. Action requires a master's skill, for the calculation of the effect — A known observation.
 
-Планировщик перебирает возможные состояния по стоимости с ограничениями глубины и количества состояний. В ограниченном поиске он может не найти существующий план; результат явно сообщает об исчерпании бюджета. Оптимальность найденного плана при отсечении поиска не гарантируется. Каталог примера знает только дуб, доски, верстак и палки: он не открывает рецепты самостоятельно.
+Planner reschedules possible cost states with limits on depth and state quantity. In a limited search, he may not find the existing plan; the result clearly indicates that the budget is exhausted. Optimality of the plan found during the search-off is not guaranteed. Only oak knows the catalogue of examples, boards, And the sticks: He doesn't open the recipes himself.
 
-## Проверка и перепланирование
+## Verification and reconfiguration
 
-1. Ядро наблюдает мир и проверяет реакции, задачи и цели.
-2. Planner получает копию JSON: наблюдение, цель, доступные операторы и навыки.
-3. Ответ проверяется до исполнения: неизвестные ID, неверные предпосылки и план, не достигающий цели в модели, отклоняются.
-4. Выполняется только первый оператор плана. Затем ядро снова читает мир.
-5. При совпадении ожидаемого эффекта сохраняется оставшийся план. Значимые изменения мира заставляют пересчитать его.
+1. The core watches the world and checks out the reactions, objectives and objectives.
+2. Planner Receives a copy JSON: Observation, Objective, accessible operators and skills.
+3. Response checked before execution: unknown ID, Wrong premises and plan, Not achieving the model target, Reverse.
+4. Only the first plan operator is being implemented. Then the core reads the world again.
+5. If the expected impact is consistent, the remaining plan is maintained. Significant changes in the world make it count.
 
-При неподтверждённом эффекте действие считается неудачным. Оператор временно исключается на четыре `retryDelayMs`, цель ждёт один `retryDelayMs`; это позволяет попробовать альтернативный оператор. Это временная обратная связь об ошибке, не обучение новой модели навыков.
+Unconfirmed effect is considered to be a failure. Operator temporarily excluded by four `retryDelayMs`, Target waiting one `retryDelayMs`; This allows an alternative operator to be tried. It's a temporary feedback on a mistake, not training a new skill model.
 
-Один успешный промежуточный шаг имеет результат `progress`, достижение всей цели — `success`. Ошибки — `failure`, отмена — `cancelled`. Попытки действий ограничены `maxActions` (1–256 на цель); отменённая попытка не расходует этот лимит. Между действиями `core.retryGoal(id)` явно сбрасывает состояние и счётчик действий цели. Бюджет вызовов Planner он не сбрасывает.
+One successful intermediate step has a result `progress`, achieving the entire goal — `success`. Errors — `failure`, cancellation — `cancelled`. Attempts to act are limited `maxActions` (1–256 for purpose); the cancelled attempt does not spend this limit. Between actions `core.retryGoal(id)` Clearly drops the target's state and action counter. Challenges budget Planner He doesn't throw away.
 
-## Сменный Planner и LLM
+## Replacement Planner and LLM
 
-Контракт модуля: `{ id, apiVersion: 1, plan(context, { signal }) }`. `plan` возвращает JSON-объект `{ steps: ['operator-id', ...], reason?: 'Краткое объяснение' }`. Пустой список означает отсутствие плана. Максимум — 64 шага. Ответ может выбирать только операторы из переданного каталога; произвольный код и новые аргументы навыков не исполняются.
+The module contract: `{ id, apiVersion: 1, plan(context, { signal }) }`. `plan` Returns JSON-object `{ steps: ['operator-id', ...], reason?: 'Brief explanation' }`. An empty list means no plan. Maximum — 64 steps. Only operators from the transferred directory can choose the answer; Arbitrary code and new arguments of skills not being fulfilled.
 
-Для локальной или внешней языковой модели разработчик реализует `plan`: сериализует `context` в запрос своего провайдера, передаёт отмену, разбирает ответ как JSON и возвращает объект. `buildPlannerContext` доступен отдельно для формирования такого же проверяемого контекста. `validatePlan` доступен для отдельной проверки ответа. SDK провайдера и сетевые запросы не входят в ядро.
+For a local or external language model, the developer implements `plan`: Serializes `context` In the request of its provider, transmits cancellation, Sees the answer as JSON And returns the object. `buildPlannerContext` Available separately to form the same verifiable context. `validatePlan` Available for separate response check. SDK Provider and network queries are not included in the core.
 
-`maxCalls` ограничивает количество вызовов `plan`, `minIntervalMs` — их частоту. Вызов, завершившийся ошибкой или отменой, тоже считается. Остаток плана используется без нового вызова. Счётчик сохраняется в памяти. Настройка ограничивает вызовы модуля, но не гарантирует денежный бюджет или лимит токенов: это обязанность интеграции с провайдером. Модуль — доверенный JavaScript в процессе; ядро не изолирует его от сети или файловой системы.
+`maxCalls` Limiting the number of calls `plan`, `minIntervalMs` — frequency. Challenge, completed by error or cancellation, It counts, too. The rest of the plan is being used without a new call. The counter is stored. Settings Limits the challenges of the module, but does not guarantee the cash budget or the current limit: It's a duty to integrate with the provider. Module — trustor JavaScript in the process; The kernel does not isolate it from the network or file system.
 
-## Наблюдаемость и память
+## Observation and memory
 
-`snapshot().brain` содержит цели, оставшийся план и счётчик вызовов. `snapshot().trace` и событие `decision:trace` показывают номер тика, сработавшие и несработавшие правила, до 32 сравнений на правило, блокировки кандидатов и выбранный оператор. Это проверяемая трасса фактов и решений, а не внутренние рассуждения нейросети. Хранится только последняя трасса; историю приложение может записывать самостоятельно.
+`snapshot().brain` contains objectives, The remaining plan and call counter. `snapshot().trace` and event `decision:trace` The number of the tick is shown, rules that have worked and have not worked, to 32 Comparisons, Locking of candidates and selected operator. This is a verifiable route of facts and decisions, Not the inner reasoning of neurosnets. Only the last track is stored; History application can write itself.
 
-`exportMemory()` с подключённым мозгом возвращает формат 3, без мозга — формат 2. Сохраняются счётчики вызовов и действий, состояния целей, история и workflows. Очередь плана и временные исключения операторов не сохраняются: после перезапуска нужен новый план из свежего наблюдения. Цель, сохранённая во время действия, восстанавливается как `interrupted` и требует проверки мира и явного `retryGoal`.
+`exportMemory()` With the brain connected returns format 3, Without brain — format 2. Challenges and actions counters maintained, Status of objectives, history and workflows. The list of the plan and the temporary exemptions of operators does not continue: After re-start, we need a new plan from fresh observation. Goal, stored during operation, Recovers as `interrupted` and demands verification of peace and `retryGoal`.
 
-Память проверяется по отпечатку целей, операторов и ID Planner. Изменение этих определений требует осознанной миграции или нового файла памяти. [FileMemory](API.md) не сохраняет сам игровой мир.
+Memory is checked by target print, operators and ID Planner. Changing these definitions requires a conscious migration or a new memory file. [FileMemory](API.md) doesn't keep the game world itself.
 
-## Модули автоматизации 0.4
+## Automation modules 0.4
 
-Planner дополняют сменные Reactor, каталоги и классы блоков, планировщик ресурсов, пространственные маршруты, питание, защита и строительство. Они используют общий исполнитель ядра и свежие наблюдения. `createResourceReactor` работает с рецептами каталога, а GoalBrain — с заданными операторами и их эффектами. Эти модели можно комбинировать по приоритетам. Описание API и порядка исполнения: [AUTOMATION.md](AUTOMATION.md).
+Planner Supplements replacement Reactor, Catalogues and block classes, Resource planner, spatial routes, Nutrition, Protection and construction. They use common core performer and fresh observation. `createResourceReactor` Works with catalog recipes, a GoalBrain — with designated operators and their effects. These models can be combined by priority. Description API and implementation: [AUTOMATION.md](AUTOMATION.md).

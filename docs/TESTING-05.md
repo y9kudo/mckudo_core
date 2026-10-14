@@ -1,28 +1,28 @@
-# Проверки MCKudo Core и KudoConnect 0.5.0
+# Checks OvermindMC and OMConnect 0.5.0
 
-Дата выпуска: 2026-09-30. Автор: **y9kudo**. Результаты относятся к конкретным проверкам, а не ко всем возможным мирам Minecraft.
+Date issued: 2026-09-30. Author: **y9kudo**. Results refer to specific audits, Not to all possible worlds Minecraft.
 
-## Автоматические проверки
+## Automatic checks
 
-Общий запуск `npm.cmd run check`: **203 теста прошли, 0 ошибок**. Проверены ядро, планировщики, сценарии, обмен, серверные подтверждения инвентаря, крафт, физика, движение, оценка падений, обработка перехода измерения и портальные действия. Проверка публичных TypeScript-интерфейсов также прошла.
+General launch `npm.cmd run check`: **203 Test passed, 0 Errors**. Core checked, Planners, scenarios, exchange, server equipment confirmation, craft, Physics, traffic, Fall estimates, Measurement transition processing and portal operation. Audit of public TypeScript-The interfaces were also passed.
 
-Переходы измерений в этих тестах воспроизводятся событиями протокола. Модельное достижение алмазного комплекта не приравнивается к прохождению настоящего Minecraft.
+The measurements shall be repeated by the protocol events. The model achievement of a diamond kit is not equivalent to passing through the present Minecraft.
 
-## Игровые испытания: vanilla Java 1.21.1, offline
+## Game trials: vanilla Java 1.21.1, offline
 
-| Проверка | Подтверждено | Условия |
+| Verification | Confirmed | Conditions |
 | --- | --- | --- |
-| Движение | Диагонали, спринт, плавный взгляд, раздельные позиции трёх агентов | 0 серверных коррекций в проверяемом маршруте |
-| Спуск с одного блока | Успешный спуск на песок; потеря здоровья 0; коррекций 0 | Реальные координаты и здоровье до/после |
-| Хранилища | Поиск и чтение сундуков, двойных сундуков, бочек, шалкеров | Предметы были подготовлены человеком |
-| Распределение экипировки | Owen, Liam и Noah получили и надели полные железные комплекты | Исправлены перехват третьим игроком и слишком тесное место передачи |
-| Сон | Сервер подтвердил сон Owen в поставленной кровати | Пропуск всей ночи не подтверждён: другие игроки не спали |
-| Алмазный комплект | Три агента собрали комплекты в прежнем прогоне | Ресурсы включали лут погибшего игрока; это **не добыча с нуля** |
-| Экспедиция до Энда | Пустой старт, древесина джунглей, деревянная кирка, дальнейшее исследование | 1 минута, 28 действий, 0 ошибок, 0 коррекций; статус `incomplete` |
+| Movement | Diagonal, sprint, a smooth look, Three separate agents | 0 server correction in the route to be checked |
+| One block descent | Successful sand descent; Loss of health 0; adjustments 0 | Real coordinates and health before/after |
+| Warehouses | Search and read chests, double chests, barrels, Shakers | The items were prepared by the person |
+| Distribution of equipment | Owen, Liam and Noah received and provided full iron kits | Corrected by third player intercept and too close |
+| Sleep | The server confirmed the dream Owen In the bed to be laid | The pass is not confirmed all night: The other players weren't sleeping |
+| Diamond kit | Three agents gathered kits in the previous run | Resources included the dead player's lute; This is **Not from zero** |
+| The expedition to Enda | A Blank Start, The jungle wood, wooden pick, Further study | 1 minute, 28 actions, 0 Errors, 0 adjustments; Status `incomplete` |
 
-Охота, крафт кровати из шерсти, полное прохождение до Энда и победа над драконом пока не получили полного игрового подтверждения. Для сна использовалась готовая кровать. Броня/предметы из тестового сундука не выдаются за самостоятельно добытые.
+Hunting, Craft of the wool bed, The full passage to Ande and victory over the dragon have not yet been fully confirmed. The bed was ready for sleep. Armour/Items from the test chest are not issued for self-mining.
 
-## Повторение
+## Repeat
 
 ```powershell
 npm.cmd ci
@@ -32,6 +32,6 @@ npm.cmd run test:live:fall
 npm.cmd run test:live:daily
 ```
 
-Игровые команды требуют сервера и меняют мир. Длинная проверка: [инструкция экспедиции](END-EXPEDITION.md). `data/` содержит локальные подробные журналы и исключён из Git. В публичном [сводном отчёте](results/verification-05.json) оставлены только нужные для оценки результаты без локальных журналов чата и инвентарей игроков.
+Playing teams require servers and change the world. Long test: [Expedition instruction](END-EXPEDITION.md). `data/` contains local detailed journals and is excluded from Git. In public [Summary report](results/verification-05.json) left only the necessary results to assess without local chat logs and player tools.
 
-Исторические результаты 0.4 сохранены отдельно; их ограничения не заменяют текущие проверки. GitHub Actions запускает автоматические проверки на Windows/Linux и Node.js 22/24; игровой сервер в CI не запускается.
+Historical results 0.4 retained separately; their limitations do not replace current checks. GitHub Actions start automatic checks on Windows/Linux and Node.js 22/24; game server in CI not started.

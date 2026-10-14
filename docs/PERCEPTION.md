@@ -1,6 +1,6 @@
-# Восприятие Minecraft: формат 1
+# Perception Minecraft: format 1
 
-`normalizeObservation` задаёт общую структуру JSON для адаптеров. Mineflayer и симулятор объявляют `perceptionVersion: 1` в `describe()`. Ядро проверяет их наблюдения. Старые адаптеры без этого объявления продолжают возвращать свой JSON; автоматическая совместимость с новой схемой не предполагается.
+`normalizeObservation` it sets the overall structure JSON for adapters. Mineflayer and the simulation announce `perceptionVersion: 1` in `describe()`. The core checks their observations. Old adapters keep returning theirs without this ad JSON; Automatic compatibility with the new scheme is not intended.
 
 ```json
 {
@@ -14,23 +14,23 @@
 }
 ```
 
-| Раздел | Семантика |
+| Section | Semantics |
 |---|---|
-| `self` | Здоровье, голод и координаты. Неизвестные значения — `null` |
-| `inventory` | Количества предметов по `namespace:id`, целые числа >= 0 |
-| `world.dimension` | Идентификатор измерения или `null` |
-| `entities` | До 128 наблюдаемых сущностей: строковые `id`, `name`, координаты `position`; `null`, если не наблюдались |
-| `time.timeOfDay` | 0–23999 или `null` |
-| `time.isDay` | `true`, `false` или `null` |
+| `self` | Health, Hunger and coordinates. Unknown — `null` |
+| `inventory` | Number of items by category `namespace:id`, Totals >= 0 |
+| `world.dimension` | Measuring identifier or `null` |
+| `entities` | Before 128 of observed entities: Line `id`, `name`, coordinates `position`; `null`, If not observed |
+| `time.timeOfDay` | 0–23999 or `null` |
+| `time.isDay` | `true`, `false` or `null` |
 
-`dimension` в корне сохранён для совместимости. Он совпадает с `world.dimension`. Дополнительные поля адаптеров разрешены. Например, `world.nearbyBlocks` сообщает о найденных типах блоков, но не гарантирует достижимый путь к ним.
+`dimension` Intended for compatibility. It matches the `world.dimension`. Additional adapter fields allowed. For example, `world.nearbyBlocks` Report on the types of blocks found, but does not guarantee the achievable path to them.
 
-Отсутствующий ключ инвентаря означает неизвестный предмет, а не нулевое количество. Mineflayer заполняет нулевые количества известных реестру предметов; симулятор знает только свой небольшой набор. Неизвестные значения нельзя заменять выдуманными нулями или безопасным состоянием: переносимость правил зависит от того, какие факты реально предоставляет адаптер.
+Missing inventory key means unknown item, a//////////. Mineflayer Fills zero quantities of items known to the register; The simulator only knows its small set. Unknown values cannot be replaced by fictional zeros or safe state: The transportability of the regulations depends on the, What facts really provide the adapter.
 
-Mineflayer 0.4 отслеживает классы `#logs`, `#ores`, `#workstations`, `#crops` в радиусе 128 блоков. `searchRadius` и `entityRadius` настраиваются до 512; `requestedViewDistance` запрашивает 16 чанков (2–32), фактическую загрузку задаёт сервер. `trackedBlocks` принимает до 128 ID/классов. Сущности отбираются ближайшие, до 128. Обход блоков кешируется, а `observeThreats` предоставляет отдельный быстрый снимок для защиты. Все параметры: [AUTOMATION.md](AUTOMATION.md#восприятие-и-загрузка-мира).
+Mineflayer 0.4 tracks classes `#logs`, `#ores`, `#workstations`, `#crops` within a radius 128 blocks. `searchRadius` and `entityRadius` Set to 512; `requestedViewDistance` Requests 16 chunks (2–32), Actual upload is delivered by the server. `trackedBlocks` Accepts before 128 ID/classes. The near-term objects are selected, to 128. The block caches, a `observeThreats` provides a separate quick picture for protection. All Options: [AUTOMATION.md](AUTOMATION.md).
 
-`world.sampledBlocks` содержит до 512 находок с координатами, `world.crops` — культуры с признаком зрелости. В пакетной выборке `nearbyBlocks[id] === null` означает, что тип не подтверждён; это не утверждение об отсутствии во всём радиусе. `world.blocks` — запрошенные `watchedPositions` с ключами `x,y,z`, для строительства. `combat.attackers` содержит подтверждённые источники недавнего урона.
+`world.sampledBlocks` contains up to 512 Finds with coordinates, `world.crops` — cultural history with sign of maturity. In a bag sample `nearbyBlocks[id] === null` means, I'm sure the type is unconfirmed; It's not a claim of absence in the whole radius. `world.blocks` — requested `watchedPositions` with keys `x,y,z`, for construction. `combat.attackers` contains confirmed sources of recent damage.
 
-Наблюдение должно быть обычным JSON без игровых классов, ссылок на клиента и циклов, не больше 256 КиБ. Симулятор не моделирует поведение мобов, полную физику или естественный ход игрового времени. Совпадение схемы данных не означает одинаковую полноту модели мира.
+Observation should be routine JSON No game classes, client references and cycles, No more 256 KiB. The simulator does not simulate the behavior of the mobs, full physics or natural playtime. The convergence of the data scheme does not mean the same completeness of the world model.
 
-[JSON Schema нормализованного наблюдения](../schemas/perception.schema.json) доступна для внешних адаптеров. Соответствие двух полей измерения дополнительно проверяет normalizeObservation.
+[JSON Schema normalized observation](../schemas/perception.schema.json) Available for external adapters. The conformity of the two measurement fields shall be further checked normalizeObservation.

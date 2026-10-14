@@ -1,6 +1,6 @@
 {
   "minecraft": "1.21.1",
-  "client": "KudoConnect",
+  "client": "OMConnect",
   "auth": "offline",
   "mineflayerInExecution": false,
   "localDate": "2026-09-28",
@@ -44,7 +44,7 @@
         "maxTickMs": 1.3078999999997905,
         "decoderWarnings": [
           {
-            "message": "Пакет play/declare_recipes: Read error for undefined : Missing characters in string, found size is 108271 expected size was 114153",
+            "message": "Packet play/declare_recipes: Read error for undefined : Missing characters in string, found size is 108271 expected size was 114153",
             "at": 1790547944331
           }
         ],
@@ -106,7 +106,7 @@
           "detail": ""
         }
       ],
-      "reason": "Действие завершено. Следующий шаг начнётся с нового наблюдения.",
+      "reason": "Action completed. The next step starts with a fresh observation.",
       "initial": {
         "position": {
           "x": -15.31497845547584,
@@ -140,7 +140,7 @@
         "maxTickMs": 0.6816000000001168,
         "decoderWarnings": [
           {
-            "message": "Пакет play/declare_recipes: Read error for undefined : Missing characters in string, found size is 108271 expected size was 114153",
+            "message": "Packet play/declare_recipes: Read error for undefined : Missing characters in string, found size is 108271 expected size was 114153",
             "at": 1790548064581
           }
         ],
@@ -202,7 +202,7 @@
           "detail": ""
         }
       ],
-      "reason": "Действие завершено. Следующий шаг начнётся с нового наблюдения.",
+      "reason": "Action completed. The next step starts with a fresh observation.",
       "initial": {
         "position": {
           "x": -16.497877957524004,
@@ -237,7 +237,7 @@
         "maxTickMs": 0.988399999999956,
         "decoderWarnings": [
           {
-            "message": "Пакет play/declare_recipes: Read error for undefined : Missing characters in string, found size is 108271 expected size was 114153",
+            "message": "Packet play/declare_recipes: Read error for undefined : Missing characters in string, found size is 108271 expected size was 114153",
             "at": 1790548154257
           }
         ],

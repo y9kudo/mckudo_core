@@ -1,13 +1,13 @@
-# Опыт, пересмотр планов и кооперация
+# Experience, Revision and cooperation
 
-MCKudo отвечает за решения; самостоятельный KudoConnect предоставляет наблюдения и исполнение. Эти модули работают и с другими адаптерами. Автор: **y9kudo**.
+OvermindMC Responsible for decisions; Independent OMConnect Provides observations and implementation. These modules work with other adapters. Author: **y9kudo**.
 
-## Вывод операторов из опыта
+## The withdrawal of operators
 
-Оператор описывает предположение: при определённых условиях действие изменит указанные факты. Разработчик задаёт, что измерять, а эффекты вычисляет ядро из наблюдений до и после действия. Каталог рецептов для этого не нужен.
+Operator describes assumption: Under certain conditions, the action will change the facts. Developer requests, What to Measure, And the effects calculate the core from the observations before and after the action. You don't need a recipe catalogue for this.
 
 ```js
-import { createCore, createExperienceModel } from 'mckudo';
+import { createCore, createExperienceModel } from 'overmindmc';
 
 const experience = createExperienceModel({
   worldId: 'my-server',
@@ -22,24 +22,24 @@ const core = createCore({
 });
 ```
 
-Здесь `config` содержит `goals`, `adapter` — подключённый исполнитель, а `knownOperators` — начальные правила (можно `[]`). Для обучения через правила без целей уберите `planning`, оставьте `learning`. Пока опыта нет, планировщик с пустым списком операторов не может действовать: первые эпизоды дают правила, сценарий или разработчик.
+Here `config` contains `goals`, `adapter` — connected performer, a `knownOperators` — Initial rules (Yes, yes `[]`). For learning through rules, clean it up without purpose `planning`, Leave it `learning`. No experience yet, A planner with an empty list of operators cannot operate: The first episodes give the rules, Scenario or Developer.
 
-Core повторно наблюдает мир после действия. Числовые изменения становятся эффектами `add`, изменения строк/boolean — `set`. После трёх согласующихся разных эпизодов гипотеза доступна планировщику. Неизвестные факты не считаются нулём, отмена не считается провалом, повторный `episodeId` не увеличивает доказательность. `worldId` модели и Core должны совпадать.
+Core Re-observes the World After Action. Numerical changes become effects `add`, Change the row/boolean — `set`. After three consistent different episodes of hypothesis, available to the planner. Unknown facts are not considered zero, cancellation is not considered a failure, repeated `episodeId` does not increase the evidentiary value. `worldId` models and Core shall coincide.
 
-`operators()` возвращает доступные правила; `snapshot()` — гипотезы, уверенность и журнал. `assess(action, observation)` возвращает состояние и временную блокировку после ошибки. Сглаженная длительность успешных действий участвует в стоимости плана.
+`operators()` Returns available rules; `snapshot()` — hypotheses, confidence and a magazine. `assess(action, observation)` returns state and temporary lock after error. The smooth duration of successful action is involved in the cost of the plan.
 
-**Наблюдательная гипотеза не доказывает причинность.** Другой игрок может бросить предмет во время добычи. Поэтому обучение включается явно, контекст задаётся приложением, а эффекты каждого плана продолжают проверяться. `confidence` — сглаженная доля согласований, не статистическая гарантия. Память ограничена; постоянное хранение модели и проверенный импорт чужого опыта ещё не реализованы.
+**The observation hypothesis doesn't prove cause.** Another player can drop an object during extraction. Therefore, the training is clearly included, The context is given by the application, and the effects of each plan continue to be tested. `confidence` — smooth share of agreements, non-statistical guarantee. Memory limited; Permanent model storage and verified import of foreign experience has not yet been implemented.
 
-## Пересмотр после неудачи
+## Review after failure
 
-Ошибка или несовпадение эффекта сразу снимает гипотезу с планирования. Модель увеличивает паузу повторения для пары «действие + контекст». Новый устойчивый эффект заменяет старый после повторных наблюдений. Исправляется ожидание агента, а не механика сервера.
+Error or inconsistency immediately removes the hypothesis from the planning. The model increases the pause for the pair «Action + context». New sustainable effects replace old after re-observation. The waiting of the agent is corrected, Not server mechanics.
 
-Неудача движения не означает, что участок навсегда непроходим. Добавляйте в `contextFacts` измерение, состояние цели, угрозу или ревизию исследуемой области. Постоянно изменяющиеся часы сделают каждый эпизод отдельным контекстом. Бюджеты и паузы Core продолжают действовать.
+Failure does not mean, I'm sure the plot is forever in the dark. Add to `contextFacts` Measurement, status of purpose, threat or audit of the area under study. The constantly changing clock will make each episode a context. Budgets and pauses Core still in force.
 
-## Адаптивный сценарий
+## Adaptation scenario
 
 ```js
-import { createAdaptiveScenario } from 'mckudo';
+import { createAdaptiveScenario } from 'overmindmc';
 const task = createAdaptiveScenario({
   id: 'get-wood', model: experience,
   desired: { fact: '/inventory/minecraft:birch_log', gte: 1 },
@@ -53,14 +53,14 @@ const task = createAdaptiveScenario({
 // createCore({ config, adapter, reactors: [task.reactor], learning: experience })
 ```
 
-`/custom/dropVisible` — пример факта приложения; стандартный адаптер не создаёт его автоматически. Для цели «любая древесина» используйте ресурсный сценарий с `targets: { '#logs': 1 }` или добавьте в наблюдение агрегированный счётчик класса.
+`/custom/dropVisible` — example of the fact of the annex; Standard adapter doesn't automatically create it. For purpose «any wood» use resource scenario with `targets: { '#logs': 1 }` or add an aggregate class counter to the observation.
 
-Стратегии проверяются по порядку. Если условия изменились или действие заблокировано после ошибки, выбирается другой способ. Цель `desired` сохраняется. `snapshot().journal` объясняет изменения. Переписывается проверяемый план; новый JavaScript не генерируется и не выполняется. Завершение требует наблюдаемого выполнения цели.
+Policies are checked in sequence. If conditions change or action is blocked after error, Another way is chosen. Goal `desired` retained. `snapshot().journal` explains the changes. Translates the plan under review; new JavaScript not generated and not implemented. Completion requires observed achievement of the goal.
 
-## Кооперация без общего распределителя
+## Cooperative without a common distributor
 
-Создайте `createFleet`, отдельный Core для каждого клиента и передайте его `peer` в `createAdaptiveScenario`. Стратегия с `resource: 'tree/area-1'` сначала распространяет намерение. Выбранный участник начинает работу; остальные могут выбрать другую стратегию. Намерение продлевается, освобождается при смене задачи и истекает при остановке агента. В конце приложения вызывайте `task.dispose()`.
+Create `createFleet`, Individual Core For every client and give him `peer` in `createAdaptiveScenario`. Strategy with `resource: 'tree/area-1'` First, spreads intent. The selected participant begins work; The rest of you can choose another strategy. The intention is extended, released on change of task and expired on stop of agent. At the end of the application, call `task.dispose()`.
 
-Транспорт KudoConnect не назначает цели: каждый мозг самостоятельно принимает решение по доступным намерениям. Игровой чат не используется. При потере связи возможны конфликтующие решения; для необратимых операций приложению нужен дополнительный протокол подтверждений.
+Transport OMConnect does not set targets: Each brain decides on its own on what is available. Game chat not used. If you lose contact, you can have conflicting solutions; Additional confirmation report required for irreversible operation of the annex.
 
-[Пример обучения без Minecraft](../examples/learning.js) · [Группа реальных клиентов](../packages/kudoconnect/examples/team.js) · [Начальные сценарии](SCENARIOS.md)
+[Example of learning without Minecraft](../examples/learning.js) · [Real Client Group](../packages/omconnect/examples/team.js) · [Initial scenarios](SCENARIOS.md)

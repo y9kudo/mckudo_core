@@ -32,7 +32,7 @@
       "rule": "prepare-workshop",
       "skill": "gather",
       "outcome": "failure",
-      "detail": "Наблюдение не подтвердило ожидаемый эффект; план отброшен."
+      "detail": "Observation did not confirm the expected effect; plan discarded."
     },
     {
       "at": 1790078487695,
@@ -55,5 +55,5 @@
     "minecraft:stick": 4
   },
   "plannerCalls": 2,
-  "limitation": "Первый успешный запуск включал задержку подбора второго бревна и перепланирование. После теста добавлено ожидание подбора; оно проверено отдельным тестом API, повторный игровой прогон после исправления не выполнялся."
+  "limitation": "The first successful launch included a delay in re-scanning the second log and re-engineering. After the test, the rebound wait added; It is tested by a separate test API, No re-play after correction."
 }

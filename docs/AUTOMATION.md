@@ -1,25 +1,25 @@
-# Модули автоматизации MCKudo Core 0.4
+# Automation modules OvermindMC 0.4
 
-MCKudo Core — библиотека Minecraft. Все приведённые функции импортируются из `mckudo`; игровой адаптер импортируется из `mckudo/adapters/mineflayer`. Приложение владеет клиентом и соединением. Код ядра принимает данные и выбирает действия. Автор: y9kudo, MIT.
+OvermindMC — Library Minecraft. All specified functions are imported from `mckudo`; Game adapter imported from `mckudo/adapters/mineflayer`. The application is owned by the client and the connection. The core code takes data and selects actions. Author: y9kudo, MIT.
 
-## Каталог и рецепты
+## Catalogue and recipes
 
-`catalogFromMinecraftData(data, options)` импортирует реестр конкретной версии. `data` — результат `minecraftData('1.21.1')` или `bot.registry`. Для данных модов используй `createCatalog({ version, items, blocks, recipes })` с ID `namespace:имя`.
+`catalogFromMinecraftData(data, options)` Imports a specific version of the registry. `data` — result `minecraftData('1.21.1')` or `bot.registry`. Use it for fashion data `createCatalog({ version, items, blocks, recipes })` with ID `namespace:name`.
 
-| Метод Catalog | Результат |
+| Method Catalog | Result |
 |---|---|
-| `item(id)`, `block(id)`, `recipe(id)` | Запись или `null` |
-| `recipesFor(item)` | Все рецепты с этим результатом |
-| `items()`, `blocks()`, `recipes()` | Копии записей |
-| `summary()` | Версия, количества и распределение типов |
+| `item(id)`, `block(id)`, `recipe(id)` | Recording or `null` |
+| `recipesFor(item)` | All recipes with this result |
+| `items()`, `blocks()`, `recipes()` | Copies of records |
+| `summary()` | Version, quantity and distribution of types |
 
-Числовые ID относятся только к своей версии; для конфигураций используй строковые namespace ID. Изменение возвращённой записи не меняет каталог.
+Numerical ID are only relevant to their version; for configuration use string namespace ID. Changing Returned Record Doesn't Change Catalog.
 
-`readJavaDataArchive(path)` читает JSON-рецепты и теги из JAR Minecraft или ZIP datapack. Поддерживаются пути `recipe`/`recipes`, `tags/item`/`tags/items`, `tags/block`/`tags/blocks`. Возвращается `{ recipes, tags, blockTags }`. Затем передай `vanillaRecipes: recipes, tags` в импортёр каталога, а `blockTags` — в таксономию. Чтение ограничено 128 MiB архива, 2 MiB на запись и 64 MiB распакованных JSON; ZIP64 не принимается. Файлы из архива не извлекаются и не исполняются.
+`readJavaDataArchive(path)` Reads JSON-and tags from JAR Minecraft or ZIP datapack. Paths supported `recipe`/`recipes`, `tags/item`/`tags/items`, `tags/block`/`tags/blocks`. Returned `{ recipes, tags, blockTags }`. Then pass it on `vanillaRecipes: recipes, tags` to the catalog importer, a `blockTags` — to taxonomy. Reading is limited 128 MiB archives, 2 MiB on record and 64 MiB unpacked JSON; ZIP64 Not accepted. Files are not retrieved from the archive and are not executed.
 
-Это импорт одного набора данных. Для datapack с изменениями сначала сформируй итоговые реестры и теги по порядку загрузки сервера: функция не имитирует серверные приоритеты datapack. Переданный реестр должен содержать используемые предметы.
+This is the import of one data set. For datapack Change first to create final registers and server download tags: function does not simulate server priorities datapack. The transferred register should contain the items used.
 
-Формат нормализованного рецепта:
+Normalized prescription format:
 
 ```json
 {
@@ -33,11 +33,11 @@ MCKudo Core — библиотека Minecraft. Все приведённые ф
 }
 ```
 
-`choices` — допустимые альтернативы ингредиента. Импорт раскрывает вложенные теги, обнаруживает циклы и сохраняет `raw` для специальных рецептов. `executable` означает наличие модели типа рецепта у планировщика; это не подтверждение игрового испытания каждой записи. Динамические рецепты, кузнечные шаблоны, камнерез и костёр индексируются с `executable: false` и объяснением. Расширение может использовать `raw` для своего навыка.
+`choices` — Acceptable Alternatives to the Intended. Imports reveal the input tags, Finds cycles and stores `raw` for special recipes. `executable` means the model of the recipe type is available to the planner; It's not a confirmation of the game test of every record. Dynamic recipes, grasshopper templates, stoner and fire are indexed with `executable: false` and explanation. Extension can use `raw` for his skill.
 
-Исполнители 0.4: shaped/shapeless-крафт, `smelting`, `smoking`, `blasting`. Перед каждой операцией адаптер сверяет ингредиенты, наличие станции и фактический результат. Крафт с возвращаемыми контейнерами в данных `minecraft-data` отдельно помечается как требующий учёта остатков.
+Executors 0.4: shaped/shapeless-craft, `smelting`, `smoking`, `blasting`. Before each operation, adapter checks ingredients, Station availability and actual output. Craft with returned containers in data `minecraft-data` separately marked as requiring accounting for balances.
 
-## Множественные классы блоков
+## Multiple classes of blocks
 
 ```js
 const classes = createBlockTaxonomy(catalog, {
@@ -55,15 +55,15 @@ classes.has('minecraft:deepslate_iron_ore', 'ores');
 classes.select({ all: ['tree'], none: ['leaves', 'saplings'] });
 ```
 
-Один блок имеет несколько меток; родители наследуются. `logs → tree, wood`, `leaves → tree, vegetation`, `deepslate_ores → ores → mineral`. Предусмотрены классы почвы, камня, построечных блоков, культур, станций, контейнеров, жидкостей, опасностей, рельсов и редстоуна. Каждый блок попадает в `all` и класс известной формы: `solid`, `non_solid` либо `shape_unknown`. Это базовое покрытие всего реестра; предметная классификация расширяется тегами и `classes`.
+One block has several tags; parents inherit. `logs → tree, wood`, `leaves → tree, vegetation`, `deepslate_ores → ores → mineral`. Soil classes are provided, Stone, Construction blocks, Cultural, Stations, Containers, liquids, Risks, rails and redstones. Each block hits `all` and class of known shape: `solid`, `non_solid` either `shape_unknown`. This is the basic coverage of the entire roster; subject classification extended by tags and `classes`.
 
-Теги импортируются как `tag:minecraft:имя`. Автоматические названия — удобные начальные правила. Для блоков модпака передавай явные классы и серверные теги. Класс `non_solid` не означает безопасность прохода: навигация проверяет опору, свободные ячейки и опасности отдельно.
+Themes are imported as `tag:minecraft:name`. Automatic names — Efficacy start-up rules. For the fashion pack blocks, send out clear classes and server tags. Class `non_solid` does not mean the safety of passage: navigation checks the support, Free cells and hazards separately.
 
-`resourceSources(catalog, { availableBlocks, taxonomy })` строит консервативные источники древесины, камня и руды из наблюдаемых блоков. Обычная и глубинная железная руда дают `raw_iron`. Учитываются инструменты из реестра. Выход берётся как базовый минимум без Fortune/Silk Touch; случайный дроп листвы не используется как гарантированный источник. Для своих блоков можно передать `sources` вручную.
+`resourceSources(catalog, { availableBlocks, taxonomy })` Builds conservative wood sources, stones and ores from observed blocks. The usual and deep iron ore gives `raw_iron`. Tools from the roster are taken into account. The exit takes as a basic minimum without Fortune/Silk Touch; random foliage is not used as a guaranteed source. For your blocks you can transfer `sources` manual.
 
-## Планирование ресурсов
+## Resource planning
 
-`planResources({ catalog, targets, inventory, sources, stations, fuel, maxDepth, maxNodes, maxActions })` строит цепочку назад от результата, резервирует ингредиенты и уже запрошенные результаты. Неудачная ветвь откатывается. План выбирает первую найденную допустимую цепочку в бюджете.
+`planResources({ catalog, targets, inventory, sources, stations, fuel, maxDepth, maxNodes, maxActions })` Builds a chain back from the result, Reserves ingredients and results already requested. The bad branch is rolling back. The plan selects the first acceptable chain found in the budget.
 
 ```js
 const plan = planResources({
@@ -78,36 +78,36 @@ const plan = planResources({
 });
 ```
 
-`true` обозначает наблюдаемую установленную станцию. Координаты разрешают ядру изготовить станцию и поставить её в указанную свободную ячейку. Адаптер заново проверяет место перед установкой. Топливо по умолчанию выбирается среди доступных досок; ёмкость учитывается консервативно как один предмет на доску. Можно явно задать `{ item: 'minecraft:coal', itemsPerFuel: 8 }`.
+`true` The following is the view of the installed station:. The coordinates allow the kernel to make the station and place it in the specified free cell. The adapter rechecks the location before installation. The fuel is selected by default from the board available; The capacity is considered conservatively as one item per board. You can clearly ask `{ item: 'minecraft:coal', itemsPerFuel: 8 }`.
 
-План содержит `status`, `reason`, `actions`, `visited`, а при успехе — расчётные `inventoryAfter` и `stations`. Расчётные значения не заменяют наблюдение. Источник не гарантирует, что в мире хватит блоков или инструмент не сломается; после действия нужны свежие данные.
+The plan contains `status`, `reason`, `actions`, `visited`, and in success — calculated `inventoryAfter` and `stations`. The calculation values do not replace observation. Source does not guarantee, I think there's enough blocks in the world or the tool won't break; After action needs up-to-date data.
 
-Лимиты по умолчанию: глубина 24, узлы 3000, действия 256. Одна партия крафта — до 16 повторений, плавки — до 64 входных предметов. Большую производственную задачу разделяй на партии. `resourceWorkflow(id, plan)` преобразует до 64 действий в задачу с постусловиями.
+The default limits: depth 24, knots 3000, Action 256. One batch of craft — to 16 Repeats, Clothes — to 64 items. The big task of production divide into lots. `resourceWorkflow(id, plan)` converts to 64 to the task of post-sentencing.
 
-Для выбора класса результата используй `planResourceClasses({ ...options, targets: { '#planks': 8 } })`. Выбирается один выполнимый вид досок; выбранные точные ID возвращаются в `resolvedTargets`. Это не суммирование смешанной стопки разных видов. По умолчанию проверяется до 64 комбинаций альтернатив, максимум 256.
+Use this to select the result class `planResourceClasses({ ...options, targets: { '#planks': 8 } })`. One achievable view of the boards is selected; selected exact ID Returned to `resolvedTargets`. It's not a summation of a mixed pile of different types. The default shall be checked before 64 of alternatives, maximum 256.
 
-`createResourceReactor` планирует заново после каждого действия. Он берёт известные источники из `world.nearbyBlocks`, учитывает установленную станцию и выбирает первое действие. При подключённом `exploration` и отсутствии ресурсной цепочки выбирает новую точку наблюдения. Используй последовательные достижимые этапы — сначала инструменты, затем добыча более требовательных материалов.
+`createResourceReactor` plans again after each action. He takes from the known springs `world.nearbyBlocks`, takes into account the installed station and selects the first action. With connection `exploration` and lack of a resource chain selects a new observation point. Use successive achievable steps — First tools, Then production of more demanding materials.
 
-## Восприятие и загрузка мира
+## The perception and download of the world
 
-| Параметр Mineflayer-адаптера | По умолчанию | Диапазон |
+| Parameter Mineflayer-adapter | By default | Range |
 |---|---:|---:|
-| `searchRadius` | 128 блоков | 16–512 |
-| `entityRadius` | 128 блоков | 16–512 |
-| `requestedViewDistance` | 16 чанков | 2–32 |
-| `scanIntervalMs` | 1000 мс | 100–60000 |
-| `trackedBlocks` | `#logs`, `#ores`, `#workstations`, `#crops` | до 128 ID/классов, 2048 раскрытых типов |
-| `watchedPositions` | `[]` | до 2048 ячеек постройки |
+| `searchRadius` | 128 blocks | 16–512 |
+| `entityRadius` | 128 blocks | 16–512 |
+| `requestedViewDistance` | 16 chunks | 2–32 |
+| `scanIntervalMs` | 1000 ms | 100–60000 |
+| `trackedBlocks` | `#logs`, `#ores`, `#workstations`, `#crops` | to 128 ID/classes, 2048 Types of disclosure |
+| `watchedPositions` | `[]` | to 2048 Building cells |
 
-Готовый JSON: [perception.json](../examples/perception.json). Настройки передаются вторым аргументом `createMineflayerAdapter`, отдельно от JSON правил ядра.
+Ready JSON: [perception.json](../examples/perception.json). The settings are transferred by a second argument `createMineflayerAdapter`, separate from JSON Regulations of the kernel.
 
-Адаптер отправляет запрос клиентской дальности через `setSettings`. Сервер определяет реальное число чанков, а также дистанцию передачи сущностей. Радиус поиска не создаёт данные о незагруженных областях. Большие радиусы увеличивают время обхода и потребление памяти клиента.
+Adaptation sends a client range request via `setSettings`. The server determines the actual number of chocolates, and the distance of transmission of entities. Search radius does not generate data on unladen areas. The high radius increases the time of the walk and the consumption of client memory.
 
-Один снимок содержит до 512 найденных блоков с отдельными бюджетами для групп и до 128 ближайших сущностей. Кэш сбрасывается при изменении блоков/чанков, перемещении и завершении действия. `true` в `nearbyBlocks` — блок найден; `null` в пакетном сканировании — тип не подтверждён текущей выборкой. `sampledBlocks` содержит координаты находок, `crops` — известные культуры и зрелость. Для срочных реакций `observeThreats` читает сущности и урон без повторного обхода блоков.
+One picture contains before 512 selected clusters with separate budgets for groups and prior to 128 of the nearest entities. Cash is dropped when blocks change/chunks, and conclusion of the transition. `true` in `nearbyBlocks` — Block found; `null` in bag scan — Type not confirmed by current sample. `sampledBlocks` contains the location of the find, `crops` — known cultures and maturity. For urgent reactions `observeThreats` Reads the essence and the damage without re-circling the blocks.
 
-## Собственная навигация и исследование
+## Navigation and research
 
-`planRoute` — ограниченный A* с очередью приоритетов над наблюдаемыми блоками. Вершина — позиция ног на опоре. Переходы: ходьба по четырём направлениям, подъём на один блок, спуск до трёх блоков, разрешённая добыча прохода и постановка опоры моста. Мост и добыча дороже обычного шага. Пример: [navigation.js](../examples/navigation.js).
+`planRoute` — limited A* priority over observed clusters. Upper — Position of the legs on the support. Transition: Walking in four directions, rise up on one block, descending to three blocks, permitted extraction and installation of bridge support. Bridge and mining are more expensive than normal steps. Example: [navigation.js](../examples/navigation.js).
 
 ```js
 const route = planRoute({
@@ -122,9 +122,9 @@ const route = planRoute({
 });
 ```
 
-`getBlock` возвращает блок с `name`/`id`, `boundingBox`, при наличии `shapes`, `diggable`, `hardness`; незагруженная ячейка — `null`. Проверяются свободные ноги и голова, опора, вертикальный проход. Жидкости и перечисленные опасные блоки не считаются опорой. Добыча по умолчанию запрещена; разрешённая добыча отклоняется возле неизвестных соседей, жидкостей и падающих блоков. Стоимость учитывает твёрдость. Результат: `steps`, `cost`, `bridgeUsed`, `visited`, `unknown` и причина остановки.
+`getBlock` Returns block from `name`/`id`, `boundingBox`, where available `shapes`, `diggable`, `hardness`; Unladen Cell — `null`. Free legs and head checked, support, vertical passage. Liquids and listed dangerous blocks are not considered as support. Reliance is prohibited; Authorized mining is rejected near unknown neighbors, Liquids and falling blocks. Cost is taken into account for hardness. Result: `steps`, `cost`, `bridgeUsed`, `visited`, `unknown` and the reason for the stop.
 
-Навык `navigate` Mineflayer-адаптера исполняет маршрут собственным контроллером MCKudo: поворот, клавиши движения, прыжок, добыча и установка блока. Он проверяет следующий сегмент по свежему миру и останавливается при изменении, отмене или отсутствии продвижения. Для моста нужны настоящие полные устойчивые блоки в инвентаре и соседняя опора. После установки сервер должен подтвердить новый блок; только затем разрешён следующий шаг.
+Skill `navigate` Mineflayer-adapter runs the route by its own controller OvermindMC: turn, Move keys, Jump, Production and installation of the block. He checks out the next segment on the fresh world and stops when it changes, No progress or withdrawal. The bridge needs real full-scale sustainable equipment and a nearby support. Once installed, the server shall confirm the new block; Only then is the next step allowed.
 
 ```json
 {
@@ -138,50 +138,50 @@ const route = planRoute({
 }
 ```
 
-`navigate` использует MCKudo; прежний `goto` и подход к объектам в навыках `gather`, `craft`, `place`, `smelt`, `harvest`, `attack` используют подключённый mineflayer-pathfinder. Исполнитель `navigate` рассчитан на полные опоры и свободные воздушные ячейки. Плавание, лестницы, открытие дверей, сложные формы коллизий и межпространственные переходы требуют отдельных переходов и исполнителей.
+`navigate` uses OvermindMC; old `goto` and approach to facilities in skills `gather`, `craft`, `place`, `smelt`, `harvest`, `attack` using the connection mineflayer-pathfinder. The perpetrator `navigate` Full-bed and free air cells. Swimming, stairs, Opening doors, complex forms of conflict and inter-dimensional transitions require separate transitions and actors.
 
-`planExploration({ position, getBlock, mode, visited, radius })` выбирает достижимую известную точку, с которой можно расширить наблюдение. Режим `ores` отдаёт приоритет более низкой доступной поверхности и углублениям; он ищет проходы по известной геометрии. `surface` ищет новые области поверхности. Ни один режим не предполагает существование скрытой руды. Радиус 32 по умолчанию, 4–128; до 16 кандидатов и 1500 узлов на кандидат. Для разработки шахты используй явную политику разрешённой добычи в `planRoute`.
+`planExploration({ position, getBlock, mode, visited, radius })` Selects an achievable known point, The scope of monitoring can be expanded. Mode `ores` gives priority to lower accessible surface and depth; He's looking for passageways through known geometry. `surface` Looking for new surface areas. No regime implies the existence of a hidden ore. Radio 32 default, 4–128; to 16 candidates and 1500 Node for candidate. Use a clear policy of authorized mining in the mine `planRoute`.
 
-## Reactor и быстрые реакции
+## Reactor and rapid reactions
 
-Модуль имеет `{ id, apiVersion: 1, preempt?, react(observation) }`. Синхронный `react` возвращает `{ action, priority, reason }` либо `{ action: null, reason }`. Нельзя выполнять игровые действия внутри `react`: их жизненный цикл контролирует ядро. Максимум 16 модулей, уникальные ID. При одинаковом приоритете Reactor рассматривается раньше JSON-правил.
+The module has `{ id, apiVersion: 1, preempt?, react(observation) }`. Synchronous `react` Returns `{ action, priority, reason }` either `{ action: null, reason }`. You can't do games inside `react`: their life cycle is controlled by the kernel. Maximum 16 modules, Unique ID. With the same priority Reactor considered earlier JSON-rules.
 
-`createDefenseReactor` имеет приоритет 1000 и `preempt: true`. Ядро проверяет такие реакции во время действия с интервалом `preemptionMs` (100 мс по умолчанию, 50–2000). При угрозе отменяет текущее действие, ждёт его остановки, затем принимает новое решение. Навыки не выполняются параллельно. Отменённый шаг Workflow не расходует попытку. Интервал проверки не является гарантией задержки сети, экипировки или завершения текущей транзакции крафта.
+`createDefenseReactor` has priority 1000 and `preempt: true`. The kernel checks such reactions during operation at intervals `preemptionMs` (100 default ms, 50–2000). If threatened, cancels the current action, Waiting for him to stop, Then takes a new decision. Skills not being performed in parallel. Cancelled Step Workflow Doesn't waste an attempt. The verification interval is not a guarantee of network delay, Equipment or completion of current craft transaction.
 
-Защита использует подтверждённые враждебные виды и атрибутированный источник урона. При низком здоровье или рядом с крипером выбирается `flee`. Для игрока требуются `attackPlayers: true`, нужное число ударов за окно времени и отсутствие в `trustedPlayers`. По умолчанию два удара за 10 секунд, здоровье отступления 8, радиус угрозы 8, преследования 12. Дальность боя ограничена 32. Источник удара, которого сервер не сообщил, не приписывается ближайшему игроку.
+The defense uses confirmed hostile species and a attributable source of damage. In poor health or near the cryper, selected `flee`. The player needs `attackPlayers: true`, number of strokes per window and absence from `trustedPlayers`. By default two strokes per 10 seconds, Health of derogation 8, Threat radius 8, Prosecution 12. The range of combat is limited 32. Impact source, The server did not report, Not assigned to the nearest player.
 
-Оружие выбирается до сближения: доступный меч или топор по уровню материала. Один `attack` выполняет один удар с ожиданием восстановления; следующее решение проверяет свежую цель. Угрозы могут прервать производство пищи и поиск ресурсов. Приложение включает нужную PvP-политику явно.
+Weapons are selected before they get close: accessible sword or axe by level of material. One `attack` One strike waiting for recovery; The next solution checks the new target. Threats can disrupt food production and resource search. Annex includes the appropriate PvP-policy.
 
-## Еда, фермы и печи
+## Food, Farms and ovens
 
-`createFoodReactor({ catalog, foodThreshold: 16, allowHunting: false, huntRadius: 16, replant: true })` имеет приоритет 900. Порядок: готовая безопасная пища → приготовление из припасов → зрелая культура → разрешённая охота. Сырая курица, гнилая плоть и ядовитые предметы не выбираются как готовая еда.
+`createFoodReactor({ catalog, foodThreshold: 16, allowHunting: false, huntRadius: 16, replant: true })` has priority 900. Order: Cooked safe food → preparation of supplies → mature culture → authorized hunting. Cheese chicken, Rotten flesh and poisonous objects are not selected as ready food.
 
-Поддержаны зрелые пшеница, морковь, картофель и свёкла. Зрелость проверяется повторно у блока. `harvest` ждёт подбор урожая, затем при `replant: true` сажает подходящие семена в сохранившуюся грядку. Если посадка невозможна, действие сообщает, что урожай уже собран, но посадка не выполнена.
+Supported by mature wheat, Carrots, Potatoes and beet. The ripeness is rechecked at the block. `harvest` Waiting for harvest, then, `replant: true` Plants suitable seeds into the remaining area. If no landing is possible, action reports, I'm sure the harvest has been harvested, But the landing was not completed.
 
-Охота включается через `allowHunting: true`. Выбираются корова, свинья, курица, овца или кролик; игроки исключены. Если адаптер сообщает `named` или `isBaby`, такие цели исключаются. Mineflayer-адаптер не нормализует эти два флага для всех протоколов; приложение может расширить наблюдение или оставить охоту выключенной. При исчезновении цели после удара исполнитель подходит к месту для подбора дропа. Результат питания определяется свежим инвентарём.
+Hunting turns on through `allowHunting: true`. The cow is coming out, Pig, chicken, sheep or rabbit; Players excluded. If adapter reports `named` or `isBaby`, such objectives are excluded. Mineflayer-adapter does not normalize these two flags for all protocols; an application can expand surveillance or leave hunting off. When the target disappears after the impact, the performer approaches the location for the dart selection. The result of the feed is determined by fresh equipment.
 
-`smelt` принимает `input`, `item`, `count`, `fuel`, `fuelCount`, `station` (`minecraft:furnace`, `minecraft:smoker`, `minecraft:blast_furnace`). Числа 1–64. Исполнитель открывает пустую станцию, кладёт сырьё и топливо, ждёт настоящий выход и закрывает окно. Занятую печь он не использует. При отмене уже положенные предметы могут остаться внутри; их возврат/восстановление принадлежит политике приложения. Для длительной плавки задай достаточный `actionTimeoutMs` (до 300000 мс) и размер партии.
+`smelt` accepts `input`, `item`, `count`, `fuel`, `fuelCount`, `station` (`minecraft:furnace`, `minecraft:smoker`, `minecraft:blast_furnace`). Numbers 1–64. The perpetrator opens an empty station, - It's raw and fuel, Waiting for the real exit and closing the window. He doesn't use a busy furnace. If the items already in hand are cancelled, they may stay inside; their return/Recovery belongs to the application policy. For long bathing, give me enough `actionTimeoutMs` (to 300000 ms) and size of lot.
 
-## Строительство и развитие
+## Construction and development
 
-`createShelterBlueprint` создаёт пол, стены, крышу, проём и двухблочную дверь. Параметры: `origin`, `width`/`depth` 3–11, `height` 3–5, `material`, `door`. `billOfMaterials` считает предметы; верх двери не считается второй дверью. `validateBlueprint` проверяет координаты и пересечения.
+`createShelterBlueprint` Creates the floor, Walls, roof, and a two-block door. Parameters: `origin`, `width`/`depth` 3–11, `height` 3–5, `material`, `door`. `billOfMaterials` considers objects; the top of the door is not considered as the second door. `validateBlueprint` Checks coordinates and intersections.
 
-`planConstruction(blueprint, { blocks, inventory })` сравнивает чертёж со снимком ячеек `"x,y,z" → namespace:id`. Состояния: `blocked`, `needs-materials`, `ready`, `completed`. Поля `shortages` и `materials` помогают передать недостающее в планировщик ресурсов. Занятые и неизвестные ячейки не очищаются автоматически. `createConstructionReactor` выбирает следующий недостающий блок. Ячейки чертежа передаются адаптеру в `watchedPositions`; участок и доступ к его граням выбирает приложение.
+`planConstruction(blueprint, { blocks, inventory })` compares the drawing to the picture of the cells `"x,y,z" → namespace:id`. Status: `blocked`, `needs-materials`, `ready`, `completed`. Fields `shortages` and `materials` Helps transfer missing resources to the planner. The occupied and unknown cells are not automatically cleaned. `createConstructionReactor` Selects the next missing block. Drawing cells to adapter in `watchedPositions`; The area and access to its edges selects the application.
 
-`createSurvivalProgression` отслеживает упорядоченные вехи и сохраняет `{ completed }`. Стандартные этапы: верстак → деревянная кирка → каменная кирка и печь → железная кирка. Условия этапов можно заменить. Стандартное условие верстака относится к инвентарю; вызывай `update` после крафта до установки или задай условие установленной станции. Этот модуль отслеживает прогресс; действия выбирает Resource Reactor, Planner или Workflow.
+`createSurvivalProgression` Monitors the orderly milestones and stores `{ completed }`. Standard steps: crafting table → wooden pick → Rock and furnace → Iron pick. Phase conditions can be replaced. The standard condition for the versta is for equipment; Call `update` after the craft before installation or set the condition of the installed station. This module tracks progress; Actions Select Resource Reactor, Planner or Workflow.
 
-## Где находится реализация
+## Where Implementation is
 
-| Файл | Ответственность |
+| File | Responsibility |
 |---|---|
-| `src/catalog.js`, `src/java-data.js` | Импорт и индексирование данных |
-| `src/taxonomy.js` | Классы, теги и источники ресурсов |
-| `src/resources.js` | Рецепты, альтернативы, резервирование |
-| `src/navigation.js`, `src/exploration.js` | Маршруты и исследование |
-| `src/survival.js`, `src/food.js` | Вехи, защита и питание |
-| `src/construction.js` | Чертежи и план строительства |
-| `src/core.js` | Выбор действий, отмена, наблюдения и история |
-| `adapters/mineflayer*.js` | Связь с Minecraft API и исполнение |
-| `mckudo_core.d.ts` | Публичные типы библиотеки |
+| `src/catalog.js`, `src/java-data.js` | Data import and indexing |
+| `src/taxonomy.js` | Classes, strategies and sources of resources |
+| `src/resources.js` | Reciprocies, Alternatives, Reserve |
+| `src/navigation.js`, `src/exploration.js` | Routes and research |
+| `src/survival.js`, `src/food.js` | Vlaxes, Protection and nutrition |
+| `src/construction.js` | Drawings and construction plan |
+| `src/core.js` | Choice of action, cancellation, Observation and history |
+| `adapters/mineflayer*.js` | Communications Minecraft API and enforcement |
+| `overmindmc.d.ts` | Public types of library |
 
-Для Forge/NeoForge/Fabric адаптер передаёт свои реестры, наблюдения и навыки; основные алгоритмы используют общий контракт. Конкретная игровая интеграция и её совместимость проверяются на выбранной версии: [MODS.md](MODS.md).
+For Forge/NeoForge/Fabric adapter transfers its registers, Observation and skills; Basic algorithms use common contract. Specific game integration and compatibility shall be checked in the selected version: [MODS.md](MODS.md).

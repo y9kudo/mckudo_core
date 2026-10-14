@@ -1,14 +1,14 @@
-# Новые методы интеллекта MCKudo
+# New methods of intelligence OvermindMC
 
-Автор: **y9kudo**. Состояние на 13 октября 2026: первый механизм включён в 0.7.0; остальные описаны как проекты следующих модулей. Их нельзя считать уже доступными возможностями.
+Author: **y9kudo**. Status 13 October 2026: First mechanism included in 0.7.0; The remaining are described as drafts of the next modules. They cannot be considered as already available.
 
-Мы хотим, чтобы небольшая программа задавала намерение, а ядро самостоятельно выбирало действия, объясняло ошибки и меняло способ достижения цели. При этом полученный предмет, построенный блок и нанесённый урон подтверждаются сервером.
+We want, I want a little program to set the plan, And the core chose to act on its own, explained mistakes and changed the way in which it was achieved. The item received, The built block and the damage sustained is supported by a server.
 
-## 1. Evidence Memory: отказ с проверяемыми условиями
+## 1. Evidence Memory: failure with verified conditions
 
-**Реализовано:** `createActionEvidenceMemory`, коды `KudoActionError`, интеграция с выживанием и общей памятью менеджера агентов.
+**Implemented:** `createActionEvidenceMemory`, codes `OMActionError`, Integration with the survival and common memory of the agent manager.
 
-Обычная запись «не получилось, повторить через две секунды» теряет причину. Новая запись содержит код ошибки и наблюдения, на которых остановился исполнитель. Например:
+Normal Record «It didn't work out, repeat in two seconds» loses cause. The new entry contains error and observation code, the perpetrator. For example:
 
 ```json
 {
@@ -18,34 +18,34 @@
     "facts": {
       "position": "0,64,0",
       "navigationMode": "ground",
-      "block:0,64,0": "состояние блока у ног",
-      "block:0,65,0": "состояние блока у головы",
-      "block:0,63,0": "состояние опоры"
+      "block:0,64,0": "leg condition of block",
+      "block:0,65,0": "Head condition of block",
+      "block:0,63,0": "Support leg condition"
     }
   }
 }
 ```
 
-Значения блоков в настоящей записи формирует `blockEvidenceValue`: ID/имя состояния, тип коллизии и формы. Пример выше поясняет структуру; эти строки не следует отправлять исполнителю как настоящий сертификат.
+The block values in this entry form `blockEvidenceValue`: ID/Status name, Type of conflict and form. The example above explains the structure; These lines should not be sent to the performer as a true certificate.
 
-Перед следующим действием память заново читает **только участвующие в выводе факты**. Если они совпадают, бессмысленный старт исключается. Если опора изменилась, агент переместился или включился другой способ движения, допускается новая попытка. Изменение далёкого блока не сбрасывает вывод. Неизвестный чанк не считается доказательством препятствия.
+Before next action, memory rereads **Only facts involved**. If they match, A meaningless start is excluded. If the support has changed, The agent moved or another mode of movement switched on, allowed new attempt. The change in the remote block does not drop the output. Unknown cup is not considered evidence of an obstacle.
 
-Агент Blake может использовать отказ Avery, если сам наблюдает ту же стартовую геометрию в том же мире и измерении. Цель маршрута может быть другой: неподтверждённая стартовая опора мешает любому наземному маршруту из этой ячейки.
+Agent Blake may use a failure Avery, If you see the same starting geometry in the same world and dimension. The route may have a different purpose: Unconfirmed launch pole prevents any ground route from this cell.
 
-Сейчас такой общий условный запрет применяется только к **проверяемому предусловию старта наземного планировщика**. `NO_PATH`, `STEP_STALLED`, `OCCUPIED` и коррекции сервера получают временную задержку для конкретного агента. Отсутствие пути зависит от доступных материалов, правил добычи, соседей и бюджета поиска; одного текста ошибки недостаточно для постоянного общего вывода.
+This general conditional prohibition now applies only to **Tested ground planner start-up condition**. `NO_PATH`, `STEP_STALLED`, `OCCUPIED` and server correction is granted temporary delay for a particular agent. Lack of a path depends on the materials available, Production regulations, and the search budget; one error text is not sufficient for a constant general conclusion.
 
-Реактор выживания с этой памятью сам управляет задержками (`managesRetries: true`), поэтому ядро не накладывает второй независимый таймер после исправления опоры. Для своего реактора этот флаг следует включать только при реализации собственного учёта отказов и ограничений повторов; по умолчанию действует защита ядра.
+The survival reactor with this memory controls the delays itself (`managesRetries: true`), So the kernel does not impose a second independent timer after the support leg has been corrected. For its reactor, this flag should only be included when implementing its own failure and re-entry restrictions; default core protection.
 
-Это объяснение отказа действующей модели навигации, а не доказательство того, что человек физически не может стоять на плите. Поддержку частичных опор необходимо расширить в самой модели движения.
+This is an explanation for the failure of the current navigation model, Not proof of that, I'm sure that man can't physically stand on the stove. Support for partial supports needs to be expanded in the traffic model itself.
 
-### Как использовать
+### How to Use
 
-В `createMinecraftBrain()` память создаётся автоматически. `createAgentManager()` использует одну общую память для управляемой группы; писать координацию в игровом чате не требуется.
+B `createMinecraftBrain()` memory is created automatically. `createAgentManager()` uses one common memory for a controlled group; ♪ I don't need to write the coordination on the game chat ♪.
 
-Для отдельного управления памятью:
+For separate memory management:
 
 ```js
-import { createActionEvidenceMemory, createAgentManager } from 'mckudo';
+import { createActionEvidenceMemory, createAgentManager } from 'overmindmc';
 
 const actionEvidence = createActionEvidenceMemory({
   worldId: 'my-server-world-1',
@@ -60,62 +60,62 @@ const manager = createAgentManager({
 });
 
 console.log(actionEvidence.snapshot());
-// Подключение и запуск остаются явными командами manager.execute(...).
+// Connection and launch remain clear command manager.execute(...).
 await manager.close();
 ```
 
-Этот API доступен из исходников и архива 0.7.0; старый `dev.0` его не содержит. `worldId` должен изменяться при замене мира. Память ограничена по числу записей, хранится в процессе и сейчас не восстанавливается с диска. `snapshot()` возвращает копию записей, число предотвращённых попыток, общих выводов и повторных проверок.
+This one API Available from source and archive 0.7.0; old `dev.0` it's not. `worldId` should change when replacing the world. Memory limited by number of entries, stored in process and not re-established from disk. `snapshot()` Returns a copy of the records, Number of attempts prevented, general findings and re-checking.
 
-Проверка без Minecraft:
+Check without Minecraft:
 
 ```powershell
 npm.cmd run demo:evidence
 ```
 
-Настоящий планировщик получает синтетический мир с неподдерживаемой стартовой опорой. Из 20 кандидатов одна попытка создаёт запись, остальные 19 исключаются по заново проверенным фактам. После замены опоры маршрут успешно строится. Это проверка механизма, а не заявление об ускорении всей игры в двадцать раз.
+A real planner gets a synthetic world with unsupported start-up support. From 20 One attempt to create a record, Others 19 excluded from re-checked facts. After replacement of the support leg, the route is successfully constructed. It's a test of the mechanism, Not a 20-time statement of the game's speed.
 
-## 2. KudoVectorize: область устойчивого приземления
+## 2. OMVectorize: Sustainable landing area
 
-**Проект:** выбирать область допустимых исходов движения вместо одной идеальной точки.
+**Draft:** Select the area of permissible traffic output instead of one ideal point.
 
-Сегодня расчёт может быть геометрически точным, но небольшая ошибка положения или задержка меняет результат. Предлагается оценивать семейство траекторий: текущая скорость ± погрешность, несколько возможных задержек и крайние положения тела. План допускается, если достаточная доля траекторий заканчивается на наблюдаемой безопасной поверхности с запасом до края.
+Today the calculation can be geometrically accurate, but a slight error of position or delay changes the result. It is proposed to estimate the trajectory family: Current speed ± error, several possible delays and extreme positions of the body. Plan allowed, if sufficient trace coverage ends on the observed safe surface with reserve to the edge.
 
-На первом этапе — короткие падения и прыжки. Затем — посадка элитр и жемчуг. В каждой оценке сохраняются диапазон погрешности, использованные чанки и причина отклонения. Неизвестная геометрия уменьшает уверенность, а не превращается в воздух.
+In the first phase — Short drops and jumps. Then — Landing of the elite and pearls. Each assessment retains a margin of error, used cups and cause of deviation. Unknown geometry reduces confidence, Not turning into air.
 
-Проверка: одинаковые маршруты с внесённой задержкой и ошибкой начальной скорости; сравнить долю безопасных посадок и потери здоровья с одиночным расчётом. Вероятность успеха нельзя публиковать до калибровки на серверных результатах.
+Verification: Same routes with delay and error of initial speed; Comparison of safe landing and loss of health with single calculation. Probability of success cannot be published until calibration on server results.
 
-## 3. Team Production: договорённости о результате
+## 3. Team Production: Results agreements
 
-**Проект:** агент резервирует проверяемый производственный результат: «три слитка к месту встречи», а не только ближайшую руду.
+**Draft:** The agent reserves the production result to be checked: «Three bars to the meeting point», Not just the nearest ore.
 
-Общий граф цели делится на зависимости: древесина → инструменты → печь → железо → алмазы → броня. Назначение учитывает инструмент, здоровье, путь, доступную рабочую станцию и стоимость встречи. Один агент может плавить, пока другой добывает; резерв относится к конкретному потребителю и имеет срок.
+Target total divided by dependency: Wood → instruments → Boiler → iron → diamonds → Armoured. The purpose takes into account the tool, Health, path, accessible workstation and meeting cost. One agent can swim, While the others are being mined; The reserve is specific to the consumer and has a period of time.
 
-Передача завершается только после согласованных изменений инвентарей сторон. При смерти или недоступном маршруте обязательство отменяется, остатки учитываются по наблюдениям и задача назначается заново. Полезность должна считать выгоду общей цели, чтобы ближайший сундук не доставался целиком первому агенту.
+Transfer shall be completed only after agreed changes in the inventory of the parties. In the event of death or unenclosed route, the obligation is cancelled, The balance is recorded for observations and the task is re-appointed. Usefulness should consider the benefit of a common goal, I want the nearest chest not to be delivered to the entire first agent.
 
-Это расширение существующих заявок и обменов MCKudo. Критерий: на одинаковых мирах группа выполняет цель быстрее независимых агентов, без дублирования предметов и с подтверждёнными передачами.
+This is an expansion of existing applications and exchanges OvermindMC. Criterion: on the same worlds, the group achieves a goal faster than independent agents, Without duplication of items and confirmed transfers.
 
-## 4. Rehearsal: короткая репетиция действий
+## 4. Rehearsal: Short rehearsal
 
-**Проект:** перед опасным действием проверять несколько коротких последовательностей в локальной копии наблюдаемого мира.
+**Draft:** Check several short sequences in a local copy of the world observed before a dangerous action.
 
-Кандидаты могут включать движение, постановку опоры, смену инструмента и отход. Сравниваются затраты материала, прочности, здоровья и неопределённость. Горизонт и число вариантов строго ограничены, чтобы сокет и защита продолжали работать вовремя.
+Candidates may include movement, Positioning of support, change of instrument and departure. Cost of material is compared, Test results, Health and uncertainty. Horizontal and number of options severely restricted, I want the skating and the defense to continue working on time.
 
-В ядре уже есть физические предикторы и виртуальные изменения блоков при A*. Новый модуль должен объединить их с последствиями разных навыков, а затем сравнивать прогноз с серверным наблюдением. При большом расхождении модель снижает уверенность и выбирает более консервативное действие.
+The core already has physical pre-indicators and virtual changes in the blocks at the time of the core A*. The new module should combine them with the consequences of different skills, and then compare the forecast to the server observation. In large dispersions, the model reduces confidence and chooses a more conservative action.
 
-Проверка: набор опасных кромок, препятствий и изменяемых проходов; измерять ошибки прогноза и долю безопасных завершений. Репетиция не может подтвердить состояние не загруженных чанков.
+Verification: dangerous edge set, obstacles and variable passageways; measure forecast errors and share of safe endings. Rehearsal cannot confirm the condition of unladen chocolate.
 
-## 5. Diagnostic Probe: действие ради знания
+## 5. Diagnostic Probe: Action for Knowledge
 
-**Проект:** при неоднозначном отказе выбирать дешёвую безопасную проверку, которая различает возможные причины.
+**Draft:** with mixed refusal to choose cheap safety checks, which identifies possible causes.
 
-Например, отсутствие подтверждения подбора может означать устаревшую позицию предмета, занятый слот, непроходимый подход или удаление сущности. Вместо повторного полного маршрута агент сверяет слоты и сущность, дожидается актуального обновления, затем проверяет другой подтверждённый подход.
+For example, A lack of confirmation of selection may mean an obsolete item, busy slot, non-feasible approach or removal of substance. Instead of re-full route, the agent checks slots and the essence, Pending up-to-date update, then verify another confirmed approach.
 
-Каждая проверка имеет бюджет времени и риска. Разрушение защищённых построек, произвольное исполнение кода и неизвестный участок не используются как диагностический эксперимент. Результат обновляет гипотезу с указанием наблюдения, которое её подтвердило или опровергло.
+Each audit has a time and risk budget. Destruction of protected buildings, Arbitrary code execution and unknown site are not used as diagnostic experiments. The result updates the observation hypothesis, which confirmed or denied it.
 
-Проверка: воспроизвести разные причины одинаковой внешней ошибки; измерять число бесполезных повторов и время до корректной смены стратегии.
+Verification: Play different reasons for the same external error; measure the number of useless repetitions and the time before a correct change of strategy.
 
-## Что означает новизна
+## What's new
 
-Мы предлагаем конкретное развитие архитектуры MCKudo. Это не доказательство мировой уникальности. Библиотека навыков и улучшение программ по обратной связи уже описаны авторами [Voyager](https://voyager.minedojo.org/). Обучение моделей мира — направление [DreamerV3](https://github.com/danijar/dreamerv3). Сегментированное планирование и учёт постановки/добычи блоков описаны в [Baritone](https://github.com/cabaletta/baritone/blob/master/FEATURES.md).
+We propose concrete development of architecture OvermindMC. It's not proof of the world's uniqueness. The Library of Skills and Improved Reaction Programmes are already described by authors [Voyager](https://voyager.minedojo.org/). Training in peace models — direction [DreamerV3](https://github.com/danijar/dreamerv3). Segmented planning and recording/Cluster mining is described in [Baritone](https://github.com/cabaletta/baritone/blob/master/FEATURES.md).
 
-Собственный вклад следует проверять отдельными сравнениями с отключённым модулем: меняется ли результат при одинаковом мире, снаряжении, наблюдениях и вычислительном бюджете. Исходные гипотезы, неудачные запуски и стоимость вычислений входят в отчёт вместе с успешными результатами.
+The contribution should be checked against individual comparisons with the disabled module: Whether results change in the same world, Equipment, and the computer budget. Baseline hypotheses, failed launches and the cost of calculations are included in the report together with successful results.

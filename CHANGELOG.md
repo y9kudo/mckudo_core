@@ -1,169 +1,211 @@
-# Изменения
+# Changelog
+
+## OvermindMC migration and expanded RL · Version Arthas · 2026-10-14
+
+- Renamed the kernel, standalone client and spatial layer to OvermindMC, OMConnect and OMVectorize. Canonical package entries and public declarations use the new names.
+- Added categorical PPO and discrete SAC, physical worker environments and an opt-in native RL control bridge.
+- Added a version/profile API and movement codec checks for all 30 installed transport families; corrected the legacy 1.7 eye-height field.
+- Preserved legacy recipes with missing IDs/metadata as diagnostic records, and included legacy log/leaf families in resource classes.
+- Indexed authoritative chunk sections for shared resource queries, bounded cache memory and stable descent heading; added leaf clearance before trunk mining.
+- Translated source messages, dashboard and documentation to English. Curriculum memory now ignores display labels when validating task semantics.
+- Published the original 0.1.0 archive in a separate GitHub branch with its original bytes, MIT and SHA-256.
+- Live evidence: a bounded PPO transfer with 20 health/0 corrections, and a separate six-stage empty-inventory survival run in 161.12 seconds. Stable 1.0.0 remains gated on autonomous Dragon completion.
+
+## Version Arthas · v1.0.0Arthas-dev.1 · 2026-10-14
+
+- SemVer Packages: `1.0.0-Arthas-dev.1`, version name and displayVersion Available in metadata and panels.
+- Curriculum extended c 3 to 20 Stages: Search, Rare resources, instruments, Stations, iron, diamonds and hazards. Scheme updated headless to 22 indicators/12 actions.
+- The learning cycle is independent greedy validation Before promotion, Saves and Re-establishes the Model/Phase. The successes of the old batch Not certified by new phase.
+- The Game Library contains 20 Resource phases with profiles wood/stone/iron/diamond. Real furnace test Survival 1.21.1: **6/6 for 181.064 with**.
+- Re-choice of unaffordable tree species in class production, crowding out the core problem with a failure and namespacing new objectives.
+- [Instruction](docs/ARTHAS-CURRICULUM.md) and [protocol](docs/results/arthas-curriculum-2026-10-14.md). Learning All Steps DQN and complete passage to the dragon has not yet been confirmed.
+
+## 1.0.0-dev.1 · 2026-10-14 (Preassembly)
+
+- Added opt-in API `overmindmc/intelligence`: Double DQN, Adam/Huber, replay and target network, Action masks, BC, weight transfer and conservative offline-Regularization.
+- Headless skill-The environment is divided between limited workers; A clear one reset Saves the difference terminal/truncation. Reward API, potential shaping, bounded novelty and curriculum.
+- HTN with alternatives, UCT MCTS, Priority objectives, optional GPT/Claude/local planner with validator/fallback budget requests.
+- SQLite WAL-map of the identity of the world and tombstones, team envelopes, and verification of exchanges.
+- Recovery API, heartbeat/watchdog, supervisor with the actual completion of the hangover worker, Prometheus and optional OTel tracer. Panel: Phase metrics and limited observation history.
+- Survival: Cash of repeated requests for one count and priority of visible local stone. Fight: Flying objectives, shelter and limited digging of the building-protected escape.
+- These modules are not declared complete Dreamer/MAML, PPO/SAC, PvP self-play, support to old protocols or scaling up 1000 Game clients. Stable 1.0.0 not issued. [Guidance and accurate status](docs/V1-INTELLIGENCE.md).
+
+## In the design — Nezer and preparation of complete run, 2026-10-14
+
+- Re-used `createNetherReactor`: Fortress orientations, Resource objectives, Hunting, mature growth, safety research/Tunnels and short bridges. [API and borders](docs/NETHER.md).
+- Indirect exchange OMConnect With adult piglins, limited ingot flow and separate rebound confirmation; Keep gold detail of the armor. Added natural materials of Neser and priority for the gold craft of the nuns.
+- Prohibition of water for protection in Neser, Non-combustible bridge materials/Poles, Re-ignition of the observed entire back-up frame.
+- [`from-zero-to-dragon.js`](examples/from-zero-to-dragon.js): Full test scenario, Damage magazines/attacks/adjustments, Maintaining phases and portals, continued, Stop, Post-death supply re-check. [Starting](docs/FULL-EXPEDITION.md).
+- The result of the zombie game strike: A swift turn in the closet, Re-use in target displacement without protection off, immediate safe passage from close mob; corrected by double cooldown Protection.
+- Finding a place for home no longer takes the grass for empty building cells. The shield and iron tools are fully profiled before the house.
+- Game run discovered re-mining by a nearly broken brick: Resource planner now only considers suitable tools and orders replacement of worn copy.
+- Before the descent, the full profile stores eight logs in class and a portable vertak; After the craft, the eye stores four pearls for emergency skills.
+- **Version 1.0 not issued.** Autonomous passage through Neser before victory from zero is not confirmed; The potion and all Neser mechanics are not declared complete.
 
 ## 0.7.0 — 2026-10-13
 
-[Описание релиза и проверенные возможности](docs/releases/0.7.0.md). Нативные профили Java 1.21/1.21.1; автономное прохождение с нуля до дракона ещё не подтверждено.
+[Description of release and proven opportunities](docs/releases/0.7.0.md). Personal Profiles Java 1.21/1.21.1; Auto-pass from zero to dragon not confirmed.
 
-- Evidence Memory: структурированные отказы KudoConnect сохраняются в истории MCKudo. Подтверждённая стартовая геометрия может исключать одинаковую неудачную попытку у другого агента; изменение участвующих фактов разрешает повторную проверку. Временные помехи имеют ограниченную локальную задержку. [Методы и API](docs/INTELLIGENCE-METHODS.md).
-- Аудит подготовки 1.0 и публичный отчёт пяти агентов 1.21.1: алмазная цель не достигнута, определены приоритеты движения, подбора и кооперации. Добавлены TypeScript-проверка API в CI, демонстрация памяти без сервера и исправление переключения книги рецептов с каталога на серверные данные. [Аудит](docs/V1-READINESS.md).
+- Evidence Memory: Structured failures OMConnect The Ones in History OvermindMC. A confirmed start-up geometry may preclude the same unsuccessful attempt by another agent; The change in the facts involved allows for re-checking. Time interference has a limited local delay. [Methods and API](docs/INTELLIGENCE-METHODS.md).
+- Training Audit 1.0 and public report of five agents 1.21.1: Diamond target not achieved, Traffic priorities identified, selection and cooperation. Added TypeScript-verification API in CI, Show memory without server and correct the switch from catalog to server data. [Audit](docs/V1-READINESS.md).
 
-- Поддержка WorldEdit `.schem` v2/v3 и безопасного подмножества `.schematic`; ограничения объёма, проверка палитры и VarInt, сохранение `Offset`. Поштучная Creative-стройка выбирает пустую площадку, передаёт свойства через компонент предмета `minecraft:block_state` и проверяет серверное состояние каждого блока; [инструкция](docs/SCHEMATICS.md). Поддержка состояния проверена в игре, большой пользовательский файл ещё строится.
-- Creative-полёт через управление способностями и трёхмерный маршрут; локальный интерфейс обзора чанков и настройки Humanize. Расширены обзор до 24 чанков по умолчанию и очередь независимых задач.
-- Начат автономный прогон с пустым инвентарём на новом мире. Длительный запуск сохраняет полный журнал, промежуточный отчёт и обученные модели, допускает ограниченное число штатных возрождений. После первой смерти в узком проходе устранён цикл недоступного отхода: короткий безопасный шаг и временный переход к бою вместо повторения одного маршрута. После встречи с крипером добавлен немедленный безопасный спринт без ожидания полного маршрута; перед железной шахтой агент готовит каменный меч, а первое железо направляет на щит. Наблюдение овец передаёт цвет шерсти для подготовки кровати. [Журнал испытания](docs/results/full-survival-2026-10-13.md).
-- MCKudo переводит бой с сидящим драконом в ближнюю фазу и ищет подтверждённый наземный подход к голове; KudoConnect выбирает меч, ждёт откат, выполняет прыжок для попытки крита и проверяет серверный урон. Для летящей цели прицел уточняется перед выстрелом, а зачарование «Бесконечность» распознаётся по износу лука. Подготовленный Avery07 подтвердил смерть дракона и 14 собственных попаданий на vanilla 1.21.1; критический множитель и прохождение с нуля отдельно не подтверждены.
-- Автоматическая страховка падения: прогноз опоры, установка и возврат воды, при угрозе пустоты расчёт броска жемчуга на наблюдаемую площадку. Защита взгляда от эндерменов работает и в промежуточных кадрах поворота; добавлены регрессионные тесты. Полное прохождение с нуля пока не подтверждено.
-- KudoVectorize планирует ограниченный воздушный коридор и точку посадки; KudoConnect исполняет полёт с проверкой элитр, ракеты, серверного флага полёта и посадки. Новые операции хранилища переносят точное количество, читают и подписывают таблички. MCKudo сортирует по шести категориям и возобновляет работу с предметами в инвентаре. [Результаты испытаний](docs/results/flight-storage-2026-10-12.md).
+- Support WorldEdit `.schem` v2/v3 and safe sub-compatibility `.schematic`; Volume limits, Test of the palette and VarInt, retention `Offset`. Pistol Creative-The building picks an empty site, transmits properties through the component of the object `minecraft:block_state` and check the server status of each block; [instruction](docs/SCHEMATICS.md). Status support checked in game, a large user file is still being built.
+- Creative-Flight through capability control and a three-dimensional route; Local Tub View and Settings Interface Humanize. Review extended to 24 default and independent task.
+- A self-contained run with empty equipment in the new world started. The long start saves the full log, Interim report and trained models, Allows limited number of full-time rebirths. After the first death, the unreachable cycle was removed in the narrow passage: short safe move and temporary transition to combat instead of repeating one route. After meeting the Kryper, a safe sprint was added immediately without waiting for the full route; Agent makes a stone sword in front of the iron mine, And the first iron is directed to the shield. Watching sheep transmits wool color to prepare the bed. [Test Log](docs/results/full-survival-2026-10-13.md).
+- OvermindMC Translating the battle with the sitting dragon into the immediate phase and looking for a confirmed ground approach to the head; OMConnect Chooses sword, Waiting for a backfire, Runs a jump to try to crease and checks the server damage. For flying purpose, the target is specified before firing, But charm «Infinity» recognized by wear of onions. Prepared by Avery07 confirmed the death of the dragon and 14 in-house hits on vanilla 1.21.1; critical multiplier and zero passage not separately confirmed.
+- Automatic fall insurance: Support leg forecast, Water installation and recovery, In the event of a emptiness, the calculation of the throwing of pearls on the observed site. Eye protection from endermen also works in intermediate turning frames; Added regression tests. Full zero clearance not yet confirmed.
+- OMVectorize plans limited air corridor and landing point; OMConnect Flying with an elite test, Missiles, flight and landing server flag. New operations of the storage facility carry the exact number, Read and sign the signs. OvermindMC sorts into six categories and resumes work on items in inventory. [Test results](docs/results/flight-storage-2026-10-12.md).
 
-- MCKudo/KudoConnect: политика `preservePickaxeTier` сберегает железные и более ценные кирки при наличии младшего подходящего инструмента; алмазная руда и единственная пригодная кирка остаются допустимыми целями/инструментами. Мозг включает порог 2 по умолчанию.
-- KudoConnect `collect`: неудачный подход больше не блокирует остальные достижимые позиции; отклонённые подходы не пересчитываются на каждом опросе без изменения условий. Получение по-прежнему подтверждается серверным инвентарём.
-- MCKudo: повторные ошибки подбора одного предмета увеличивают задержку от базовой `retryMs` до 120 секунд. Движение агента, перемещение предмета и смена измерения позволяют пересмотреть цель.
-- MCKudo: неудачный маршрут запоминается до изменения позиции или наблюдаемого мира. Истечение таймера само по себе не возвращает недостижимую ступень в план.
-- Обвязка бенчмарка: продолжение исторической гонки с прежними именами и инвентарями, суммарным активным временем и хешами драйвера; исключена циркуляция единственного верстака, добавлена передача младших кирок после улучшения инструмента.
-- Публичные обезличенные отчёты двух этапов (30 минут активного времени), регрессионные тесты и отдельная игровая диагностика рабочей сборки. Исторические снимки не изменялись; подтверждённой победы в гонке нет. У старых клиентов гонки теперь явно выключено автоматическое возрождение; результат после первой смерти отклоняется.
-- Исправленная рабочая сборка в отдельном прогоне продолжила с ресурсами прежнего участника и подтвердила первый алмаз за 93,353 секунды: разрушение руды, собственный подбор и инвентарь. Это не добыча с нуля и не победитель исторического рейтинга. 368 автоматических тестов прошли.
+- OvermindMC/OMConnect: policy `preservePickaxeTier` Saves iron and more valuable kirks when a small tool is available; Diamond ore and the only fit brick remain acceptable targets/Tools. Brain includes the threshold 2 default.
+- OMConnect `collect`: A failed approach no longer blocks the remaining achievable positions; rejected approaches are not counted on every survey without changing the conditions. Received-still supported by server equipment.
+- OvermindMC: repeated errors in the selection of one object increase the delay from the base `retryMs` to 120 seconds. Agent movement, The movement of the object and the change of measurement allow for a revision of the purpose.
+- OvermindMC: A failed route is remembered before a change of position or a world is seen. The timer's break does not in itself return the impossible step to the plan.
+- Bundle of the drawing: Continuing the historical race with previous names and equipment, Total active time and driver hashs; No circulation of the sole crafting table, Added transfer of junior curls after tool upgrade.
+- Public, disfigured reports of two stages (30 minutes of active time), Regression tests and separate game diagnostics of the assembly. Historical images have not changed; There is no confirmed victory in the race. Old clients now clearly have an automatic rebirth off; The result after the first death is rejected.
+- The corrected work assembly in a separate run continued with the resources of the former participant and confirmed the first diamond for 93,353 seconds: Ore destruction, of own selection and equipment. It's not a zero-sum mine or a historical score winner. 368 Automatic tests passed.
 
-## 0.7.0-dev.0 — 2026-10-12 · в разработке
+## 0.7.0-dev.0 — 2026-10-12 · development
 
-- Исправлена потеря ресурсов в восприятии: плотный ближайший камень больше не вытесняет древесину, руды, грядки и кровати из выборки. Дерево выбирается по доступному классу; проверена берёза при отсутствии дуба.
-- Подготовка камня открывает локальную безопасную лестницу, когда нет источника в прямой досягаемости. Сытый агент сначала готовит инструменты, затем запасает мясо; критическая защита использует маршрут отхода при наличии `evade` у адаптера.
+- The loss of resources in perception is corrected: a dense nearby stone no longer replaces wood, Ores, and beds from the sample. Tree is selected according to the available class; checked for beryos in the absence of oak.
+- Rock preparation opens a local safe ladder, When there is no spring (to reach). A fat agent first prepares tools, Then saves the meat; Critical protection uses the exit route if available `evade` At the adapter.
 
-- Microsoft Auth по коду: отдельный кэш, профиль без токенов в снимке, отдельный тайм-аут и запрет позднего подключения после отмены. Реальный лицензированный вход пока не испытан.
-- KudoVectorize: 26 направлений в воде, пересечение объёма тела, воздух, асинхронный поиск и отмена при изменении мира; `swim`/`swimTo`, JSON-миссии, математический предиктор элитр.
-- Чтение открытых сервером GUI, текст/lore, однозначные селекторы и клик по сохранённой ревизии. Ответ окна отличается от успешного выбора игрового режима.
-- Посадка и выход из лодки/вагонетки по `set_passengers`, блокирование пешей физики при поездке и очистка привязки при смене измерения.
-- Модовый машинный граф для импортированных данных: жидкости, катализаторы, энергия, побочные продукты, ограниченный поиск, исполнители с проверкой баланса. Универсальный JEI-экспортёр и модовые игровые драйверы ещё не реализованы.
-- Журнал экспедиции: текущий этап, отсутствие прогресса, подтверждение собственного урона для победы. Разработка не выдаётся за полное прохождение мира.
-- Новые модульные/протокольные тесты, пример `test:live:07`, документация. CI пропускает создание стабильного релиза для `-dev`.
+- Microsoft Auth code: Individual Cash, profile without currents in the photograph, separate time-Out and ban on late connection after cancellation. The real licensed entrance has not yet been tested.
+- OMVectorize: 26 water, Intersection of body volume, air, asynchronous search and cancellation in changing the world; `swim`/`swimTo`, JSON-Mission, Mathematician of the elite.
+- Reading Open server GUI, text/lore, Clear selections and the clicks from the safe audit. The window response is different from successful game mode selection.
+- Landing and exit from the boat/Wagons in `set_passengers`, Locking of walking physics and cleaning of the reference in changing measurement.
+- Fashioned machine box for imported data: Liquids, Catalysts, Energy, by-products, limited search, Balance sheet performers. Universal JEI-Exporter and Fashion Play Drives Not yet implemented.
+- Expedition Log: current phase, Lack of progress, Confirming Your Self-Destruct to Win. Development is not a complete world.
+- New modular/Protocol tests, example `test:live:07`, Documentation. CI misses the creation of a stable release for `-dev`.
 
 ## 0.6.0 — 2026-10-11
 
-- Завершение работы менеджера закрывает клиентов при сбое сохранения памяти или остановки мозга; закрытие идемпотентно, новые команды после закрытия отклоняются. Панель освобождает порт даже при ошибке менеджера.
-- `release:check` проверяет версии, обязательные файлы импортов, локальные ссылки документации и исключение приватных/runtime-данных; `test:package` устанавливает оба архива в отдельное приложение и проверяет публичный API без Mineflayer.
-- CI проверяет Windows/Linux и Node 22/24; GitHub Release с архивами и SHA-256 создаётся после успешной матрицы. RowanRelease06 прошёл пятиэтапное выживание с пустым инвентарём; полное прохождение до дракона не объявляется завершённым.
+- The manager's work is closed to clients when memory failure or brain failure occurs; Closing is improbable, New commands after closure are rejected. The board releases the port even when the manager has failed.
+- `release:check` Checks versions, Mandatory Import Files, Local links of documentation and exclusion of private/runtime-Data; `test:package` Establishes both archives in a separate application and checks the public API without Mineflayer.
+- CI Checks Windows/Linux and Node 22/24; GitHub Release with archives and SHA-256 created after successful matrix. RowanRelease06 Five-stage survival with empty equipment passed; Full passage to dragon not declared complete.
 
-- Простой API `mission/get/craft/goTo`, компилятор `defineMission`, JSON-схема с подсказками VS Code, запуск JSON через `examples/mission.js` и отдельная игровая проверка `test:live:mission`.
-- Высокоуровневая координатная цель: асинхронные участки A*, актуальность прочитанных чанков, временное исключение неудачных пунктов и ресурсные подцели для недостающего материала моста. Технический `allowPartial` возвращает промежуточную цель, не выдавая её за окончательное прибытие.
-- Мосты: серверное приседание, физическое удержание у края, выключение спринта на узком участке, проверка блока и расхода инвентаря перед продвижением. Установка наводится на соответствующую опорную грань. [Руководство](docs/MISSIONS-AND-BRIDGES.md).
-- Защита построек в KudoConnect: явные области по измерениям, консервативная проверка строительных блоков и соседей, повторная проверка перед изменениями. Ресурсный мозг исключает защищённые балки из класса древесины. Мосты, столбы, кровати и порталы учитывают области.
-- Боевой обход по наблюдаемой геометрии без добычи/строительства, прыжки на ступени, память прогресса и пределы преследования. Ошибки боевых действий учитываются отдельно по цели. [API и примеры](docs/BUILDINGS-AND-PVP.md).
-- Исправлено метание после спуска рядом с игроком: обход проверяет оставшийся отрезок до точки торможения; коридор учитывает конечный след игрока между промежуточными отсчётами.
-- KudoConnect устраняет накопление опозданий таймера физики, сохраняя цель 20 шагов/с без серии догоняющих пакетов. Отдельный игровой маршрут: 19,97 Гц, ноль коррекций, здоровье 20/20; `npm run test:live:timing`.
+- Simple API `mission/get/craft/goTo`, compiler `defineMission`, JSON-Figure with clues VS Code, Launch JSON Through `examples/mission.js` and separate game test `test:live:mission`.
+- High-level reference target: Asynchronous sites A*, The relevance of the readings, Temporary elimination of failed points and resource sub-targets for missing bridge material. Technical `allowPartial` Returns intermediate target, without posing her as the final arrival.
+- Bridges: server seat, Physical retention at the edge, Shut down the sprint on a narrow section, Checking block and inventory consumption before moving. Mount the appropriate support line. [Leadership](docs/MISSIONS-AND-BRIDGES.md).
+- Protection of buildings in OMConnect: apparent areas of measurement, Conservative inspection of building blocks and neighbours, Recheck before changes. Resource brain excludes protected beams from wood class. Bridges, Poles, The beds and portals take into account the areas.
+- Combat bypassing observed geometry without mining/Construction, Sky jumps, memory of progress and limits of persecution. Military errors are recorded separately for the purpose. [API and examples](docs/BUILDINGS-AND-PVP.md).
+- Flashed after the player's descent: The bypass checks the remaining part to the brake point; corridor takes into account the player's final trace between intermediate counts.
+- OMConnect Eliminates the accumulation of timer delays in physics, Keeping the goal 20 Steps/Without a series of pick-up packages. Selected Game Route: 19,97 Hz, 0 0 correction, Health 20/20; `npm run test:live:timing`.
 
-- Настоящий переиспользуемый CPU worker для многократного A* исследования, общий ограниченный пул, отмена, тайм-аут, ограничение JS-кучи и проверка актуальности геометрии; короткое копирование чанков остаётся кооперативным в основном потоке. `createCpuPool`, `createExplorationPlanner`, `computation` в профиле мозга, `npm run test:cpu`.
-- Убрана дополнительная задержка 50 мс перед защитой после событийного прерывания. Переходы экспедиции помнят наблюдаемые порталы в каждом измерении и не считают старые координаты доказательством действующего портала.
-- Упреждающая защита учитывает видимость моба: каменная стена не вызывает бесконечное прерывание добычи. KudoConnect экспортирует DDA `traceVisibility` по формам блоков. У охоты появился предел преследования; шахтёр возвращается на подтверждённую верхнюю ступень из опасного тупика.
-- Планировщик ресурсов заказывает приготовление пищи, выплавку золота/меди/незеритового лома/угля через доступные исполнителю рецепты печи; древесина Nether не выбирается топливом. Игровой отчёт экспедиции содержит актуальную версию и статистику CPU, запуск ожидает серверную книгу рецептов.
+- Real reused CPU worker for repeated A* Research, Total limited pool, cancellation, Time-Out, limitation JS-and validation of geometry; Short copying of the chocolate is still co-operative in the main stream. `createCpuPool`, `createExplorationPlanner`, `computation` in brain profile, `npm run test:cpu`.
+- Additional delay removed 50 ms before protection after an event break. The expedition's crossings remember the observed portals in each dimension and do not consider the old coordinates as proof of the existing portal.
+- The anticipatory protection takes into account the appearance of the bob: The stone wall does not cause an endless interruption of mining. OMConnect exports DDA `traceVisibility` on block forms. Hunting has a limit to pursuit; The miner returns to the confirmed upper stage from the dangerous impasse.
+- Resource Planner Orders Cooking, gold smelting/Copper/Non-heritite scrap/Coal through the furnace recipes available to the performer; Wood Nether not selected by fuel. The game report of the expedition contains a relevant version and statistics CPU, Launching is awaiting a recipe server book.
 
-- `createMinecraftAgent`: небольшой API подключения, сценариев, постоянных целей, отмены, возрождения и корректного закрытия с сохранением памяти. Настройка политик через `brainOptions` доступна и менеджеру.
-- Пространственная память с ограничением размера/возраста, разделением миров/измерений и отзывом противоречивых наблюдений; сохранение через менеджер и использование в исследовании ресурсов.
-- KudoConnect: общая очередь вычислений с мягким бюджетом, справедливым чередованием, ограничением числа задач и отменой; статистика `metrics.navigation`.
-- Представления чтения мира отслеживают ревизии затронутых чанков; посторонние обновления больше не отменяют расчёт.
-- Исправлен выход из выработки к станции: расчистка потолка и ступени при безопасных соседних блоках и подходящем инструменте, без добычи опор.
-- Поиск хранит изменения отдельных ветвей маршрута: выкопанный блок больше не считается будущей опорой, установленный мост учитывается до исполнения; расчистка ограничена 32 блоками за маршрут.
-- Событийное пробуждение проверки угроз во время навыка, объединение пачек событий без параллельных наблюдений.
-- Пятиэтапный игровой тест `npm.cmd run test:live:agent`, руководство простого API и описание архитектуры с первичными источниками.
+- `createMinecraftAgent`: Small API Connectivity, scenarios, objectives, cancellation, Recovering and correct closure with memory. Policy setting via `brainOptions` available and available to manager.
+- Spatial size-limited memory/Age, by the division of the worlds/and withdrawal of conflicting observations; Conservation through manager and use in resource research.
+- OMConnect: Total calculation line with soft budget, Fair rotation, the number of tasks and the cancellation of; statistics `metrics.navigation`.
+- World reading images track audits of affected chancs; The external updates don't cancel the calculation anymore.
+- The exit from the work to the station was corrected: Ceiling and steps with secure adjacent blocks and suitable tool, Without the extraction of support.
+- Search Saves Change in Selected Directions: The dug block is no longer considered as a future support, specified bridge to be counted before execution; clearance limited 32 block over route.
+- Ah, the event awakening of threat testing during skill, Combining a set of events without parallel observations.
+- Five-stage game test `npm.cmd run test:live:agent`, management API and description of the primary source architecture.
 
-- KudoConnect: `planRouteAsync` с ограничением порции расчёта, отменой и проверкой ревизии мира; нативная навигация и подход к луту используют асинхронный поиск.
-- MCKudo: `failureScope: action` для выживания и лута, кэш ID предметов и индекс известных источников, меньше копирований состояния.
-- Статистика локального таймера `metrics.timing` и нагрузочный тест без сервера `npm run test:runtime`. Подробности: [производительность](docs/RUNTIME-PERFORMANCE.md).
+- OMConnect: `planRouteAsync` with limited calculation, peace audit cancellation and audit; Nativist navigation and the approach to the lute use asynchronous search.
+- OvermindMC: `failureScope: action` for survival and the lute, Cash ID items and index of known sources, less than the state copy.
+- Local timer statistics `metrics.timing` and off-supplier loading test `npm run test:runtime`. Details: [productivity](docs/RUNTIME-PERFORMANCE.md).
 
-- Настоящая локальная нейросеть 12–16–1, backpropagation, replay и сохранение опыта навигации. Обучаемая стоимость дополняет A* и обязательные проверки физики.
-- Отдельный планировщик 24–24–1: опыт действий меняет рейтинг рецептов, источников и пунктов исследования; схема зависимостей остаётся проверяемой по рецептам мира.
-- Сохранение обеих моделей по миру/агенту, цепочка крафта и журнал действий в панели. Заявка на ресурс учитывает расстояние и нейросетевую оценку.
-- Подбор останавливает движение после обновления инвентаря; исчезновение сущности без получения лута больше не считается успехом. Исправлено отнесение ошибки подбора к другой цели.
-- PvP: активная рука и направление щита, серверный cooldown, восстановление оружия после помещения щита во вторую руку, обычный прыжок перед ударом при безопасной площадке, выбор топора рядом с посторонними игроками.
-- Команда KudoConnect расширена до 20 агентов. Воспроизводимый тест `test:live:fleet-learning` записывает подключение, обучение, достижение целей и обмены раздельно.
-- Предсказание пересечения с игроками и исключение spectator из препятствий.
-- Очередь задач как библиотечный Reactor; редактор блоков/JSON, повтор ошибок, вкладки инвентаря и обучения.
-- Отложенное создание реестров клиента, рецепты сервера по запросу результата, сброс индекса при смене рецептов.
-- Исправлен расчёт повторяющихся ингредиентов; цели по классу суммируют разные породы древесины.
-- Граф зелий с ограничениями версий; smith, кузнечный стол, план незеритового улучшения и плавка древних обломков. Варка пока представлена планировщиком.
-- Профиль Java 1.21 рядом с 1.21.1; публичная проверка возможностей версий. 26.3 и остальные игровые адаптеры не объявляются поддержанными.
+- Real local neurosync 12–16–1, backpropagation, replay and maintenance of navigation experience. The value of training is additional A* and mandatory physical verification.
+- Individual Planner 24–24–1: Experience changes prescription ratings, sources and points of study; The dependency scheme remains tested by the world's recipes.
+- Maintaining both models around the world/Agent, Craft chain and panel action log. The application for a resource shall take into account distance and a neuronetic assessment.
+- Selection stops movement after the inventory has been updated; The disappearance of the essence without the Lut is no longer considered a success. Retrievation error corrected for another target.
+- PvP: active arm and shield direction, server cooldown, Re-establishment of weapons after the second-hand shield, A simple jump before impact in a safe area, Selecting an axe next to outsiders.
+- Command OMConnect extended to 20 Agents. Reproducible test `test:live:fleet-learning` Writes down the connection, Training, objectives and exchanges separately.
+- Forecasting the intersection with players and excluding spectator of obstacles.
+- The task line as a library Reactor; Block Editor/JSON, Repeat, Introduction and training.
+- Delayed establishment of client registers, server recipes on request, Index drop when the recipe changes.
+- Corrected calculation of repeated ingredients; Targets by class add up different wood species.
+- Count of Zeli with limited versions; smith, grasshopper table, A plan for non-zeranite improvement and melting of ancient debris. Varca is still represented by the planner.
+- Profile Java 1.21 near 1.21.1; Public version testing. 26.3 and the rest of the game adapters are not declared supported.
 
-- KudoConnect: `pillar`, `descendPillar`, `evade`, плавное наведение лука/арбалета, защита от выстрела по близкому кристаллу и сидящему дракону.
-- Учёт взрыва и удаления кристалла, серверного урона дракона и подтверждения смерти, отдельный признак участия агента.
-- MCKudo: `dragonExpeditionScenario`, `createDragonPolicy`, план обратимого подъёма к решётке и смена позиции для выстрела.
-- Исправление возврата к станции после каждого добытого блока, недоступных целей и отмены прыжка системой обхода игроков; отдельный бюджет наблюдения станций.
-- Запуски `test:live:pillar` и `test:live:dragon`, регрессионные проверки и руководство `docs/DRAGON-EXPEDITION.md`. Полное прохождение требует успешного игрового отчёта.
+- OMConnect: `pillar`, `descendPillar`, `evade`, smooth onions/Abbalette, Protection from firing on a nearby crystal and a sitting dragon.
+- Recording of blast and removal of crystal, Dragon server damage and death confirmation, Individual agent participation.
+- OvermindMC: `dragonExpeditionScenario`, `createDragonPolicy`, Plan for reversible lift to the grate and change position for firing.
+- Correcting return to station after each unit is produced, Unaffordable Goals and the Cancellation of the Player Roundup System; separate station observation budget.
+- Launch `test:live:pillar` and `test:live:dragon`, Regression tests and guidance `docs/DRAGON-EXPEDITION.md`. Full passage requires a successful game report.
 
 ## 0.5.0 — 2026-09-30
 
-- Оценка падений, запас здоровья и исправление спуска с блока возле других игроков.
-- Нативные действия порталов, наблюдение ока, сохранение инвентаря при смене измерения.
-- Публичный `createEndExpedition` и испытание `test:live:end` с журналом подтверждений.
-- Самостоятельный репозиторий KudoConnect, обновлённые типы и инструкции.
-- Очистка публикации от локального журнала и служебных файлов.
+- Assessment of falls, health reserve and de-blocking in front of other players.
+- The portals act as a force, Eye observation, Maintaining inventory at measurement change.
+- Public `createEndExpedition` and the test `test:live:end` with a confirmation log.
+- Self-repository OMConnect, Updated types and instructions.
+- Cleaning of local log and office files.
 
-### Изменения ядра и исполнителей после первоначального 0.4.0
+### Changes in kernel and performers after the initial 0.4.0
 
-- `equipArmor`, учёт надетого снаряжения в целях и отдельное отображение в панели.
-- `createNightReactor`, `createHuntingReactor`, `prepareBed` и `sleep`: ограниченные попытки сна, охота по потребности и подход по маршруту.
-- Навигация в восьми направлениях, проверка диагональных углов и обход других игроков.
-- `teamSupplyTargets`, `shareTeamSupplies`: распределение лишней брони, инструментов и кроватей с сохранением своего комплекта и ресурсов для незавершённых целей.
-- Передача предметов выбирает место с запасом дистанции от посторонних. Частичная передача сохраняется в журнале и не повторяется вслепую.
+- `equipArmor`, On-board recording for purposes and separate display in the panel.
+- `createNightReactor`, `createHuntingReactor`, `prepareBed` and `sleep`: Limited sleep attempts, Hunting and route approach.
+- Navigation in eight directions, Test of diagonal angles and bypassing other players.
+- `teamSupplyTargets`, `shareTeamSupplies`: Distribution of excess armor, tools and beds, while maintaining their kit and resources for unfinished purposes.
+- Transfers of items choose a space with a distance from others. Partial transmission is kept in the journal and not repeated blindly.
 
-- Нативный крафт 2×2/3×3, создание и установка верстака/печи, подтверждённая плавка.
-- Профиль выживания до алмазного набора, резервирование ресурсов между агентами, оценка полезности и обмен с квитанциями.
-- Плавный взгляд, спринт и прыжки на безопасных участках, выбор материалов мостов, отслеживание движущегося лута.
-- Локальная веб-панель: статусы, цели, инвентари, ручные команды и возрождение.
-- Исправлены поиск по палитрам секций и чтение 1 290 сетевых рецептов Java 1.21.1.
+- Ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, ah, a,, a, a, a, a, a, a, a, a,, a,, a,, a,, a, a, a, a,, a, a, a,,, a,, a,, a,, a,, a, a,, 2×2/3×3, The creation and installation of the verstock/Boilers, confirmed bathing.
+- Survival profile before diamond recruitment, Resource reservation between agents, Use evaluation and exchange of receipts.
+- Swimming Eye, sprint and jumping in safe areas, Selection of bridge materials, Tracking the moving lute.
+- Local Web-Panel: Status, objectives, Property, Hand-held teams and revival.
+- Section pilitar search and reading corrected 1 290 Web-based recipes Java 1.21.1.
 
-- `createMinecraftBrain` и `createStorageReactor`: готовый настраиваемый профиль библиотеки, проверка сундуков, ответная защита после двух ударов одного игрока/агента за 10 секунд.
-- KudoConnect: подтверждённый подбор из сундуков/бочек, правильный выбор экземпляра инструмента по слоту, отмена подбора ради боя, очистка устаревших источников урона.
-- Наблюдение игроков, приоритетные запросы взгляда, `previewInteraction`/`runInteraction` и журнал взаимных подтверждений без игрового чата.
-- Автоматические тесты отделены от игровых примеров; `npm test` больше не подхватывает файл `examples/follow-test.js` как обычный тест.
-- KudoConnect выделен в независимый пакет `packages/kudoconnect` v0.1.0: собственные контракт, версия, документация, примеры и тесты.
-- Добавлены 1–10 клиентов и обмен сообщениями вне чата: адресация, TTL, повторы и распределённые намерения.
-- Модель опыта выводит эффекты операторов из наблюдений, снимает противоречивые гипотезы и передаёт проверяемые правила планировщику.
-- Адаптивные сценарии выбирают другой способ после изменения условий или ошибки, сохраняя цель и историю редакций.
-- Базовая физика жидкостей/специальных поверхностей, расчёт баллистики, действия `shoot`, `drop`, `eat`, наблюдаемость и пользовательские навыки KudoConnect.
-- Игровые испытания двух и семи агентов прошли; вход десятого состава ограничен ответом сервера `server_full` (сообщаемый максимум 8). Расширенная физика и стрельба пока проверены автоматическими тестами.
+- `createMinecraftBrain` and `createStorageReactor`: Library &apos; s ready-made customized profile, Checking of chests, Back protection after two strokes by one player/Agent for 10 seconds.
+- OMConnect: confirmed selection from the chest/barrels, The right choice of the tool for the slot, Responsive for Fight, Cleaning of obsolete sources of damage.
+- Player observation, Priority views requestsa, `previewInteraction`/`runInteraction` and a log of mutual confirmations without a play chat.
+- Automatic tests are separated from games; `npm test` No more picking up the file `examples/follow-test.js` like a normal test.
+- OMConnect Selected in an independent package `packages/omconnect` v0.1.0: own contract, version, Documentation, Examples and tests.
+- Added 1–10 clients and off-Chat communications: Address, TTL, Recurring and distributed intentions.
+- The experience model removes the effects of operators from observations, filmes conflicting hypotheses and transmits the tested rules to the planner.
+- Adaptive scenarios choose another way after changing conditions or error, Keeping the purpose and history of the editorial.
+- Basic fluid physics/Special surfaces, Ballistics calculation, Action `shoot`, `drop`, `eat`, Observation and user skills OMConnect.
+- The game trials of two and seven agents passed; The 10th entry is limited by the server response `server_full` (reported maximum 8). Advanced physics and shooting have so far been tested by automatic tests.
 
-- KudoConnect: собственные сессия, очередь, мир, инвентарь, физика суши и базовые действия. Первый сетевой профиль: vanilla Java 1.21.1, offline.
-- Публичные импорты `mckudo/connect` и `mckudo/adapters/kudoconnect`; Mineflayer/pathfinder перемещены в зависимости разработки.
-- Прерывание добычи приоритетным действием; подтверждение разрушения по серверным обновлениям, подбор по инвентарю; обработка падающих предметов.
-- Тактический Reactor, быстрый выбор оружия, щит, учёт перезарядки, событийное пробуждение ядра и проверка угроз с интервалом 50 мс.
-- Выбор альтернативных материалов по наблюдаемому расстоянию; исправлено предпочтение дуба из-за порядка рецептов. Проход через растения без коллизии учитывается навигацией.
-- Scenario API, примеры этапов выживания, Nether, поиска крепости и боя с драконом; отдельный журнал доказательств событий End. Полное автономное прохождение пока не подтверждено.
-- Руководства KudoConnect и написания сценариев с различием между планировщиком и возможностями адаптера.
-- Каталоги блоков, предметов и рецептов конкретной версии; чтение JSON из Java JAR/ZIP и раскрытие тегов.
-- Множественные классы блоков, наследование, пользовательские теги, селекторы и альтернативные источники ресурсов.
-- Планирование производственных цепочек, резервирование результатов и ингредиентов, инструменты, станции и топливо.
-- Цели по классу материала, выбор доступной древесины, общие источники обычной и глубинной руды.
-- Собственный A*, ограниченные бюджеты поиска, движение по наблюдаемым блокам, добыча прохода и мосты.
-- Поиск точек исследования поверхности и доступных углублений; Resource Reactor с перепланированием.
-- Поиск блоков/сущностей на 128 блоков по умолчанию, до 512; запрос клиентской дальности 16 чанков, до 32.
-- Reactor API и JSON-формат 4; проверка угроз во время действия, отмена с ожиданием остановки и выбор оружия перед сближением.
-- Защита от мобов, отступление, явная политика ответа на нападение игрока.
-- Питание, разрешаемая охота, зрелые культуры, повторная посадка, плавка, коптильня и плавильная печь.
-- Чертежи укрытий, расчёт материалов, подтверждение строительства и сохраняемые этапы выживания.
-- Обновлённые типы, документация модулей, примеры и автоматические проверки.
-- Проверены данные vanilla 1.21.1: 1060 блоков, 1333 предмета и 1290 файлов рецептов. Подробное разделение модельных и игровых проверок: [TESTING-04](docs/TESTING-04.md).
+- OMConnect: session, line, peace, equipment, Physical and basic activities. First network profile: vanilla Java 1.21.1, offline.
+- Public imports `overmindmc/connect` and `mckudo/adapters/omconnect`; Mineflayer/pathfinder displaced depending on development.
+- Disruption of mining by priority action; Proof of damage by server updates, equipment selection; Treatment of falling items.
+- Tactical Reactor, Rapid weapons selection, shield, Recharge account, acreage and threat testing at intervals 50 ms.
+- Select alternative materials at observed distance; corrected preference for oak from-For the order of recipes. Pass through plants without conflict is accounted for by navigation.
+- Scenario API, Examples of survival phases, Nether, Search for for a fortress and fight with a dragon; separate evidence log End. Full autonomous passage not yet confirmed.
+- Guidelines OMConnect and scripts that distinguish between the planner and the adapter.
+- Cluster Catalogues, Articles and prescriptions of a particular version; reading JSON from Java JAR/ZIP and opening tags.
+- Multiple classes of blocks, Succession, User tags, Selectors and alternative sources of resources.
+- Production chain planning, Responsive results and ingredients, instruments, Stations and fuel.
+- Material class objectives, Choice of accessible wood, Common sources of conventional and deep ore.
+- Own A*, Limited search budgets, moving on observed blocks, Passage and bridges.
+- Search for surface exploration points and available depths; Resource Reactor Replanning.
+- Search for blocks/entities on 128 default blocks, to 512; Client range request 16 chunks, to 32.
+- Reactor API and JSON-format 4; Verification of threats during operation, Rescission with waiting and weapons selection before convergence.
+- Protection against obsessives, derogation, A clear policy to respond to a player attack.
+- Nutrition, Authorized hunting, mature cultures, Re-planting, Smooth, Coil and melting furnace.
+- The drawing of the hideout, Production of the materials, Construction confirmation and survival phases.
+- Updated types, Documentation of modules, Examples and automatic checks.
+- Data checked vanilla 1.21.1: 1060 blocks, 1333 object and 1290 Reciprocal Files. Detailed separation of model and game tests: [TESTING-04](docs/TESTING-04.md).
 
 ## 0.3.0
 
-- Цели в конфигурации формата 3, символический Planner и проверка предложенных планов.
-- Кэш оставшихся шагов, перепланирование при изменениях и повторное наблюдение перед действием.
-- Ограничения поиска, числа вызовов и попыток действий; память мозга формата 3.
-- Формат восприятия 1 и трассировка условий и решений.
-- Крафт в Mineflayer: рецепты, ингредиенты, верстак и проверка результата.
-- Сценарий получения верстака и палок, подготовка игрового теста vanilla 1.21.1.
-- Сохранена совместимость конфигураций 1/2; LLM-провайдеры и игровые моды остаются отдельными интеграциями.
+- Objectives in format configuration 3, Symbol Planner and review of proposed plans.
+- Cash remaining steps, Change planning and re-observation before operation.
+- Search restrictions, Number of challenges and attempts; brain memory 3.
+- Perception format 1 and the path of conditions and decisions.
+- craft in Mineflayer: Prescriptions, ingredients, and test results.
+- The script for the vertex and sticks, :: Preparation of the game test vanilla 1.21.1.
+- The configuration compatibility is maintained 1/2; LLM-Providers and game fashions remain separate integration.
 
 ## 0.2.0
 
-- Самостоятельные руководства и примеры автоматизации ресурсов и мастерских.
-- Конфигурация версии 2: workflows, зависимости, until, бюджет попыток и повторы.
-- Прогресс задач в памяти версии 2; чтение прежней памяти версии 1.
-- Явное восстановление прерванных шагов вместо автоматического повторения неизвестного действия.
-- Плагины навыков, проверка аргументов, зависимости и атомарная регистрация.
-- Runtime с ограничением параллельных агентов и проверкой resourceKey.
-- CLI init, validate и simulate.
-- Ошибки подписчиков событий изолированы от результатов игровых действий.
-- TypeScript-описания, схема VS Code и проверка установки npm-пакета.
+- Self-directed manuals and examples of automation of resources and workshops.
+- Version configuration 2: workflows, Dependency, until, budget of attempts and repetition.
+- Progress in the challenges in memory 2; Read the old version 1.
+- A clear recovery of interrupted steps instead of automatic repetition of unknown action.
+- Skills plagins, Verification of arguments, Dependency and atomic registration.
+- Runtime with restrictions on parallel agents and verification resourceKey.
+- CLI init, validate and simulate.
+- The user errors are isolated from the game results.
+- TypeScript-Description, Scheme VS Code and verification of installation npm-package.
 
 ## 0.1.0
 
-Первый самостоятельный API: правила, наблюдения, навыки, память результатов, симулятор и контракты игровых адаптеров.
+First independent API: Rules, Monitoring, skills, memory, Schemist and game adapters contracts.
 
-MIT · автор y9kudo.
+MIT · The author y9kudo.

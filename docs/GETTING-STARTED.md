@@ -1,112 +1,102 @@
-# Первое приложение на MCKudo Core 0.6.0
+# Getting started with OvermindMC
 
-Автор: **y9kudo**, лицензия MIT. MCKudo — библиотека принятия решений для Minecraft. KudoConnect — библиотека подключения, наблюдения мира и исполнения действий. Вы создаёте приложение, которое соединяет эти два слоя.
+OvermindMC is a JavaScript library for Minecraft Java agents. The planning core decides what to do; OMConnect connects to the server and executes verified actions. OMVectorize supplies spatial calculations. All three components are authored by **y9kudo** and licensed under **MIT**.
 
-Для первого сценария с минимумом кода доступен [`createMinecraftAgent`](SIMPLE-AGENT.md): подключение, выполнение цели и сохранение опыта через один объект. Ниже описаны отдельные слои для расширенной настройки.
+## 1. Prepare the tools
 
-## 1. Подготовьте окружение
-
-Установите Node.js 22 или новее и Git. Откройте терминал VS Code. Для игровых примеров нужен свой сервер **Minecraft Java 1.21.1**, принимающий offline-подключения. Сервер должен быть запущен до старта примера. Адрес этого компьютера — `127.0.0.1`; стандартный порт — `25565`. В мире, открытом по LAN, используйте порт, показанный Minecraft.
+Install Node.js 24 and VS Code. Open the project folder in VS Code and choose **Terminal → New Terminal**. Run commands from the folder containing `package.json`.
 
 ```powershell
-git clone https://github.com/y9kudo/mckudo_core.git
-cd mckudo_core
 npm.cmd ci
 npm.cmd test
 ```
 
-`npm.cmd` работает в PowerShell без изменения политики запуска сценариев. Эти тесты проверяют код и модели; они не подключают игроков к серверу.
+On Windows PowerShell, use `npm.cmd` if script execution policy prevents `npm.ps1` from running. You do not need to change the computer's global execution policy.
 
-## 2. Подключите одного агента
+## 2. Choose how to start
 
-Создайте в корне проекта файл `my-agent.js`:
+For a visual interface:
 
-```js
-import { createKudoConnect } from './kudoconnect/index.js';
-import { createMinecraftBrain } from './mckudo_core.js';
-
-const client = createKudoConnect({
-  username: 'Alice', host: '127.0.0.1', port: 25565,
-  version: '1.21.1', auth: 'offline',
-  maxDrop: 16, fallHealthReserve: 6, maxFallDamage: 6
-});
-let brain;
-process.once('SIGINT', async () => {
-  await brain?.stop();
-  await client.close();
-});
-try {
-  await client.connect();
-  brain = createMinecraftBrain({
-    client, worldId: 'my-local-world',
-    storage: false,
-    survival: { target: 'stone_tools' }
-  });
-  brain.on('action:finish', event => console.log(event));
-  brain.start();
-} catch (error) {
-  await brain?.stop();
-  await client.close();
-  console.error(error.message);
-}
+```powershell
+npm.cmd run dashboard
 ```
 
-Запустите `node my-agent.js`. Для остановки нажмите **Ctrl+C**. Агент выбирает древесину из доступных пород, готовит инструменты и станции. Решения находятся в ядре; пример задаёт профиль и запускает цикл.
+Open the local URL printed in the terminal, usually `http://127.0.0.1:4180/`. Select an agent, connect it, add a task and start execution. The panel exposes task blocks, JSON, inventory, observed blocks and diagnostic timings. [Dashboard details](DASHBOARD.md).
 
-`worldId` — ваша постоянная метка конкретного мира. `storage: false` отключает сбор из чужих хранилищ в этом примере; стандартный профиль умеет искать сундуки и забирать доступное содержимое. Для трёх агентов с распределением лишнего снаряжения используйте [менеджер и веб-панель](DASHBOARD.md), а не три несвязанных процесса.
+For an automated first test:
 
-## 3. Задавайте задачи данными
-
-Простой JSON-сценарий состоит из этапов и условий их завершения:
-
-```json
-{
-  "schemaVersion": 1,
-  "name": "Инструменты",
-  "steps": [
-    {
-      "id": "stone-tools",
-      "type": "resources",
-      "targets": { "minecraft:stone_pickaxe": 1, "minecraft:furnace": 1 }
-    }
-  ]
-}
+```powershell
+node examples/curriculum-live.js --tier=stone --name=AtlasTrial --minutes=8
 ```
 
-`id` — уникальное имя этапа; `type` выбирает обработчик; `targets` задаёт требуемые предметы и количества. `minecraft:` — пространство имён vanilla. Можно читать JSON через `readFile` и передавать в `createScenario`; для нативной ресурсной политики передайте `resourceFactory`, создающий `createSurvivalReactor`. Готовая связка уже используется в `createEndExpedition`. [Полный формат и примеры](SCENARIOS.md).
+This expects an offline Java 1.21.1 server at `127.0.0.1:25565`, Survival and a fresh nickname. It collects logs by class, makes a table and wooden pickaxe, collects cobblestone, and makes a stone pickaxe and furnace. A report is saved even if the trial fails. It does not grant items or edit the server rules.
 
-Для обычной задачи производства достаточно `createMinecraftBrain({ ..., survival: { targets: { iron_pickaxe: 1 } } })`. Усложнять сценарий ради одного предмета не требуется.
+If your server uses a different address or port, set `MC_HOST` and `MC_PORT` before starting. `MC_VERSION` must correspond to a supported native profile. [Version support](VERSION-API.md).
 
-## 4. Используйте библиотеку в другом проекте
+## 3. Create your own application
 
-В папке MCKudo выполните `npm.cmd pack`. В своём проекте:
+In a separate application folder, install your current local checkout:
 
 ```powershell
 npm.cmd init -y
-npm.cmd pkg set type=module
-npm.cmd install C:/путь/к/mckudo-0.6.0.tgz
+npm.cmd install C:\path\to\mckudo_core
 ```
 
-Импорты теперь выглядят так:
+Replace the path with the actual library folder. Add `"type": "module"` to your application's `package.json`. Create `index.js`:
 
 ```js
-import { createMinecraftBrain } from 'mckudo';
-import { createKudoConnect } from 'mckudo/connect';
+import { createMinecraftAgent } from 'overmindmc';
+
+const agent = createMinecraftAgent({
+  name: 'Atlas',
+  worldId: 'my-first-world',
+  connection: {
+    host: '127.0.0.1', port: 25565,
+    version: '1.21.1', auth: 'offline'
+  }
+});
+
+try {
+  await agent.get('#logs', 4);
+  await agent.craft('crafting_table', 1);
+  console.log(agent.snapshot());
+} finally {
+  await agent.close();
+}
 ```
 
-KudoConnect уже вложен в этот архив. Для использования транспорта без мозга возьмите [самостоятельный репозиторий](https://github.com/y9kudo/kudoconnect), соберите его архив и импортируйте `createKudoConnect` из `kudoconnect`. Публикация этих версий в npm пока не выполнялась.
+Run it with `node index.js`. `await` means that the next goal waits for the previous one to finish. `finally` closes the agent even after an error.
 
-## 5. Где искать нужный модуль
+`#logs` is a class, so the agent can choose an accessible nearby wood species. `crafting_table` is an item goal. The resource planner determines ingredients and checks server-confirmed inventory after each action. The `count` is the desired amount for the goal, rather than a promise that the agent can obtain it in an unknown world.
 
-| Задача | Модуль / руководство |
-| --- | --- |
-| Каталог, классы дерева/руд, рецепты | [AUTOMATION](AUTOMATION.md), `src/catalog.js`, `src/taxonomy.js` |
-| Производство, добыча, станции | [NATIVE-SURVIVAL](NATIVE-SURVIVAL.md), `src/survival-brain.js` |
-| Броня, еда, сон, охота | `equipment-policy.js`, `needs.js`, `rest-policy.js`, `hunting.js` в `src/` |
-| Передачи с подтверждением, распределение запасов | `src/trade.js`, `src/cooperation.js` |
-| Соединение, физика, серверные действия | [API KudoConnect](../packages/kudoconnect/docs/API.md) |
-| Расчёт падения и движение | [движение KudoConnect](../packages/kudoconnect/docs/CRAFTING-MOVEMENT.md) |
-| Этапы пути до Энда | [END-EXPEDITION](END-EXPEDITION.md), `src/expedition.js` |
-| Результаты проверок | [TESTING-05](TESTING-05.md) |
+`worldId` identifies the world used for memory. Keep it stable for the same world. Set a new value after generating another world; old resource coordinates are only hints and must be revalidated.
 
-Если действие не удалось, сначала смотрите `action:finish`, `client.trace` и причину текущего этапа. Неизвестный чанк не считается пустым, отправленный пакет не считается подтверждённым результатом. Дальность наблюдения ограничена чанками, которые реально прислал сервер.
+## 4. Write a short mission
+
+```js
+await agent.mission([
+  { get: '#logs', count: 4 },
+  { craft: 'crafting_table', count: 1 },
+  { craft: 'wooden_pickaxe', count: 1 },
+  { get: 'cobblestone', count: 8 },
+  { craft: 'furnace', count: 1 }
+]);
+```
+
+A mission is a list of goals. The core supplies the lower-level actions, tool selection and checks. For more control, use a JSON scenario with resource, navigation and expedition steps. [Mission fields](MISSIONS-AND-BRIDGES.md) · [Scenario reference](SCENARIOS.md) · [JSON rules](JSON.md).
+
+## 5. Try learning without Minecraft
+
+```powershell
+node examples/train-physical.js --algorithm=ppo --batches=400 --count=32
+```
+
+This trains a small movement policy on CPU and writes a checkpoint and report. It does not open Minecraft, call an LLM or use a GPU. To transfer that policy to a supported local server, run `node examples/rl-connect-live.js`. [Learning and its limits](RL-PHYSICS-AND-CONNECT.md).
+
+## Connection problems
+
+A refused connection usually means that the server is stopped, uses a different port or is bound to another address. An unsupported-version error means that the installed action profile is missing; do not force an older protocol number. A goal can remain blocked when terrain is unknown, a tool is missing, a region is protected or no safe route exists. Read the saved report or dashboard reason before changing the task.
+
+`auth: 'offline'` is for servers that permit offline login. Licensed servers require `auth: 'microsoft'` and a Minecraft-owning account. Complete the device-code prompt outside the chat and keep the authentication cache private. [Authentication guide](../packages/omconnect/docs/AUTHENTICATION.md).
+
+The renamed packages have not been declared published to npm. Local installation uses the current files; a historical GitHub archive contains its historical package name and APIs. [Migration guide](OVERMIND-MIGRATION.md).

@@ -1,23 +1,23 @@
-# Память, вычисления и реакция · 0.6.0
+# Memory, Calculations and Response · 0.6.0
 
-MCKudo Core и KudoConnect разделяют знания и исполнение. У каждого клиента собственные чанки, инвентарь и подтверждения сервера. Мозг выбирает цели и действия; транспорт не подменяет наблюдаемое состояние предположениями. Автор — y9kudo.
+OvermindMC and OMConnect share knowledge and execution. Every customer has his own cups, server equipment and confirmation. The brain chooses goals and actions; transport does not substitute for observed condition. Author — y9kudo.
 
-## Слои памяти
+## The memory layers
 
-| Слой | Назначение | Обновление |
+| Layer | Appointment | Update |
 |---|---|---|
-| KudoConnect World | Текущее состояние полученных чанков | Пакеты сервера |
-| Пространственная память | Последние наблюдения ресурсов и станций | Полные наблюдения мозга; видимые противоречия удаляют записи |
-| Нейросеть навигации 12–16–1 | Обучаемая стоимость перехода | Исходы движения и полученный урон |
-| Нейросетевой планировщик 24–24–1 | Рейтинг рецептов, источников и направлений | Подтверждённые результаты действий |
-| Очередь и сценарий | Цель, текущий этап и результат | Наблюдения и события исполнителя |
+| OMConnect World | Current status of received jar | server packages |
+| Spatial memory | Recent observations of resources and stations | Full brain observations; visible contradictions remove the entries |
+| No seagoing 12–16–1 | Transfer cost to be trained | Traffic output and loss |
+| Neural Planner 24–24–1 | Pocket rating, sources and directions | Affirmative action |
+| Line and scenario | Goal, Current phase and outcome | Observations and events of the perpetrator |
 
-Нейросети локальные, с обновлением весов и ограниченным replay-буфером. Они не генерируют произвольный код. Обучаемая стоимость дополняет проверки физики и рецептов; она не разрешает проходить неизвестные или опасные клетки.
+Neironets are local, with the updating of weights and limited replay-buffer. They don't generate arbitrary code. The cost of training is complementary to physical and prescription tests; It does not allow unknown or dangerous cells to pass through.
 
-## Пространственная память
+## Spatial memory
 
 ```js
-import { createSpatialMemory } from 'mckudo';
+import { createSpatialMemory } from 'overmindmc';
 
 const memory = createSpatialMemory({ worldId: 'my-world', maxEntries: 2048 });
 memory.observe({
@@ -31,18 +31,18 @@ const saved = memory.export();
 const restored = createSpatialMemory({ worldId: 'my-world', memory: saved });
 ```
 
-По умолчанию хранится до 2 048 координат за 7 суток. Предел настраивается от 16 до 4 096, срок — от секунды до 30 суток. У записи есть ID блока, измерение, целые координаты, время последнего наблюдения и количество наблюдений. Возвращаемые снимки копируются. Загрузка проверяет формат, мир, координаты и дубликаты.
+By default, stored until 2 048 coordinates of the 7 day. Limit adjusted from 16 to 4 096, time — from second to second 30 day. The tape has ID block, Measurement, integer coordinates, Last observation time and number of observations. Returned images are copied. Loading Checks format, peace, coordinates and duplicates.
 
-`createMinecraftBrain` по умолчанию обновляет память и передаёт её выживанию. Если чанк выгрузился, запись помогает выбрать направление исследования. Перед добычей и перемещением исполнитель читает живой мир. Видимое исчезновение/изменение блока удаляет подсказку; неизвестный чанк сохраняет её до истечения срока.
+`createMinecraftBrain` defaults to update memory and transmit it to survival. If the cup is off-load, Recording helps to select a direction for research. Before mining and moving, the performer reads the living world. Apparent disappearance/The change in block deletes the clue; An unknown cup keeps it until the expiry of the deadline.
 
-`createAgentManager({ memoryDirectory, worldId })` сохраняет пространственную память, две модели и очередь раз в 15 секунд и при `close()`. Атомарные записи разделены по миру и имени агента. Для своего хранилища используй `brain.spatial.export()`. Полностью отключить этот слой можно через `spatial: false`.
+`createAgentManager({ memoryDirectory, worldId })` Saves spatial memory, two models and a line once per 15 seconds and under `close()`. Atomic records are divided around the world and the agent's name. Use it for your vault `brain.spatial.export()`. You can completely unplug this layer through `spatial: false`.
 
-## Общая очередь вычислений
+## Total calculation line
 
-Нативные поиски пути используют одну ограниченную очередь на процесс. Задачи чередуются: очередной поиск получает не больше 64 узлов или 2 мс за свою порцию; суммарная порция очереди ограничена мягким бюджетом 4 мс. Затем управление возвращается циклу событий. Задержка одного узла, сборка мусора или медленный пользовательский callback могут превысить бюджет.
+A hard-track approach uses one limited process line. Tasks alternate: No more searching 64 knots or 2 ms for your own; the total portion of the round is limited by the soft budget 4 ms. Then the control returns the event cycle. Delay of one node, garbage collection or slow user callback may exceed the budget.
 
 ```js
-import { createWorkScheduler, planRouteAsync } from 'mckudo/connect';
+import { createWorkScheduler, planRouteAsync } from 'overmindmc/connect';
 const scheduler = createWorkScheduler({ budgetMs: 4, maxJobs: 128 });
 try {
   const view = client.world.createReadView();
@@ -54,22 +54,22 @@ try {
 } finally { scheduler.close(); }
 ```
 
-`client` в этом фрагменте уже подключён. Без собственного `scheduler` используется общая очередь. `createWorkScheduler` также принимает синхронные итераторы через `submit(iterator, { signal, sliceMs, nodesPerSlice, validate })`. Очередь отклоняет переполнение, поддерживает отмену и освобождает генераторы. Ошибка одной задачи не прекращает остальные.
+`client` In this fragment, already connected. Without own `scheduler` Common. `createWorkScheduler` Also accepts synchronous iters through `submit(iterator, { signal, sliceMs, nodesPerSlice, validate })`. The Line Rejects Overcrowding, Supports the cancellation and releases generators. One problem failed to stop the rest.
 
-Представление чтения отслеживает только чанки, затронутые поиском. Изменение прочитанного чанка, выгрузка, появление ранее неизвестного чанка или сброс измерения отменяют расчёт. Изменения в посторонних чанках не заставляют пересчитывать маршрут. Исполнитель повторно проверяет актуальную позицию и каждый переход. Это согласованность чтения A*, а не реализация D* Lite.
+Reading shows only the cups, Search affected. Change of the reading cup, Unload, the appearance of a previously unknown cup or the drop of measurement is cancelled. Changes in foreign tubs do not cause the route to be counted. The perpetrator re-checks the position of relevance and each transition. It's a read-in-the-read consistency A*, Not implementation D* Lite.
 
-`client.snapshot().metrics.navigation` показывает общую очередь процесса: pending/completed/failed/cancelled, число порций и самое длительное выполнение порции. Эти числа относятся ко всем агентам процесса. [Метрики таймера и методика нагрузки](RUNTIME-PERFORMANCE.md).
+`client.snapshot().metrics.navigation` Shows the overall process: pending/completed/failed/cancelled, number of meals and the longest serving. These numbers refer to all process agents. [Timer metrics and load methodology](RUNTIME-PERFORMANCE.md).
 
-## Реакция по событиям
+## Response to events
 
-Во время длительного действия событие угрозы сразу будит проверку угроз, не дожидаясь следующего интервала. Пачка событий объединяется; одновременно выполняется одна такая проверка. Периодический контроль остаётся резервным механизмом. Приоритетный бой отменяет навык через `AbortSignal`; подтверждённые изменения мира сохраняются.
+During the long term, the threat event immediately wakes up the threat verification, without waiting for the next interval. The pack of events is united; One such inspection shall be performed simultaneously. Periodic monitoring remains a stand-by mechanism. Priority fight cancels skill through `AbortSignal`; confirmed changes in the world.
 
-Скорость события не гарантирует мгновенное физическое действие: нужны наблюдение, вычисление, обработка пакетов и следующий серверный тик. Измеряй локальный таймер, ошибки и коррекции; отдельный сетевой ping не заменяет эти показатели.
+The speed of the event does not guarantee instant physical action: I need a surveillance, calculation, Package processing and next server tick. Measure the local timer, errors and corrections; separate network ping does not replace these figures.
 
-## Источники проектных решений
+## Sources of project decisions
 
-- [Voyager, авторская страница и статья](https://voyager.minedojo.org/): накопление переиспользуемого опыта и обратная связь при ошибках. В MCKudo это направление применено к ограниченной памяти наблюдений и локальному обучению; LLM-генерация навыков Voyager здесь не реализована.
-- [Node.js Performance measurement APIs](https://nodejs.org/docs/latest-v24.x/api/perf_hooks.html): измерение времени и различие задержек цикла событий и загрузки CPU. Очередь использует `performance.now()`, а интервалы игрового таймера измеряются отдельно.
-- [Koenig, Likhachev — D* Lite](https://idm-lab.org/bib/abstracts/papers/aaai02b.pdf): повторное использование поиска при изменении мира. Текущая реализация сохраняет A* и проверяет актуальность прочитанных чанков; инкрементальное дерево D* Lite не заявляется.
+- [Voyager, Copyright page and article](https://voyager.minedojo.org/): Re-use of experience and feedback from errors. B OvermindMC This is applied to limited observational memory and local education; LLM-Skills generation Voyager Not implemented here.
+- [Node.js Performance measurement APIs](https://nodejs.org/docs/latest-v24.x/api/perf_hooks.html): Time measurement and difference between the event cycle and load delays CPU. Line uses `performance.now()`, and the slot intervals are measured separately.
+- [Koenig, Likhachev — D* Lite](https://idm-lab.org/bib/abstracts/papers/aaai02b.pdf): Reuse of prospecting in changing the world. Current implementation retained A* and check the relevance of the readings; Incretionary tree D* Lite does not state.
 
-Эти источники объясняют выбор архитектуры. Результаты MCKudo подтверждаются собственными [автоматическими и игровыми проверками](TESTING-06.md).
+These sources explain the choice of architecture. Results OvermindMC confirmed by their own [Automatic and game tests](TESTING-06.md).

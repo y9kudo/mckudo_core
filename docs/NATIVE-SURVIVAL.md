@@ -1,16 +1,16 @@
-# Выживание на MCKudo + KudoConnect
+# Survival OvermindMC + OMConnect
 
-Автор: **y9kudo**. MCKudo выбирает цель и следующий шаг; KudoConnect подключается к Minecraft, получает мир и выполняет действия. Испытательный профиль — **Java 1.21.1, offline**. Для работы не нужен платный ИИ или Mineflayer.
+Author: **y9kudo**. OvermindMC Chooses the goal and next step; OMConnect connected to Minecraft, Gets peace and does things. Test Profile — **Java 1.21.1, offline**. You don't need a pay I.I. or Mineflayer.
 
-## Первый агент
+## First agent
 
-В терминале VS Code открой корень `mckudo_core`, установи зависимости через `npm.cmd install`. Создай рядом с `mckudo_core.js` файл `my-agent.js`:
+In the terminal VS Code Open the root `mckudo_core`, Set Dependency through `npm.cmd install`. Create next to `overmindmc.js` File `my-agent.js`:
 
 ```js
-import { createKudoConnect } from './kudoconnect/index.js';
-import { createMinecraftBrain } from './mckudo_core.js';
+import { createOMConnect } from './omconnect/index.js';
+import { createMinecraftBrain } from './overmindmc.js';
 
-const client = createKudoConnect({
+const client = createOMConnect({
   username: 'Oliver', host: '127.0.0.1', port: 25565,
   version: '1.21.1', auth: 'offline'
 });
@@ -31,30 +31,30 @@ process.once('SIGINT', async () => {
 });
 ```
 
-Запусти `node my-agent.js`. `username` — имя игрока на сервере. `worldId` — постоянное имя твоего мира для ядра, а не адрес подключения. `target` — результат, к которому стремится библиотека. Внешняя программа запускает цикл, но не содержит рецептов, обхода препятствий или решений о добыче.
+Run `node my-agent.js`. `username` — player's name on the server. `worldId` — your world's permanent name for the core, Not the connection address. `target` — result, to which the library is seeking. External program starts cycle, but doesn't contain any recipes, of obstacles or decisions to exploit.
 
-Если используешь отдельно установленные пакеты, импорты будут `kudoconnect` и `mckudo`. Пакеты ещё не опубликованы в npm; [инструкция локальной установки](../packages/kudoconnect/README.md).
+If you use separate packages, imports will `kudoconnect` and `mckudo`. Packages not yet published npm; [local installation instruction](../packages/omconnect/README.md).
 
-## Цели и контроль результата
+## Objectives and monitoring of results
 
-| `target` | Условие готовности |
+| `target` | Readiness condition |
 | --- | --- |
-| `wood` | Верстак в инвентаре |
-| `stone_tools` | Каменная кирка и печь в инвентаре |
-| `iron_pickaxe` | Железная кирка в инвентаре |
-| `diamond_set` | Шлем, нагрудник, поножи, ботинки, кирка, меч и топор из алмазов |
+| `wood` | Versac in inventory |
+| `stone_tools` | Stone kirk and stove in inventory |
+| `iron_pickaxe` | Iron pick in inventory |
+| `diamond_set` | The helmet, breast plate, ♪ Beautiful ♪, Shoes, Kirk, A sword and an axe of diamonds |
 
-Последняя цель требует 32 алмаза на агента. Проверяются предметы, подтверждённые сервером, включая четыре слота надетой брони. `createEquipmentReactor` автоматически надевает доступную броню, отдавая предпочтение более высокому уровню материала. Зачарования и прочность пока не участвуют в сравнении брони. `inventory.count()` считает переносимые предметы; `inventory.ownedCount()` также учитывает надетые. `inventory.equipment()` возвращает `head`, `chest`, `legs`, `feet`.
+The latter requires 32 Diamond on agent. Items checked, confirmed by the server, including four slots of armor. `createEquipmentReactor` automatically wears an accessible armor, Prefering to a higher level of material. Enchanting and strength are not yet involved in comparison of armor. `inventory.count()` Considers objects carried over; `inventory.ownedCount()` also takes into account the. `inventory.equipment()` Returns `head`, `chest`, `legs`, `feet`.
 
-`brain.survival.snapshot()` содержит `status`, `stage`, `reason`, `targets`, `remaining`, `completed`, `knownResources`, `lastFailure`. `completed` — история достигнутых промежуточных этапов; текущее владение проверяй через `client.inventory.snapshot()`. Для своей конечной цели передай `survival.targets: { 'minecraft:iron_pickaxe': 1, 'minecraft:iron_axe': 1 }`.
+`brain.survival.snapshot()` contains `status`, `stage`, `reason`, `targets`, `remaining`, `completed`, `knownResources`, `lastFailure`. `completed` — History of the intermediate stages achieved; Current ownership, check through `client.inventory.snapshot()`. For your ultimate purpose, pass `survival.targets: { 'minecraft:iron_pickaxe': 1, 'minecraft:iron_axe': 1 }`.
 
-Древесина выбирается по доступным источникам и стоимости рецептов. Для верстака подходят разные доски, но рецепт берёзовой двери нельзя автоматически заменить дубовыми досками. Руда из глубинного сланца рассматривается как источник того же полезного ресурса, с проверкой уровня кирки.
+Wood is chosen from accessible sources and the cost of recipes. Different boards are suitable for the verstack, But the recipe for a birch door cannot be automatically replaced by oak boards. The deep-slurpedo is seen as a source of the same useful resource, with test of the cirque level.
 
-Ядро запоминает наблюдаемые ресурсы, ищет открытые подходы и при необходимости прокладывает лестничный спуск. Оно проверяет опору, жидкости, падающие блоки и нижнюю границу мира. Отсутствие доступного пути записывается как причина остановки/перепланирования. Модель пока не гарантирует прохождение любой случайной карты.
+The core memorizes observed resources, Seeks open approaches and puts a ladder down if necessary. It checks the support, Liquids, The falling blocs and the lower limit of the world. No access route recorded as the reason for the stop/Replanning. The model does not yet guarantee the passage of any random map.
 
-## Крафт и рабочие станции
+## Craft and workstations
 
-Прямые действия нужны для ручного управления или собственного Reactor. Останови автоматический мозг перед ручной командой: `await brain.pause()`.
+Direct action is required for manual control or for own Reactor. Stop the automatic brain before the manual command: `await brain.pause()`.
 
 ```js
 await client.execute({ skill: 'gather', args: { block: '#logs', count: 1 } });
@@ -64,9 +64,9 @@ await client.execute({ skill: 'ensureStation', args: { station: 'crafting_table'
 await client.execute({ skill: 'ensureStation', args: { station: 'furnace' } });
 ```
 
-`craft.count` — сколько **новых** предметов нужно произвести. Рецепт может округлить количество вверх: запрос пяти досок из брёвен даст восемь. 2×2 использует инвентарь, 3×3 — верстак. Для каждого щелчка ожидается ответ сервера; после получения результата проверяются ингредиенты и пустой курсор.
+`craft.count` — How many **new** items to be produced. The recipe can round up the number: The five logboards will give you eight. 2×2 uses equipment, 3×3 — crafting table. The server response is expected for each click; The ingredients and empty italics shall be checked after the result has been obtained.
 
-`ensureStation` ищет доступную станцию. Если её нет, создаёт и ставит свою. При `gather: true` (по умолчанию) собирает недостающие базовые материалы; `gather: false` разрешает только текущие запасы. Поддержаны верстак и обычная печь. Прочие станции не следует считать доступными только потому, что они есть в каталоге.
+`ensureStation` Looking for an accessible station. If she's not here, Creates and sets up his own. Prix `gather: true` (default) Collects missing basic materials; `gather: false` only authorizes current stocks. Supported by the wind and the common furnace. Other stations should not be considered available for the sole reason, I'm sure they're in the catalogue.
 
 ```js
 await client.execute({ skill: 'smelt', args: {
@@ -74,24 +74,24 @@ await client.execute({ skill: 'smelt', args: {
 }}, { signal: AbortSignal.timeout(45000) });
 ```
 
-Сырьё и топливо должны быть в инвентаре. Обычная плавка занимает 200 игровых тиков на предмет. Исполнитель забирает подтверждённый результат и оставшееся несгоревшее топливо. Печь с чужими предметами не расходуется автоматически. Агенты одного процесса ждут освобождения занятой печи. При обрыве сырьё может остаться в мире — операция не откатывается.
+Raw and fuel must be in the inventory. The usual bathing suit takes 200 game tikis for the. The perpetrator shall take away the confirmed result and the remaining unburned fuel. No other person's objects are automatically consumed by the furnace. Agents in one trial are waiting for the release of the occupied furnace. The cheese can stay in the world when the cliff is broken — Operation isn't rolling back.
 
-Статические рецепты берутся из данных 1.21.1; неподдерживаемые специальные рецепты и рецепты с возвратом контейнеров отклоняются. `craftingRecipes` и `chooseCraftingRecipe` позволяют проверить возможность заранее. Каталог рецептов шире текущего набора исполнителей.
+Static recipes are taken from data 1.21.1; Non-supported special and return-of-containers prescriptions are rejected. `craftingRecipes` and `chooseCraftingRecipe` allow for pre-screening. The recipe catalogue is larger than the current set of performers.
 
-## Движение, бой и лут
+## Movement, Fight and Lute
 
-Поворот ограничен скоростью и выбирает короткую дугу. `lookAt` задаёт цель, `await waitForLook()` ждёт её достижения. Навигация ускоряется на проверенном прямом участке и включает прыжки при достаточной дистанции, запасе еды и свободном пространстве. На краях, при использовании щита и неизвестной опоре спринт ограничивается.
+Turn limited speed and picks a short arc. `lookAt` Sets a goal, `await waitForLook()` Waiting for her achievement. Navigation accelerates on a proven straight path and includes jumps at a sufficient distance, food reserve and free space. At the edges, When a shield and an unknown support is used, the sprint is limited.
 
-Мост использует имеющиеся безопасные полные блоки: землю, булыжник, доски, шерсть, бетон и другие подходящие материалы. Падающие, опасные, ценные и функциональные блоки защищены от автоматического расхода. `bridgeReserve` оставляет запас; `bridgeItemValue(name, item)` меняет порядок выбора. `navigate.args.bridge: false` отключает мост на конкретном маршруте. Постановка каждого блока подтверждается до движения вперёд.
+The bridge uses existing safe, complete blocks: land, Rocket, boards, wool, concrete and other suitable materials. Falling, dangerous, Valuable and functional units protected against automatic flow. `bridgeReserve` Leaves the stock; `bridgeItemValue(name, item)` changes the selection process. `navigate.args.bridge: false` Disables bridge on a particular route. Each block is confirmed before forward movement.
 
-`dig` выбирает инструмент по блоку и возможности получить дроп; `combat` — по оружию, дистанции, щиту и восстановлению удара. Два серверных события урона от одного игрока за 10 секунд запускают ответ. Наличие отправленного удара не доказывает нанесённый урон — это разные свидетельства в тестах.
+`dig` Selects a tool in a block and the ability to get a throttle; `combat` — on arms, Distances, shield and re-entry. Two server events one player has lost for 10 seconds start answer. The presence of a direct strike does not prove the damage — It's different evidence in the tests.
 
-Подбор отслеживает актуальные координаты сущности. Исчезнувший предмет не считается полученным: результат содержит `gained: 0`, `serverConfirmed: false`. Reactor повторно выбирает доступную добычу. Сундуки, двойные сундуки, бочки и все цвета шалкеров ищутся автоматически; `maxStacks: 54` забирает всё, что помещается, за один осмотр. Эндер-сундуки и торговля с жителями пока не входят в исполнитель хранилищ.
+Selecting tracks relevant entity coordinates. Missing object is not considered received: the result `gained: 0`, `serverConfirmed: false`. Reactor Re-choices available production. Crafts, Double chests, The barrels and all the colors of the shalckers are automatically sought; `maxStacks: 54` Takes everything, What is placed, for one inspection. Ender-Caches and trading with residents are not yet part of the warehouse performer.
 
-## Три агента и обмен
+## Three agents and exchange
 
 ```js
-import { createAgentManager } from './mckudo_core.js';
+import { createAgentManager } from './overmindmc.js';
 const team = createAgentManager({
   count: 3, names: ['Owen', 'Liam', 'Noah'], worldId: 'my-local-world'
 });
@@ -102,36 +102,36 @@ for (const name of ['Owen', 'Liam', 'Noah']) {
 process.once('SIGINT', () => team.close());
 ```
 
-Менеджер связывает отдельные мозги через `KudoPeer`. Намерения о добыче и короткий резерв дропа передаются в процессе, без сообщений Minecraft. При ручной сборке передай `survival.peer: fleet.peers.get(name)` каждому мозгу. Это кооперация известных участников; сторонний игрок всё равно может подобрать предмет.
+Manager connects individual brains through `OMPeer`. Mining intentions and short throttle reserve transfer during, No messages Minecraft. Hand-assed pass `survival.peer: fleet.peers.get(name)` Every brain. It's a collaboration of known participants; A side player can still pick up a subject.
 
-`itemValue` оценивает полезность; `survivalReserves` защищает лучшую кирку, целевое снаряжение, еду, топливо и материалы. `proposeTrade` возвращает предложение, только если обмен выгоден обоим, либо есть лишний предмет для подарка. `runTrade` исполняет две физические передачи и сохраняет отдельные квитанции.
+`itemValue` Assesses the usefulness; `survivalReserves` Protects the best brick, Target equipment, I'm on my way, Fuel and materials. `proposeTrade` Returns the sentence, Only if the exchange is beneficial to both, Or there's an extra gift item. `runTrade` Performs two physical transfers and stores separate receipts.
 
-Менеджер проверяет работающих близких агентов каждые четыре секунды. Обычная броня, инструменты и кровать учитываются как текущие потребности даже при дальнейшей цели `diamond_set`. Получивший три комплекта из сундука сохраняет себе один и передаёт лишнее участникам, которым этих предметов не хватает. Алмазы на ещё не созданные целевые вещи остаются в резерве. На время передачи действия обоих участников приостанавливаются, затем автоматическая работа возобновляется.
+Manager checks on working close agents every four seconds. Normal armor, tools and bed are accounted for as current needs even for further purpose `diamond_set`. The recipient of the three sets from the chest keeps himself alone and transfers the extra sets to the participants, I'm sorry, I'm sorry. Diamonds for undeveloped targeted items remain on reserve. Both parties are suspended for the duration of the transfer, Then the automatic work resumes.
 
-Место передачи выбирается в стороне от других игроков и проверяется перед броском. При `partial` автоматический повтор пары блокируется до перезапуска менеджера: сначала проверь инвентари. Если предмет ещё не был передан, временная ошибка откладывает повтор на 30 секунд. В Minecraft нет атомарного обмена выброшенными предметами. Ручные `give`/`trade` ставят мозги участников на паузу; после проверки снова вызови `start`.
+The gear location is selected away from other players and checked before the drop. Prix `partial` Automatic pair re-supplies lock before manager restarts: First, check the inventory. If the item has not yet been transferred, a temporary error postpones repetition on 30 seconds. B Minecraft No atomized exchange of discarded objects. Hand `give`/`trade` Pause the brains of the participants; After the test, call again `start`.
 
-Для своей команды без менеджера вызови `shareTeamSupplies({ clients: [...fleet.agents.values()], peers: fleet.peers })` в момент, когда исполнители свободны. Функция содержит политику распределения и подтверждение передачи, возвращает журнал `transfers`; не запускай её одновременно с действиями тех же клиентов. `maxTransfers` ограничивает работу, результат `pending` означает оставшиеся предложения.
+For your team without a manager, call `shareTeamSupplies({ clients: [...fleet.agents.values()], peers: fleet.peers })` at time, when the perpetrators are free. The function contains a policy of allocation and confirmation of transfer, Returns the magazine `transfers`; Don't start it at the same time as the same clients. `maxTransfers` Limiting work, result `pending` means the remaining proposals.
 
-## Ночь и ресурсы животных
+## Night and resources of animals
 
-По умолчанию профиль использует `night: { retryMs: 60000 }` и `hunting: { targets: { leather: 4 }, foodReserve: 6, radius: 24, prepareWool: true }`. В обычном мире ночью агент ищет доступную незанятую кровать. При наличии предмета кровати или трёх блоков шерсти одного цвета он может подготовить её сам, получить доски и верстак. Для постановки проверяются две клетки, опора и пространство над ними.
+By default, the profile uses `night: { retryMs: 60000 }` and `hunting: { targets: { leather: 4 }, foodReserve: 6, radius: 24, prepareWool: true }`. In the ordinary world at night, the agent is looking for an accessible unoccupied bed. If there is a bed object or three blocks of wool of the same color, he can prepare it himself, Get boards and verstaq. Two cells shall be checked for setting, support and space above them.
 
-Сервер должен подтвердить положение сна. Если ночь не пропускается, через ограниченное ожидание агент встаёт и продолжает работу. Без кровати/шерсти или после отказа сервера обычные задачи сохраняются. Кровати в Nether/End не используются.
+The server must confirm the sleeping position. If night isn't gone, With limited waiting, the agent rises and continues to work. No bed/Flat or after server failure, normal tasks retained. Beds in Nether/End not used.
 
-Охота выбирает наблюдаемых взрослых неназванных животных по нужным ресурсам: коровы — кожа и мясо, овцы — мясо и шерсть своего цвета. Детёныши и животные с именем исключены. Овца после стрижки не считается источником шерсти. До дальней цели строится маршрут; неудачный подход получает паузу, чтобы не зациклиться. Получение ресурса подтверждает отдельный подбор, а не сам факт отправленного удара.
+Hunting selects adult sightings of unnamed animals for the right resources: cows — Skin and meat, sheep — Meat and wool of their colour. Infants and animals with name excluded. Sheep after haircut are not considered to be wool. A route is being built to the far end; A failed approach is paused, I'm not gonna get caught up in it. The resource receipt confirms a separate selection, Not the actual fact of a direct impact.
 
-`night: false`, `hunting: false`, `equipment: false` отключают соответствующие политики. Например, `hunting: { targets: { leather: 2 }, foodReserve: 4, prepareWool: false }` ограничивает охоту кожей и небольшим запасом еды.
+`night: false`, `hunting: false`, `equipment: false` Disable relevant policies. For example, `hunting: { targets: { leather: 2 }, foodReserve: 4, prepareWool: false }` Limiting hunting to skin and small food supplies.
 
-## Движение среди игроков
+## ♪ The movement among players ♪
 
-A* рассматривает восемь направлений на ровной поверхности. Для диагонали проверяются обе соседние боковые клетки, поэтому агент не проходит через угол препятствия. Движение учитывает наблюдаемые позиции других игроков: снижает скорость рядом с ними, выбирает боковой обход и перестраивает занятый маршрут. При отсутствии безопасного обхода действие останавливается с причиной. Спринт и прыжки зависят от сытости, опоры и свободного пространства.
+A* Considers eight directions on a level surface. For diagonal, both adjacent side cells are checked, So the agent doesn't go through the angle of the barrier. Movement takes into account observed positions of other players: Lowering speed near them, Selects a side-by-side route and rearranges the route. In the absence of safe bypass, action stops with cause. Sprint and jump depend on the level of the food, support and free space.
 
-## Как расширять сценарий
+## How to expand the scenario
 
-Начни с готового профиля; отключай части через `storage: false`, `survival: false`, `loot: false`, `needs: false`. Своё правило можно добавить через `config.rules`, а вычисляемое поведение — через `reactors`. У действия есть `skill` и `args`; у условия — путь к факту и сравнение. Подробные примеры JSON: [SCENARIOS](SCENARIOS.md) и [JSON](JSON.md). Возвращай решение из Reactor, а не запускай там параллельные действия: отменой и приоритетами управляет ядро.
+Start with the finished profile; Shut down the parts through `storage: false`, `survival: false`, `loot: false`, `needs: false`. You can add your rule through `config.rules`, a Computed behaviour — Through `reactors`. The action has `skill` and `args`; at the condition — Path to fact and comparison. Detailed examples JSON: [SCENARIOS](SCENARIOS.md) and [JSON](JSON.md). Return the decision from Reactor, Don't start parallel action there: Cancellation and priorities manage the kernel.
 
-## Проверка на сервере
+## Check on server
 
-`npm.cmd run test:live:native` подключает Owen, Liam, Noah и запускает ограниченный по времени прогон. `MC_TEST_MINUTES` задаёт 1–120 минут, по умолчанию 10. `MC_NAMES` задаёт три имени через запятую. Проверка пишет `data/native-campaign.json`: вход, рецепты, классы ресурсов, взгляд, действия, этапы и итоговые инвентари. Повторный вход сохраняет серверный инвентарь; `fromZero: false` явно отмечает продолжение.
+`npm.cmd run test:live:native` connects Owen, Liam, Noah and start a time-limited run. `MC_TEST_MINUTES` it's a problem 1–120 minutes, default 10. `MC_NAMES` it's three names in a decimal place. Checking written `data/native-campaign.json`: Incoming, Prescriptions, Resource levels, look, Action, Phases and final inventory. Reentry Saves server equipment; `fromZero: false` clearly notes the continuation.
 
-`passed` ставится только при полном наборе у всех троих. `incomplete` означает незавершённую цель, а не успешное прохождение. `npm.cmd test` запускает автоматические проверки без подключения к игре. Их результат не подменяет живое испытание.
+`passed` is only installed when full set of all three. `incomplete` means an unfinished purpose, Not successful passing. `npm.cmd test` Runs automatic checks without connection to the game. Their result is not a substitute for a living test.

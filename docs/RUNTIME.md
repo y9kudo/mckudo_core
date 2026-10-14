@@ -1,12 +1,12 @@
-# Несколько агентов
+# Several agents
 
-MckudoRuntime координирует несколько независимых экземпляров ядра в одном процессе. У каждого свои наблюдения, память, задачи и адаптер. concurrency ограничивает число одновременных шагов.
+OvermindRuntime coordinates several independent copies of the kernel in one process. Everyone has their own observations, memory, Tasks and adapter. concurrency limit the number of simultaneous steps.
 
 ~~~js
-import { createCore, MckudoRuntime } from 'mckudo';
-import { createSimulator } from 'mckudo/adapters/simulator';
+import { createCore, OvermindRuntime } from 'overmindmc';
+import { createSimulator } from 'overmindmc/adapters/simulator';
 
-const runtime = new MckudoRuntime({ concurrency: 2 });
+const runtime = new OvermindRuntime({ concurrency: 2 });
 runtime.add(
   'north',
   createCore({ config: northConfig, adapter: createSimulator() }),
@@ -23,22 +23,22 @@ console.log(runtime.snapshot().agents);
 await runtime.stop();
 ~~~
 
-northConfig и southConfig — самостоятельные конфигурации. Полный запускаемый пример: examples/runtime.js.
+northConfig and southConfig — Self-contained configurations. Full example launched: examples/runtime.js.
 
-Runtime.tick() делает по одному шагу каждого агента с ограничением параллельности. Повторные одновременные вызовы объединяются. Автоматического таймера runtime нет: расписание задаёт приложение. Для управляемых агентов не вызывай core.start() — иначе независимый цикл обойдёт ограничение runtime.
+Runtime.tick() One step each agent with parallel limits. Repeated simultaneous challenges are joined together. Automatic timer runtime no: schedule sets the application. Don't call for controlled agents core.start() — Otherwise, independent cycle will pass the limit runtime.
 
-## Идентичность игрового ресурса
+## Identification of the game resource
 
-resourceKey — стабильный идентификатор подключения или персонажа, которым управляет агент. Два одинаковых ключа либо один экземпляр core дважды не допускаются. По умолчанию ключ равен ID агента.
+resourceKey — A stable connection or character identifier, Agent-controlled. Two identical keys or one copy core Not allowed twice. default key is ID agent.
 
-Ядро не может определить, что два разных адаптера внутри управляют одним и тем же сокетом. Для настоящих подключений передавай один и тот же resourceKey для одного физического ресурса. Проверка действует внутри одного runtime; распределённых блокировок между процессами пока нет.
+The kernel cannot identify, That two different adapters inside are controlling the same juice. For real connections, pass the same thing resourceKey for one physical resource. The test works inside one runtime; No distributed blockage between processes yet.
 
-## Остановка
+## Stop
 
-await runtime.pause() запрашивает отмену у всех агентов и не запускает оставшиеся в очереди шаги. runtime.resume() снимает паузу. runtime.stop() завершает текущий пакет шагов через отмену. Уже завершённые шаги сохраняются.
+await runtime.pause() Requests cancellation from all agents and does not start the remaining steps in line. runtime.resume() takes a pause. runtime.stop() completes the current package by abolishing. The steps already completed are still in place.
 
-Runtime не закрывает игровые подключения: ими владеет приложение. Если сторонний навык игнорирует AbortSignal, остановка ждёт его завершения — это тот же контракт, что у отдельного ядра.
+Runtime does not close the games: The application owns them. If the other skill ignores AbortSignal, Stop pending its completion — It's the same contract, I think it's a separate kernel.
 
-Добавление и удаление агентов доступны между пакетами шагов. remove(id) возвращает экземпляр core. snapshot() возвращает копию общего состояния.
+Add and remove agents available between the steps. remove(id) Returns the copy core. snapshot() returns a copy of the general state.
 
-Это координация логики, а не распределённый кластер и не гарантия производительности для тысяч Minecraft-клиентов. Нагрузочные игровые испытания ещё предстоят.
+It's a logical coordination, Not a distributed cluster and not a performance guarantee for thousands Minecraft-Clients. The loading of the game tests are still pending.

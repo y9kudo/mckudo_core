@@ -1,35 +1,35 @@
-# Отзывчивость MCKudo и KudoConnect
+# Responsiveness OvermindMC and OMConnect
 
-Когда агент визуально движется рывками, причиной может быть задержка JavaScript, обработка чанков или нагрузка игрового сервера. Соединение с `127.0.0.1` идёт внутри ПК. Скорость внешнего интернета не ускорит такой обмен.
+When the agent is visually moving by the push, The reason for this may be delay JavaScript, Curcase handling or game server load. Connect `127.0.0.1` Goes inside the PC. The speed of the external Internet will not accelerate this exchange.
 
-## Что изменено в 0.6.0
+## What's changed in 0.6.0
 
-- KudoConnect выполняет поиск пути, подход к добываемому блоку и поиск подхода к луту через `planRouteAsync`. Между порциями A* обрабатываются таймеры, входящие пакеты и другие агенты.
-- Локальная физика планирует следующий вызов относительно абсолютного целевого времени, чтобы округление таймеров ОС не накапливалось в каждом интервале. Цель остаётся 20 шагов/с; после длительной паузы не выполняется серия догоняющих шагов и пакетов. Отдельный игровой маршрут подтвердил 19,97 Гц без коррекций; полная экспедиция с этим расписанием ещё не повторялась.
-- Общая очередь процесса чередует поиски и ограничивает суммарную порцию мягким бюджетом 4 мс. Один поиск получает до 64 узлов или 2 мс за порцию. Отдельный узел завершается целиком; пользовательские `getBlock`, `occupied` и `edgeCost` должны выполнять короткие синхронные вычисления.
-- Отмена проверяется между узлами. Нативный поиск отслеживает ревизии прочитанных чанков: обновления посторонних чанков не отменяют расчёт. Исполнитель также проверяет, что стартовая позиция не изменилась, и повторно проверяет опоры при движении.
-- В поиске больше не создаётся массив высот для каждого направления каждого узла; заведомо недопустимые диагональные перепады не перебираются.
-- Адаптер хранит список ID предметов вместо повторного копирования всего каталога. Количества предметов читаются заново при каждом наблюдении, отсутствующие предметы остаются равны нулю.
-- Планировщик выживания индексирует известные источники по блоку один раз за наблюдение. Индекс сбрасывается при следующем наблюдении.
-- Ядро не создаёт снимок состояния для события `state`, если на него нет подписчиков. Защита от изменения внутренних данных подписчиками сохранена.
-- Ошибки выживания и подбора ограничивают конкретное действие. Неудачная добыча одного дерева позволяет сразу проверить другое.
+- OMConnect Finds a way, the approach to the mining block and the search for a lute approach through `planRouteAsync`. Between the portions A* Timers are processed, incoming packages and other agents.
+- Local physics plans to call next in relative absolute target time, The timers of the OS should not be rounded up at each interval. Target remains 20 Steps/with; No follow-up steps and packages are implemented after a long pause. The separate game route confirmed 19,97 Not corrected; The full expedition with this schedule hasn't been repeated yet.
+- The overall turn of the process rotates the search and limits the sum of the sum to a soft budget 4 ms. One search gets to 64 knots or 2 ms per meal. The individual node ends in its entirety; User `getBlock`, `occupied` and `edgeCost` shall perform short synchronous calculations.
+- Cancel is checked between nodes. On-the-spot tracking of the audit of the readings: updating foreign chancs doesn't cancel the calculation. The perpetrator also checks, I'm sure the starting position hasn't changed, and rechecks the support leg when moving.
+- In search no longer creates a range of heights for each direction of each node; The known unacceptable diagonal variations do not move.
+- Adaptationr stores list ID Items instead of re-copying the entire catalogue. Number of items reread at every observation, missing objects remain zero.
+- Survival Planner indexes known sources in a block once per observation. Index dropped at next observation.
+- The kernel does not create a picture of the state for the event `state`, If he doesn't have followers. Protection against changes in internal data by subscribers retained.
+- Survival and selection errors limit specific action. The failure of one tree makes it possible to check the other immediately.
 
-Очередь KudoConnect распределяет поиск движения внутри основного потока. MCKudo отдельно выносит многократную проверку маршрутов исследования в настоящий CPU worker. Суммарная работа не исчезает, а синхронные пользовательские реакторы всё ещё могут задерживать процесс.
+Queue OMConnect distributes search for traffic within the main stream. OvermindMC separately checks the research routes repeatedly into the present CPU worker. Total work does not disappear, and simultaneous user reactors can still delay the process.
 
-## Настоящий поток процессора для мозга
+## A real stream of brain processor
 
-`createMinecraftBrain`, простой `createMinecraftAgent` и экспедиция используют `worker_threads` для проверки точек исследования. Реактор сразу возвращает ожидание и продолжает принимать новые наблюдения; после готовности мозг просыпается по событию. Защита не ждёт окончания поиска. После прерывания действия мозг также выбирает защиту без дополнительной паузы в 50 мс.
+`createMinecraftBrain`, simple `createMinecraftAgent` and the expedition `worker_threads` for testing the research points. The reactor immediately returns the wait and continues to take new observations; When you're ready, the brain wakes up at the event. The defense doesn't wait for the search to end. After the interruption, the brain also selects a protection without further pause in 50 ms.
 
-В основном потоке небольшими порциями копируется только наблюдаемая геометрия: неизвестные блоки остаются неизвестными. Worker получает компактную палитру и массив ID без сетевого клиента, токенов или управления. Результат проверяется по измерению, позиции, цели и ревизиям затронутых чанков. Изменение мира отменяет устаревший расчёт; исполнитель движения дополнительно проверяет реальные опоры.
+The main stream is a small amount of copy only observed geometry: unknown blocks remain unknown. Worker receives a compact palette and a mass ID Without a network client, current or control. The result shall be checked for measurement, Position, objectives and audits of affected chess. Change of the world cancels the old-fashioned calculation; The driver shall additionally verify the actual supports.
 
-По умолчанию все агенты процесса делят **один** рабочий поток, очередь до **16** задач и лимит старого поколения JS-кучи **96 МиБ** на worker. Поток создаётся при первой задаче, переиспользуется и не удерживает процесс после окончания работы. Отмена выполняющейся задачи прекращает её поток; пул создаёт замену для следующей задачи. Время ожидания и расчёта вместе ограничено 15 секундами. Отключение клиента отменяет его незавершённое исследование.
+By default, all process agents divide **one** flow, line to **16** objectives and the limits of the old generation JS-(Scoffs) **96 MiB** Total worker. Flows are created in the first task, Reused and not delayed after work is done. Canceling a task that is being performed stops its flow; The pool creates a replacement for the next task. Waiting and counting times are limited together 15 seconds. Disable client cancels his incomplete research.
 
-Это ограничения параллелизма, очереди и JS-кучи, а не фиксированный процент CPU или предел всей памяти процесса. GPU для этого поиска не используется. Обмен с сервером и игровая физика сохраняют обычные правила Minecraft.
+These are the limits of parallelism, Releases and JS-(Scoffs), Not fixed percentage CPU or the limit of the entire process memory. GPU No search used. Exchange with server and game physics maintain normal rules Minecraft.
 
-Для своего пула, например при нескольких агентах:
+For his pool, e.g. multiple agents:
 
 ```js
-import { createCpuPool, createMinecraftAgent } from 'mckudo';
+import { createCpuPool, createMinecraftAgent } from 'overmindmc';
 
 const pool = createCpuPool({ workers: 1, memoryMb: 96, maxQueue: 16 });
 const agent = createMinecraftAgent({
@@ -43,27 +43,27 @@ try {
   ] });
 } finally {
   await agent.close();
-  await pool.close(); // Свой пул закрывает его владелец после завершения всех агентов.
+  await pool.close(); // The owner closes his pool after all agents have been completed.
 }
 ```
 
-Максимум — два потока и не больше доступных логических CPU. Начни с одного: игровой сервер также использует процессор. `computation: false` сохраняет синхронный режим исследования. Состояние доступно в `brain.computation.snapshot()`: запросы, готовые/устаревшие/ошибочные планы и общая очередь CPU.
+Maximum — two flows and no more than the logical CPU. Start with one: Game server also uses a processor. `computation: false` Maintains synchronous research mode. Status available `brain.computation.snapshot()`: Requests, Ready/Expired/Miscalculation and overall CPU.
 
-`npm.cmd run test:cpu` сравнивает одинаковый поиск в синхронном режиме и в worker; отчёт — `data/cpu-responsiveness.json`. Копирование геометрии и первоначальная загрузка worker находятся вне сравнения A*. Первый прогон 11 октября 2026: 13 проверенных кандидатов в каждом режиме, 313,5/332,0 мс на поиск, максимальный разрыв контрольного таймера 313,8/16,0 мс. Это синтетическая проверка отзывчивости на данном ПК, не оценка ping, TPS или универсальной скорости агента.
+`npm.cmd run test:cpu` compares the same search in synchronous mode and in worker; Report — `data/cpu-responsiveness.json`. Copy geometry and initial download worker are outside the comparison A*. First run 11 October 2026: 13 Candidates tested in each mode, 313,5/332,0 ms search, Maximum burst of the control timer 313,8/16,0 ms. It's a synthetic response test on this PC, not estimate ping, TPS or universal speed of agent.
 
-Выбор CPU worker и переиспользуемого пула основан на [документации Node.js](https://nodejs.org/docs/latest-v24.x/api/worker_threads.html). Сам механизм `resourceLimits` ограничивает внутреннюю JS-кучу потока; внешние буферы и общая память процесса требуют отдельного наблюдения.
+Choice CPU worker and reused pool based on [documentation Node.js](https://nodejs.org/docs/latest-v24.x/api/worker_threads.html). Mechanism itself `resourceLimits` limits internal JS-total flow; External buffers and the overall memory of the process require separate observation.
 
-## API поиска маршрута
+## API Search for a route
 
-В проекте, где установлена библиотека:
+In the draft, where library installed:
 
 ```js
-import { planRouteAsync } from 'mckudo/connect';
+import { planRouteAsync } from 'overmindmc/connect';
 
 const controller = new AbortController();
 const view = client.world.createReadView();
 const route = await planRouteAsync({
-  start: { x: 0, y: 64, z: 0 }, // целая позиция ног на известной опоре
+  start: { x: 0, y: 64, z: 0 }, // whole foot position on a known support
   goal: { x: 20, y: 64, z: 10 },
   getBlock: position => view.blockAt(position),
   maxNodes: 3000,
@@ -75,17 +75,17 @@ const route = await planRouteAsync({
 });
 ```
 
-`client` здесь — уже подключённый экземпляр KudoConnect. `route.status === 'planned'` означает, что найден план, а не что персонаж дошёл до цели. Для исполнения используй навык `navigate`. Синхронная функция `planRoute` остаётся доступна. Отдельный пакет `kudoconnect` экспортирует тот же API.
+`client` Here — already connected OMConnect. `route.status === 'planned'` means, I'm sure there's a plan, Not that the character came to the target. Use your skills to do it `navigate`. Synchronous function `planRoute` still available. Separate package `kudoconnect` exports the same API.
 
-`getRevision` необязателен. Его значение должно оставаться постоянным во время поиска. `view.isCurrent()` изменится с `true` на `false`, если прочитанный чанк изменится; Promise отклонится, после чего нужно получить новое наблюдение. Можно также использовать глобальную ревизию мира, но она отклоняет поиск при любом изменении. `signal` позволяет остановить поиск, например когда действие прерывает бой. [Собственная очередь и память](PLATFORM-06.md).
+`getRevision` non-binding. Its value must remain constant during search. `view.isCurrent()` Changed from `true` Total `false`, If the cup read changes; Promise He'll turn it down, Then you need to get a new surveillance. Global peace audit can also be used, But it rejects the search in any change. `signal` stops search, For example, when action interrupts the fight. [The Homeland and Memory](PLATFORM-06.md).
 
-## Паузы после ошибок
+## Pauses after mistakes
 
-Для собственного реактора можно указать `failureScope: 'action'` рядом с `id` и `apiVersion`. Тогда пауза привязана к навыку, параметрам и области мира. Повтор того же действия остаётся ограничен; порядок ключей JSON не позволяет обойти ограничение. Счётчики разных действий независимы, временные записи ограничены 1 024 ключами.
+For your own reactor, you can specify `failureScope: 'action'` near `id` and `apiVersion`. Then the pause is tied to the skill, and the world. Repeat of the same action remains limited; key order JSON does not allow the restriction to be circumvented. The various action counters are independent, temporary entries limited 1 024 Keys.
 
-Без этого параметра сохраняется прежняя пауза для всего реактора. Встроенные реакторы выживания и подбора используют область действия и дополнительно ведут собственную память недоступных целей.
+Without this parameter, the previous pause for the entire reactor is maintained. In-line survival and rebound reactors use the field and additionally maintain their own memory of unreachable targets.
 
-## Как отличить задержку вычислений от сетевой
+## How to distinguish the computation delay from the network
 
 ```js
 const metrics = client.snapshot().metrics;
@@ -93,44 +93,44 @@ console.log(metrics.timing);
 console.log(metrics.navigation);
 ```
 
-`timing` измеряет интервалы вызовов локального таймера KudoConnect. Окно содержит последние 128 интервалов, поэтому память не растёт с длительностью сессии.
+`timing` measures local timer call intervals OMConnect. The window contains the last 128 interval, So memory doesn't grow with the duration of the session.
 
-| Поле | Значение |
+| Field | Value |
 |---|---|
-| `effectiveHz` | Частота вызовов таймера; при интервале 50 мс — около 20 Гц |
-| `meanIntervalMs` | Средний интервал |
-| `p95IntervalMs` | 95-й процентиль интервалов |
-| `maxIntervalMs` | Самый длинный интервал в текущем окне |
-| `delayedTicks` | Количество интервалов длиннее 75 мс |
-| `samples` | Количество интервалов в окне |
-| `ticks` | Вызовы таймера с последнего перехода в `ready` |
+| `effectiveHz` | Timer call frequency; at interval 50 ms — Near 20 Hz |
+| `meanIntervalMs` | Average interval |
+| `p95IntervalMs` | 95-% of intervals |
+| `maxIntervalMs` | The longest interval in the current window |
+| `delayedTicks` | Number of intervals longer 75 ms |
+| `samples` | Number of window intervals |
+| `ticks` | Timer calls from the last transition to `ready` |
 
-До накопления интервалов числовые оценки равны `null`. Это **не ping и не TPS Minecraft-сервера**. Поле `maxTickMs` по-прежнему показывает максимальное время выполнения физического шага, а `corrections` — коррекции позиции сервером. После отключения остаётся последняя статистика; смотри также `status` клиента.
+Before the intervals accumulate, numerical estimates are equal `null`. This is **not ping and not TPS Minecraft-servers**. Field `maxTickMs` Under-still shows the maximum time to take a physical step, a `corrections` — server position correction. After the shut-down, the last statistics are left; See also `status` client.
 
-`navigation` — состояние общей очереди A* в процессе, а не статистика только этого агента: число ожидающих/завершённых/ошибочных/отменённых задач, число порций и максимальное время порции. Мягкий бюджет не является ограничителем процента CPU.
+`navigation` — status of the general round A* in the process, Not statistics just about this agent: Number of waiting/completed/error/canceled tasks, number of meals and maximum time. The soft budget is not a cap on interest CPU.
 
-## Как защита определяет реальную угрозу
+## How Protection defines a real threat
 
-Близкая сущность за каменной стеной не должна останавливать добычу. KudoConnect предоставляет `traceVisibility`: ограниченный проход луча по вокселям проверяет реальные формы блоков, включая тонкие перегородки и полублоки. Неизвестная геометрия считается закрытой. Адаптер добавляет `visible` ближайшим сущностям; MCKudo не включает упреждающую защиту от скрытого моба. Подтверждённый урон по агенту остаётся основанием для защиты даже после потери видимости.
+Nearly being behind a stone wall should not stop prey. OMConnect Provides `traceVisibility`: The reduced beam through the railway tracks checks the actual shapes of the blocks, including thin partitions and semi-blocks. Unknown geometry is considered closed. Adaptationer adds `visible` to the nearest entities; OvermindMC does not include pre-emptive protection against hidden baboons. A confirmed Agent damage remains a basis for protection even after the visibility has been lost.
 
-Охота использует `maxPursuitMs` — по умолчанию 15 секунд на одну добычу; затем цель временно исключается и работа продолжается. Это не задержка реакции на атаку. В шахте при отсутствии безопасного спуска агент сначала проверяет горизонтальные ответвления с подтверждённым полом. Если и они недоступны, он может вернуться на наблюдаемую верхнюю ступень с проверяемой расчисткой потолка и выбрать другой проход.
+Hunting uses `maxPursuitMs` — default 15 seconds per mine; then the purpose is temporarily excluded and the work is ongoing. It's not a delay in responding to the attack. In the mine, if no safe descent, the agent first checks horizontal branches with confirmed floor. If they're not available, too, He may return to the observed upper stage with the ceiling being checked and choose another passage.
 
-## Проверка без сервера
+## Check without server
 
-Из папки исходников MCKudo:
+From the source folder OvermindMC:
 
 ```powershell
 npm.cmd run test:runtime
 ```
 
-Скрипт `examples/runtime-responsiveness.js` выполняет 20 поисков в искусственном мире. Сервер, игровые аккаунты и подключения не создаются. Результат сохраняется в `data/runtime-responsiveness.json`. Через `MC_COUNT` можно выбрать от 1 до 20 поисков.
+Script `examples/runtime-responsiveness.js` implemented 20 Search in the Artificial World. server, Play accounts and connections not created. The result is retained in `data/runtime-responsiveness.json`. Through `MC_COUNT` You can choose from 1 to 20 Search.
 
-Измерение 11 октября 2026, Node v24.19.0, по 30 000 обработанных узлов в каждом режиме; параллельно выполнялись автоматические тесты:
+Measurement 11 October 2026, Node v24.19.0, Under 30 000 processed knots in each mode; Automatic tests were performed simultaneously:
 
-| Метрика | Синхронный API | Поиск с паузами |
+| Meteric | Synchronous API | Search With Pauses |
 |---|---:|---:|
-| Длительность расчёта | 976 мс | 1 032 мс |
-| Самая длинная задержка контрольного таймера | 976 мс | 31 мс |
-| Срабатывания таймера во время поиска | 0 | 49 |
+| Time of calculation | 976 ms | 1 032 ms |
+| The longest delay in the control timer | 976 ms | 31 ms |
+| Timer activation during search | 0 | 49 |
 
-Оба режима используют один и тот же текущий A* и возвращают одинаковый итог для одинакового объёма работы. Это сравнение способов выполнения, а не замер старой версии против новой. Значения зависят от ПК и нагрузки. Параллельные поиски держат несколько очередей A* в памяти, поэтому расход памяти может вырасти. Результат не подтверждает скорость движения, бой или кооперацию в настоящем Minecraft; отдельные игровые результаты находятся в [журнале проверок](TESTING-06.md).
+Both regimes use the same current mode A* And return the same outcome for the same amount of work. This is a comparison of how to implement, Not froze the old version against the new one. Values depend on PCs and load. The parallel search holds several rounds A* In memory, So memory consumption can grow. The result does not confirm the speed of movement, or cooperation in the present Minecraft; selected game results are in [Audit log](TESTING-06.md).

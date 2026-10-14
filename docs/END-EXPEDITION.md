@@ -1,12 +1,12 @@
-# Испытание с пустого инвентаря до измерения Энда
+# Test from empty equipment to End measurement
 
-Версия 0.5.0, автор **y9kudo**. Запуск: [examples/end-expedition.js](../examples/end-expedition.js). Решения и этапы находятся в [src/expedition.js](../src/expedition.js), ресурсная логика — в ядре. Исполнитель — KudoConnect. Mineflayer для этого запуска не используется.
+Version 0.5.0, The author **y9kudo**. Starting: [examples/end-expedition.js](../examples/end-expedition.js). Decisions and phases are in [src/expedition.js](../src/expedition.js), Resource logic — In the kernel. The perpetrator — OMConnect. Mineflayer No use for this launch.
 
-## Запуск
+## Starting
 
-Подготовьте vanilla Java 1.21.1 offline на `127.0.0.1:25565`. Нужен Survival, новый игрок без предметов и брони, обычный мир с ресурсами и доступными измерениями. Для воспроизводимой проверки используйте отдельную копию мира без выдачи предметов и телепортаций. Не бросайте игроку ресурсы во время проверки.
+Prepare vanilla Java 1.21.1 offline Total `127.0.0.1:25565`. Requires Survival, New player without objects and armor, a normal world with resources and accessible dimensions. Use a separate copy of the world without giving out objects and teleports for reproducible verification. Don't leave the player resources during the test.
 
-В корне MCKudo:
+In the root OvermindMC:
 
 ```powershell
 npm.cmd ci
@@ -16,31 +16,31 @@ $env:MC_TEST_MINUTES = "120"
 npm.cmd run test:live:end
 ```
 
-`test:end:check` проверяет структуру и наличие исполнителей без входа в игру. `test:live:end` подключается и действительно изменяет мир: добывает, крафтит, сражается и строит. Лимит — от 1 до 480 минут. Ctrl+C останавливает запуск с сохранением отчёта. Текущее действие имеет собственный тайм-аут до 60 секунд.
+`test:end:check` Checks the structure and presence of performers without entering the game. `test:live:end` It connects and really changes the world: It's mine, kraftite, Fights and builds. Limite — from 1 to 480 minutes. Ctrl+C stops launch with the report stored. The current action has its own time-♪ before 60 seconds.
 
-Дополнительные переменные: `MC_HOST`, `MC_PORT`, `MC_WORLD_ID`, `MC_REPORT`. По умолчанию отчёт сохраняется в `data/end-expedition.json`. Для повторной проверки **с нуля** задайте новое свободное имя: прежний игрок сохраняет серверный инвентарь. Скрипт не очищает его командами администратора.
+Additional variables: `MC_HOST`, `MC_PORT`, `MC_WORLD_ID`, `MC_REPORT`. By default, the report is stored in `data/end-expedition.json`. For recheck **from zero** give me a new free name: The previous player retains the server inventory. The script doesn't purify him by the administrator's teams.
 
-## Этапы и подтверждения
+## Steps and confirmation
 
-1. Каменные инструменты и печь: выбор ближайшей пригодной древесины, крафт, добыча камня.
-2. Железные инструменты и нагрудник: добыча руды, плавка, крафт; надетая броня учитывается.
-3. Алмазная кирка, 14 обсидиана и огниво.
-4. Постройка рамы 4×5, поджигание, наблюдение активного портала и переход в Незер.
-5. Поиск наблюдаемых признаков крепости и ифритов, получение 10 стержней.
-6. Возвращение в обычный мир, добыча 20 жемчужин и крафт глаз.
-7. Броски собственных глаз, измерение направления и исследование области крепости.
-8. Заполнение **существующих** рамок портала и вход в Энд. Рамки в Survival не крафтятся.
+1. Stone tools and furnace: Selecting the nearest suitable wood, craft, Rock mining.
+2. Iron tools and breast-breading: Ore mining, Smooth, craft; Armoured personnel is accounted for.
+3. Diamond pick, 14 Osidian and light-signalling.
+4. Building the frame 4×5, ignition, Observation of the active portal and transition to Neser.
+5. Search for observed signs of fortress and frittes, Receive 10 rods.
+6. Return to the Normal World, Mining 20 Pearls and Craft Eyes.
+7. Throwing Your own Eyes, direction measurement and study of the fort area.
+8. Filling **Existing** The portal and entrance to the End. Framework in Survival No crafting.
 
-`passed` выставляется только после выполнения всех этапов и серверного подтверждения `minecraft:the_end`. Вход в Энд через постороннюю телепортацию не заменяет предшествующие этапы. Смерть, отсутствие доступного пути или конец времени дают неполный/неуспешный результат, а не ложный успех.
+`passed` Only after all steps and server confirmation have been completed `minecraft:the_end`. Entering the End via external teleports does not replace previous steps. Death, Lack of access or end of time gives rise to incomplete/Unfavourable, Not false success.
 
-## Как читать отчёт
+## How to Read Report
 
-`initial` и `final` — подтверждённые состояния; `actions` — результаты действий; `checkpoints` — завершённые этапы; `expedition.scenario` — текущий этап и причина; `failures` — ошибки и задержки перед повтором. `fromZero` означает пустой начальный инвентарь и броню. Это не доказательство отсутствия последующей помощи администратора. `playersObserved` отдельно отмечает присутствие других игроков.
+`initial` and `final` — confirmed states; `actions` — outcomes; `checkpoints` — Completed Phases; `expedition.scenario` — Current phase and cause; `failures` — errors and delays before repetition. `fromZero` means empty initial inventory and armor. This is not proof of the absence of further assistance from the administrator. `playersObserved` Notes separately the presence of other players.
 
-## Статус проверки 0.5.0
+## Verification status 0.5.0
 
-В первом минутном прогоне агент вошёл с пустым инвентарём, получил древесину джунглей, изготовил деревянную кирку и продолжил поиск камня. Выполнено 28 действий без ошибок и серверных коррекций движения. Этап `stone-tools` не был завершён за минуту.
+In the first minute, the agent entered empty equipment, received jungle wood, made a wooden brick and continued to search for stone. Yes 28 Action without errors and server correction. Phase `stone-tools` was not completed in a minute.
 
-Полный путь до Энда **ещё не подтверждён**. Исполнители порталов и восстановление состояния проверены автоматическими тестами, но требуют отдельных игровых испытаний. Длительный маршрут зависит от безопасно доступного обсидиана, крепости Незера, мобов, геометрии подземелья и возможности вернуться к порталу. Текущая политика не гарантирует прохождение любого случайного мира; отчёт показывает место, где требуется дальнейшее развитие. Бой с драконом в этот тест входа в измерение не включён.
+Full route to End **Not confirmed yet**. Portal performers and recovery tested by automatic tests, but requires separate game trials. The long route depends on a safe, accessible obsidian, Neser fortresses, Mobs, Submerge geometry and possibilities to return to the portal. Current policy does not guarantee the passage of any random world; The report shows the location, where further development is required. The dragon fight is not included in this measurement test.
 
-Для собственного приложения используйте `createEndExpedition({ client, worldId })`, запускайте `expedition.brain.start()` и читайте `expedition.snapshot()`. Можно передать свой валидный `scenario`; контроллер не обходит ограничения исполнителей.
+Use it for your own application `createEndExpedition({ client, worldId })`, Start `expedition.brain.start()` And read `expedition.snapshot()`. You can pass on your valide `scenario`; The controller does not circumvent the limits of performers.

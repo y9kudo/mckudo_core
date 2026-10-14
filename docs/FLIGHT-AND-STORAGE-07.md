@@ -1,10 +1,10 @@
-# Полёт и складирование в 0.7
+# Flight and warehousing to 0.7
 
-Оба навыка работают через KudoConnect с Minecraft Java 1.21.1. Решение о группировке предметов находится в MCKudo Core, а расчёт безопасного воздушного коридора — в KudoVectorize. На локальном сервере используется вход `offline`.
+Both skills work through OMConnect with Minecraft Java 1.21.1. The decision to group items is in OvermindMC, a Calculation of the safe air corridor — in OMVectorize. Local server uses the entrance `offline`.
 
-## Быстрый запуск испытаний
+## Rapid start of tests
 
-Откройте терминал VS Code в корне `mckudo_core`. В PowerShell используйте `npm.cmd`:
+Open the terminal VS Code root `mckudo_core`. B PowerShell Use `npm.cmd`:
 
 ```powershell
 npm.cmd ci
@@ -13,17 +13,17 @@ npm.cmd run test:live:flight
 npm.cmd run test:live:storage
 ```
 
-Сервер: `127.0.0.1:25565`, Java 1.21.1, offline, свободные места для `Avery07` и `Scout07`. Команда `survey` только осматривает таблички, хранилища и возможные места посадки. `flight` берёт **одну** пару элитр и ровно восемь ракет из сундука с табличкой `Elytra`, автоматически выбирает наблюдаемую площадку и летит к ней. `Scout07` независимо наблюдает раскрытие элитр и движение. `storage` находит сундук с табличкой `Random`, использует пустые сундуки поблизости, размещает подписи и раскладывает предметы.
+server: `127.0.0.1:25565`, Java 1.21.1, offline, free seats `Avery07` and `Scout07`. Command `survey` Only examines the signs, Warehouses and possible landing sites. `flight` He's taking **one** A couple of elites and exactly eight missiles from the chest with a sign `Elytra`, automatically selects the observed site and flies to it. `Scout07` Independently watching the elitist's disclosure and movement. `storage` Finds a chest with a sign `Random`, uses empty chests nearby, Post signatures and installs objects.
 
-Если сервер другой, задайте `MCKUDO_HOST`, `MCKUDO_PORT` и `MCKUDO_NAME` в окружении. Пример сохраняет подробный JSON в локальный `data/`; эта папка не публикуется. Повторный `storage` продолжает работу с предметами в инвентаре `Avery07`, сохраняя его ракеты.
+If the server is different, Please, give me a drink `OVERMIND_HOST`, `OVERMIND_PORT` and `OVERMIND_NAME` surrounded. The Example Saves Detailed JSON to local `data/`; This folder is not published. Re-schedule `storage` Continues to work with inventory items `Avery07`, keeping his missiles.
 
-## Использование навыков в своём коде
+## Using skills in their code
 
 ```js
-import {createKudoConnect} from 'mckudo/connect'
-import {findLabelledStorage, sortStorage} from 'mckudo'
+import {createOMConnect} from 'overmindmc/connect'
+import {findLabelledStorage, sortStorage} from 'overmindmc'
 
-const client = createKudoConnect({
+const client = createOMConnect({
   host: '127.0.0.1', port: 25565,
   username: 'Avery07', version: '1.21.1', auth: 'offline'
 })
@@ -36,7 +36,7 @@ try {
     args: {...equipmentChest, amounts: {elytra: 1, firework_rocket: 8}}
   })
 
-  // Координаты точки посадки берите из survey или из собственного планировщика.
+  // The coordinates of the landing point are taken from survey Or from your own planner.
   const goal = {x: 41, y: 64, z: -70}
   const route = client.vectorize.planFlight({start: client.state.position, goal})
   if (route.status !== 'planned') throw new Error(route.reason)
@@ -50,10 +50,10 @@ try {
 }
 ```
 
-Значение `goal` в этом фрагменте — пример для конкретного мира. Для своей карты сначала выполните `survey`. Маршрут полёта проверяет загруженные блоки и ровную площадку 7×7; если блоки неизвестны или посадка занята, он не начинает полёт. Исполнитель отслеживает состояние элитр и ракеты через серверные пакеты, а после посадки сверяет позицию и здоровье.
+Value `goal` in this fragment — a world-specific example. For your card, you can first do it `survey`. The flight route checks the loaded blocks and the flat site 7×7; if the blocks are unknown or the landing is occupied, He doesn't start flying. The perpetrator tracks the state of the elite and missiles through server packages, and after landing checks position and health.
 
-Для точного переноса можно использовать `client.execute({skill:'depositStorage', args:{x,y,z,amounts:{oak_log:7}}})`. `takeStorage` работает так же в обратном направлении. `inspectStorage` возвращает содержимое без переноса, а `labelStorage` принимает `lines:['Материалы','MCKudo']` и подтверждает написанное по серверному NBT. Старую пользовательскую надпись автоматическая сортировка не переписывает. Для повторного запуска после обрыва укажите `resumeInventory:true` и перечислите собственные предметы агента в `preserveItems`, например `['firework_rocket']`.
+For accurate transfer, use can be made `client.execute({skill:'depositStorage', args:{x,y,z,amounts:{oak_log:7}}})`. `takeStorage` It works the same way in the opposite direction. `inspectStorage` Returns the contents without transfer, a `labelStorage` accepts `lines:['Materials','OvermindMC']` and confirms the server NBT. The old user inscription doesn't automatically rewrite. For re-start after cliff, specify `resumeInventory:true` and list your own agent items in `preserveItems`, for example `['firework_rocket']`.
 
-MCKudo распределяет предметы по шести категориям: строительство, материалы, снаряжение, еда, растения и дроп, разное. Для каждой категории нужен отдельный доступный сундук. Из уже занятых сундуков ядро выбирает только те, которые ранее подписало само. Перенос подтверждается уменьшением исходного стека и увеличением целевого; итоговый проход сравнивает числа и проверяет отсутствие смешения категорий. Таблички расходуются как обычные предметы.
+OvermindMC Distribution of items into six categories: Construction, Materials, Equipment, food, Plants and drops, Miscellaneous. Each category needs a separate accessible chest. Of the chests already occupied, the core only chooses those, which had previously signed themselves. The carry-over is supported by a decrease in the base runoff and an increase in the target; The final passage compares the numbers and checks the absence of confusion of the categories. The plates are used as usual items.
 
-[Итоги двух испытаний](results/flight-storage-2026-10-12.md) описывают фактически наблюдённые пакеты, количество предметов и найденные исправления.
+[Results of two tests](results/flight-storage-2026-10-12.md) describe the actually monitored packages, Number of items and corrections found.

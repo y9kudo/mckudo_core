@@ -1,131 +1,131 @@
-# Проверки v0.6.0
+# Checks v0.6.0
 
-Релиз 0.6.0 подготовлен 11 октября 2026. Успешный отдельный этап не считается полным прохождением Minecraft.
+Relis 0.6.0 prepared by 11 October 2026. A successful separate phase is not considered complete Minecraft.
 
-## Финальная проверка релиза, 11 октября
+## Final release check, 11 October
 
-`npm.cmd run check`: **319/319**, без пропусков. Добавлены проверки закрытия соединений при ошибке диска/мозга, идемпотентного закрытия и освобождения порта панели. Строгая TypeScript-проверка `test/types/daily.mts` прошла. `npm.cmd run release:check` и `npm.cmd run test:package` прошли: оба архива установлены в отдельное приложение, основные импорты, ленивые реестры, миссия, память и файл CPU worker работают; Mineflayer в установленном приложении отсутствует.
+`npm.cmd run check`: **319/319**, No passes. Added closure checks for disc error/brain, Flatted closure and release of the panel port. Strict TypeScript-verification `test/types/daily.mts` I'm past. `npm.cmd run release:check` and `npm.cmd run test:package` pass: Both archives are listed in a separate annex, Main imports, Lazy registries, Mission, memory and file CPU worker working; Mineflayer No in the established annex.
 
-**RowanRelease06**, offline Java 1.21.1, сервер пользователя на порту 25565: пустой инвентарь → дерево по классу → верстак → деревянная кирка → каменная кирка → печь. Статус `passed`, **157 секунд**, здоровье **20/20**, **0 коррекций позиции**, 44 действия, 2 ошибки добычи с восстановлением. Планировщик: 44 эпизода, 506 обновлений; сохранение и восстановление планировщика/пространственной памяти подтверждены. Охота, сон и сбор из хранилищ отключены для изоляции теста; административной выдачи предметов нет. Использован существующий мир, не изолированный новый seed.
+**RowanRelease06**, offline Java 1.21.1, Port user server 25565: empty equipment → Tree by class → crafting table → wooden pick → Stone pick → Boiler. Status `passed`, **157 seconds**, Health **20/20**, **0 of the position correction**, 44 Action, 2 Recovery error. Planner: 44 episode, 506 updates; Maintain and restore the planner/Spatial memory confirmed. Hunting, Sleep and collection from storage is off-line to isolate test; No administrative issuance of items. The existing world has been used, not isolated new seed.
 
-В последнем окне 128 тиков локальная частота составила **12,02 Гц**, средний интервал 83,20 мс, p95 327,42 мс. Это выявляет оставшуюся нагрузку наблюдения/планирования; результат не выдаётся за стабильные 20 Гц или улучшение сетевого ping. Игровой профиль требует дальнейшей оптимизации под полной нагрузкой. Агент отключён после проверки.
+In the last window 128 Local frequency **12,02 Hz**, Average interval 83,20 ms, p95 327,42 ms. This identifies the remaining observation load/Planning; the result is not given for stable 20 Hz or network improvement ping. The game profile requires further optimization under full load. Agent disabled after verification.
 
-Санитизированный итог: [verification-06.json](results/verification-06.json). Сырой отчёт `data/agent-live-2026-10-11T17-51-32-994Z.json` остаётся локальным. Исторические результаты ниже относятся к предшествующим проверкам этого выпуска.
+Slowly managed total: [verification-06.json](results/verification-06.json). The raw report `data/agent-live-2026-10-11T17-51-32-994Z.json` remains local. The historical results below relate to previous audits of this issue.
 
-## Автоматические проверки
+## Automatic checks
 
-11 октября 2026 полный `npm.cmd run check` прошёл: **316 тестов, 316 успешных, без пропусков**. Строгая проверка TypeScript API прошла. Проверены простой API агента, отмена подключения/сценария, сохранение пространственной памяти, очередь вычислений, актуальность прочитанных чанков, событийная проверка угроз, выход по ступеням и учёт выкопанных/поставленных блоков в маршруте. Добавлены проверки CPU worker, переполнения очереди, отмены с заменой потока, устаревшей геометрии, DDA видимости, исключения скрытых мобов, ограничения охоты, возврата из тупика, горизонтального ответвления шахты, памяти порталов и выплавки дополнительных ресурсов. Три проверки расписания физики подтверждают отсутствие накопления опозданий, серии догоняющих шагов после паузы и вызовов после остановки.
+11 October 2026 Total `npm.cmd run check` I'm past: **316 tests, 316 successful, No passes**. Strict verification TypeScript API I'm past. Checked simple API agent, Disconnect/Scenarios, Spatial memory conservation, calculation line, The relevance of the readings, Risk screening, exit through steps and the account of the dug-up/units in transit. Added checks CPU worker, Overcrowding, flow-replacement, Obsolescence geometry, DDA visibility, exclusion of hidden lobes, Hunt restrictions, the return of the impasse, horizontal branches of the mine, portal memory and additional resources smelting. Three physical schedule checks confirm no accumulation of late, A series of follow-up steps after pause and call after stop.
 
-## Простые миссии, координатные цели и мосты: 11 октября
+## Simple missions, coordinates and bridges: 11 October
 
-Десять новых проверок охватывают компиляцию простого JSON, ошибки до подключения, классы материалов, подготовку ресурса для моста, временное исключение неудачной точки, устаревшую позицию, подтверждение достижения, удержание прямого/диагонального края, высотное строительство с расходом инвентаря, отмену и курсор опорной грани. Высотный мост проверен в моделируемом мире через штатную физику; отдельного серверного прогона высотного строительства ещё нет.
+The 10 new tests cover the compilation of simple JSON, errors before connection, Materials classes, bridge resource development, Temporary exclusion of a failed point, Expired position, A confirmation of achievement, direct retention/diagonal edge, High-rise construction with inventory consumption, Detachment and leg-end crucifix. High bridge tested in a modeled world through state physics; No separate server run for high-rise construction yet.
 
-**HarperNav11**, vanilla Java 1.21.1, `127.0.0.1:25565`: новый `agent.goTo` достиг ячейки **X 12, Y 71, Z −8**, конечная позиция **12,509 / 71 / −7,5**, здоровье **20/20**, коррекций **0**, ошибок действий **0**. Проверка выполнена без строительства, предметов и административных команд. Отчёт `data/mission-live-2026-10-11T13-45-57-262Z.json`, область проверки `coordinate-goal`. Агент отключён.
+**HarperNav11**, vanilla Java 1.21.1, `127.0.0.1:25565`: new `agent.goTo` reached cell **X 12, Y 71, Z −8**, Final Position **12,509 / 71 / −7,5**, Health **20/20**, adjustments **0**, error **0**. Verification performed without construction, and administrative teams. Report `data/mission-live-2026-10-11T13-45-57-262Z.json`, Area of verification `coordinate-goal`. Agent offline.
 
-Отдельный прогон **MasonMission11** с пустым инвентарём, целью древесины, каменной кирки и печи завершился **incomplete**: ночью агент погиб во время защиты от мобов до получения ресурсов. Коррекций движения **0**, локальный таймер около **19,99 Гц**. Отчёт `data/mission-live-2026-10-11T13-42-25-012Z.json`. Этот результат не считается успешной добычей или прохождением игры; устойчивость выживания без снаряжения требует дальнейшей работы.
+Individual running **MasonMission11** empty equipment, wood target, The stone pickaxe and the furnace are finished **incomplete**: The agent died during the night while protecting himself from the mobs before the resources were obtained. Movement Adjustments **0**, local timer near **19,99 Hz**. Report `data/mission-live-2026-10-11T13-42-25-012Z.json`. This result is not considered to be a successful game or a success; Sustainability without equipment requires further work.
 
-Повтор: `npm.cmd run test:live:mission`. Отдельная координатная проверка: `node examples/mission-live.js --navigation-only`. Подробности и простой API: [миссии и мосты](MISSIONS-AND-BRIDGES.md).
+Retry: `npm.cmd run test:live:mission`. Separate coordinate check: `node examples/mission-live.js --navigation-only`. Details and simple API: [Missions and bridges](MISSIONS-AND-BRIDGES.md).
 
-## Защита построек и боевой обход: 11 октября
+## Protection of buildings and military bypass: 11 October
 
-15 новых автоматических проверок охватывают области по измерениям, строительные признаки, выбор берёзы вместо балки дома, отмену добычи при изменении запрета, сохранение собственных блоков без обхода областей, запрет мостов, обход стен в бою, подъём на ступень, отмену поиска, ограничение погони и переключение между угрозами. Проверки щита и обычного восстановления оружия также прошли.
+15 New automatic checks cover measurement areas, Construction characteristics, choice of birch instead of the beam of the house, No production in the event of a change in the ban, Maintaining their own blocks without bypassing areas, Prohibition of bridges, ♪ ♪ ♪ ♪ Over the walls in battle ♪, Get up to the stage, Rescission of prospecting, Restriction of pursuit and shifting between threats. Shield and conventional weapons reconstruction tests were also completed.
 
-Повторный общий прогон выявил нестабильный спуск возле игрока. Отдельное воспроизведение показало боковое метание у стены при торможении: проверялся участок дальше текущей цели. После исправления пройдены 15 последовательных повторов спуска и добавлена детерминированная проверка самого расчёта. Итоговый полный прогон — 306/306.
+A repeat general run revealed a unstable descent near the player. The separate play showed side-mapping at the wall during braking: checked the area beyond the current target. After correction passed 15 The number of consecutive descent re-entrys and the determinated calculation check itself added. Total complete run — 306/306.
 
-На локальном offline-сервере Java 1.21.1 **HarperGuard11** выполнил `npm.cmd run test:live:protection`. `dig`, `place` и `pillar` отказались от действий внутри временной защищённой области с `KUDO_PROTECTED`; затем агент прошёл четыре шага маршрута внутри неё. Отправлено **0 пакетов изменения блоков**, коррекций позиции **0**, здоровье **20/20**. Итог `passed`, локальный отчёт `data/protection-live.json`. Персонаж отключён после проверки. Это проверка клиентской защиты и ходьбы, не подтверждение боевой победы или полного прохождения. Боевой обход и прыжок в этом изменении проверены моделируемой геометрией и физикой.
+Local offline-server Java 1.21.1 **HarperGuard11** implemented `npm.cmd run test:live:protection`. `dig`, `place` and `pillar` Refuse to act within the temporary protected area `KUDO_PROTECTED`; Then the agent walked four steps inside her. Sent **0 Cluster change packages**, of the position correction **0**, Health **20/20**. Outcome `passed`, Local report `data/protection-live.json`. The character is off after checking. It's a client protection and walking test, Not proof of a battle victory or full passage. The combat bypass and the jump in this change are checked by simulated geometry and physics.
 
-[Настройка областей и поведения](BUILDINGS-AND-PVP.md).
+[Area and behavioural settings](BUILDINGS-AND-PVP.md).
 
-## Экспедиция и реакция: 11 октября
+## Expedition and reaction: 11 October
 
-**EthanCore11**, Java 1.21.1, `127.0.0.1:25565`, Survival, пустой начальный инвентарь и без брони. Проверка длилась 8 минут, результат `incomplete`, `goalAchieved:false`. Агент добыл дубовые брёвна, создал верстак, деревянную и каменную кирки, печь; этап `stone-tools` подтверждён. При поиске железа спустился с поверхности до Y 36. В конце оставались здоровье 20/20, 43 булыжника, 22 диорита, печь и обе кирки. Другой игрок был наблюдаем: это не испытание в пустом изолированном мире.
+**EthanCore11**, Java 1.21.1, `127.0.0.1:25565`, Survival, empty initial inventory and no armor. The test was long 8 minutes, result `incomplete`, `goalAchieved:false`. Agent got the oak logs, He created the Versac, Wooden and stone crickets, Boiler; phase `stone-tools` confirmed. When I looked for iron, I went down from the surface to the Y 36. At the end, health remained 20/20, 43 Rocket, 22 Diorite, Bake and both crickets. Another player was observed: It's not a test in an empty isolated world.
 
-Прогон выявил постоянную упреждающую защиту от мобов за стеной шахты. После него добавлена проверка видимости; отдельное продолжение тем же персонажем отмечается `resumed:true`, `fromZero:false`. Оно не заменяет первичный отчёт и не считается ещё одним стартом с нуля. Возврат на верхнюю ступень из тупика добавлен отдельно и проверен автоматическим тестом.
+The racing revealed a constant pre-emptive protection against the mobs outside the mine wall. A visibility test has been added after this; The separate continuation by the same character is noted `resumed:true`, `fromZero:false`. It doesn't replace the primary report and it's not considered another start from zero. Return to the upper stage from the impasse added separately and tested by automatic test.
 
-Последовательные продолжения тем же EthanCore11, с его сохранённым инвентарём:
+The consistent continuation is the same EthanCore11, with his stored equipment:
 
-| Проверка | Длительность | Действия | Результат |
+| Verification | Duration | Actions | Result |
 |---|---:|---:|---|
-| Видимость | 301 с | 0 | Ложные бои прекратились; обнаружился тупик шахты |
-| Возврат по ступени | 181 с | 30 | Поднялся с Y 36 на Y 37 и расчистил другой проход |
-| Расширенный поиск выхода | 121 с | 68 | Продолжал добычу и проверку выходов; один маршрут исчерпал бюджет A* |
+| Visibility | 301 with | 0 | False fighting stopped; There was a mine dead end |
+| Return by stage | 181 with | 30 | Up with the Y 36 Total Y 37 And cleared another passage |
+| Advanced Search for an Exit | 121 with | 68 | Continues mining and checking exits; One route has exhausted the budget A* |
 
-Во всех трёх продолжениях: здоровье 20/20, ноль коррекций позиции, нет защитных боёв. Этап `iron-equipment` остался незавершённым; последние 99 булыжника и 22 диорита не выдаются за получение железа. Горизонтальное ответвление при недоступном спуске добавлено после этих прогонов и отдельно подтверждено автоматическим тестом; на сервере эта последняя ветвь ещё не проверена.
+All three of them: Health 20/20, zero position correction, No defensive combat. Phase `iron-equipment` Uncompleted; Last 99 and 22 diorite is not issued for iron. Horizontal branch with non-enclosed descent added after these runs and separately confirmed by automatic test; This last branch is not yet checked on the server.
 
-Полное прохождение до Nether, End и победа над драконом в этом испытании **не подтверждены**. Отчёты попыток хранятся локально в `data/dragon-reaction-oct11.json`, `data/dragon-reaction-resume-oct11.json`, `data/dragon-reaction-backtrack-oct11.json`, `data/dragon-reaction-exits-oct11.json`; runtime-данные не входят в публикуемый пакет.
+Full passage before Nether, End And victory over the dragon in this trial **Not confirmed**. The reports of the attempts are stored locally in `data/dragon-reaction-oct11.json`, `data/dragon-reaction-resume-oct11.json`, `data/dragon-reaction-backtrack-oct11.json`, `data/dragon-reaction-exits-oct11.json`; runtime-Data not included in published package.
 
-Синтетический CPU-тест проверяет одинаковые 13 кандидатов: время A* 313,5 мс синхронно / 332,0 мс в worker, максимальный разрыв контрольного таймера 313,8 / 16,0 мс. Это подтверждение снижения блокировки основного потока, не ускорение самого A*. [Методика и ограничения](RUNTIME-PERFORMANCE.md).
+Synthetic CPU-The test checks the same 13 Candidates: time A* 313,5 ms synchronous / 332,0 ms worker, Maximum burst of the control timer 313,8 / 16,0 ms. This is a confirmation of the reduction of main stream lock, Not acceleration itself A*. [Methodology and limitations](RUNTIME-PERFORMANCE.md).
 
-## Расписание физики: отдельный игровой прогон
+## Timetable for physics: separate game run
 
-После экспедиционных прогонов исправлено накопление опозданий локального таймера. **MilesClock11**, новый персонаж на том же offline-сервере, `npm.cmd run test:live:timing`: обычное движение к наблюдаемой точке X 10, Y 71, Z 8 прошло. Средний интервал последних 128 шагов — **50,09 мс / 19,97 Гц**, максимум 63,35 мс; ноль интервалов длиннее 75 мс, ноль коррекций, здоровье 20/20. Статус `passed`, отчёт `data/timing-live.json`.
+After cruise runs, the accumulation of local timer delays was corrected. **MilesClock11**, The new character on the same offline-server, `npm.cmd run test:live:timing`: normal movement to observed point X 10, Y 71, Z 8 It's gone. Average interval of the last 128 Steps — **50,09 ms / 19,97 Hz**, maximum 63,35 ms; 0 per cent longer 75 ms, 0 0 correction, Health 20/20. Status `passed`, Report `data/timing-live.json`.
 
-Это клиент с проверкой короткого маршрута, без полного набора реакторов экспедиции. В предыдущих экспедициях локальная частота составляла 14,8–16,6 Гц; отличающиеся нагрузки не позволяют приписать весь разрыв одному изменению. Детерминированные тесты отдельно подтверждают устранение накопления задержек таймера. Все тестовые клиенты отключены; после проверки сервер сообщал только игрока y9kudo.
+It's a client with a short route check, without full expedition reactor set. In previous expeditions, the local frequency was 14,8–16,6 Hz; Different loads do not allow the whole burst to be attributed to one change. Determinated tests separately confirm the elimination of the accumulation of timer delays. All test clients are off-line; After the test, only the player was notified by the server y9kudo.
 
-HTTP-тест панели теперь также проходит. Ограничение loopback, наблюдавшееся 8 октября, в текущем окружении не воспроизводится. Файлы тестов выполняются с `--test-concurrency=4`, чтобы десятки отдельных процессов Node не перегружали ПК одновременно с Minecraft; тайм-ауты и проверки движения сохранены.
+HTTP-The panel test is now also passing. Limitation loopback, observed 8 October, No copy in the current environment. Test files are run with `--test-concurrency=4`, so that dozens of separate processes Node did not overload the PC at the same time as Minecraft; Time-The vehicle is not required to be checked by the vehicle.
 
-Нагрузочный тест без Minecraft (`npm.cmd run test:runtime`), 11 октября: одинаковые 30 000 узлов, максимальный интервал контрольного таймера 976 мс при синхронном поиске и 31 мс при общей очереди. Общее время — 976 и 1 032 мс соответственно. Замер выполнен при фоновой нагрузке автоматических тестов; это проверка отзывчивости, а не оценка максимальной производительности ПК. [Методика, API и ограничения](RUNTIME-PERFORMANCE.md).
+Load test without Minecraft (`npm.cmd run test:runtime`), 11 October: The same 30 000 knots, Maximum time interval of the reference timer 976 ms in synchronous search and 31 ms in total. Total time — 976 and 1 032 ms, respectively. Measured with background load of automatic tests; It's a test of responsiveness, Not the maximum PC productivity estimate. [Methodology, API and limitations](RUNTIME-PERFORMANCE.md).
 
-Тест обучения сравнивает два доступных источника: после последовательности неудач у одного и успехов у другого предсказанные риски расходятся, и ресурсная цель меняет выбор. Восстановленные веса дают ту же оценку. Это проверка локального механизма обучения, а не статистическая оценка универсальной игровой силы.
+The test compares two available sources: After a sequence of failures, one and another have different risks, and resource objective changes choice. Retreaded weights give the same estimate. This is a test of local learning arrangements, Not a statistical assessment of the universal game force.
 
-## Реальный сервер 1.21.1: простой API, 11 октября
+## Real server 1.21.1: simple API, 11 October
 
-`examples/agent-live.js`, offline-сервер пользователя `127.0.0.1:25565`, английские имена, без административной выдачи предметов. При повторных запусках используется тот же мир: существующие выработки и станции сохраняются.
+`examples/agent-live.js`, offline-User server `127.0.0.1:25565`, English names, without administrative issuance of items. The same world is used for repeat launches: existing facilities and stations retained.
 
-Первый агент **AtlasCore11** начал с пустого инвентаря, добыл древесину, сделал верстак и деревянную кирку, но остановился после шести неудачных подходов к верстаку из выработки. Статус `incomplete`, 215,6 секунды. Этот отчёт сохранён. После исправления подхода тот же агент обычной добычей расчистил выход, поднялся с Y 63 на Y 66 и скрафтил каменную кирку.
+First agent **AtlasCore11** Started with empty equipment, I got wood, I made a wood and a wood kirk, But stopped after six failed approaches to the verstuke from the work. Status `incomplete`, 215,6 seconds. This report is saved. After the approach was corrected, the same ordinary mining agent cleared the exit, I'm up with Y 63 Total Y 66 And shaved a stone brick.
 
-Повтор с новым агентом **BlakeCore11**:
+Repeat with new agent **BlakeCore11**:
 
-| Проверка | Результат |
+| Verification | Result |
 |---|---|
-| Начальный инвентарь | Пустой |
-| Сценарий | Древесина по классу → верстак → деревянная кирка → каменная кирка → печь |
-| Итог / время | `passed`, 194,9 секунды |
-| Действия | 23 навигации, 15 добыч, 18 подборов, 8 крафтов успешно |
-| Ошибки и восстановление | 3 ошибки добычи, 1 нехватка ингредиентов после подготовки станции; цель затем выполнена |
-| Здоровье / коррекции позиции | 20/20; 1 коррекция сервера |
-| Рецепты | 1 290 объявлено сервером, 62 результата проиндексировано по запросу |
-| Планировщик | 68 эпизодов, 818 обновлений весов |
-| Навигация | 277 переходов, 4 589 обновлений весов |
-| Пространственная память | 2 048 записей, 15 отозванных наблюдений |
-| Сохранение и загрузка | Обе проверки: планировщик и пространственная память — успешны |
+| Primary equipment | Empty |
+| Scenario | Wood by class → crafting table → wooden pick → Stone pick → Boiler |
+| Outcome / time | `passed`, 194,9 seconds |
+| Actions | 23 navigation, 15 Mining, 18 Rebounds, 8 Krafts have been successful |
+| Errors and recovery | 3 mining errors, 1 Lack of ingredients after station preparation; Target then achieved |
+| Health / Heading correction | 20/20; 1 server correction |
+| Reciprocies | 1 290 announced by server, 62 result indexed on request |
+| Planner | 68 episodes, 818 balance updates |
+| Navigation | 277 transitions, 4 589 balance updates |
+| Spatial memory | 2 048 Records, 15 Observations withdrawn |
+| Save and load | Both checks: Planner and spatial memory — successful |
 
-Финальный инвентарь содержит обе кирки, печь, 3 доски, 3 земли и 3 яйца. Яйца были подобраны в мире до добычи дерева; готовое снаряжение тесту не выдавалось. В последнем окне 128 тиков средний интервал локального таймера — 59,3 мс, p95 — 64,1 мс. Эти показатели не являются сетевым ping или TPS сервера.
+The final inventory contains both kirks, Boiler, 3 boards, 3 land and 3 eggs. Eggs were picked up in the world before the tree was harvested; No test was given on finished equipment. In the last window 128 Tics average local timer interval — 59,3 ms, p95 — 64,1 ms. These indicators are not online ping or TPS servers.
 
-Сырые отчёты: `data/agent-live-2026-10-11T10-49-16-738Z.json` (первый запуск) и `data/agent-live-2026-10-11T10-57-00-391Z.json` (повтор). Они сохраняются локально; журнал ошибок не удаляется ради успешного результата. [Запуск и API](SIMPLE-AGENT.md).
+Raw reports: `data/agent-live-2026-10-11T10-49-16-738Z.json` (launch) and `data/agent-live-2026-10-11T10-57-00-391Z.json` (repeat). They're local; The error log is not removed for success. [Launch and API](SIMPLE-AGENT.md).
 
-После окончательного исправления учёта изменений маршрута выполнен ещё один полный прогон — **CharlieCore11**, пустой инвентарь, тот же сервер и мир. Все пять целей выполнены за **88,1 секунды**: 5 навигаций, 14 добыч, 13 подборов и 8 крафтов успешны; один подбор не получил подтверждения и был обработан как ошибка. Здоровье 20/20, коррекций позиции 0. Финальный инвентарь: деревянная и каменная кирки, печь и 3 доски. Планировщик накопил 41 эпизод/467 обновлений, навигация — 67 переходов/1 019 обновлений; сохранение и восстановление планировщика и 1 744 записей пространственной памяти подтверждены.
+After the final correction of the track changes, another full run was completed — **CharlieCore11**, empty equipment, same server and world. All five goals are met for **88,1 seconds**: 5 navigation, 14 Mining, 13 and 8 Crafts are successful; One selection was not confirmed and was processed as a mistake. Health 20/20, of the position correction 0. Final inventory: Wooden and stone kirks, Boiler and 3 boards. The planner saved up 41 episode/467 updates, navigation — 67 transitions/1 019 updates; maintenance and restoration of the planner and 1 744 Spatial memory records confirmed.
 
-Отчёт финального прогона: `data/agent-live-2026-10-11T11-05-56-142Z.json`. Разница времени между агентами не доказывает ускорение в определённое число раз: агенты используют разные маршруты, а предыдущие испытания изменили мир. Полный итог тестовой серии: один незавершённый запуск с выявленной ошибкой, отдельная проверка её исправления и два успешных пятиэтапных запуска.
+Final run report: `data/agent-live-2026-10-11T11-05-56-142Z.json`. The time difference between agents does not prove acceleration by a certain number of times: Agents use different routes, And the past tests changed the world. Total Test Series: One incomplete launch with identified error, separate check of its correction and two successful five-stage launches.
 
-## Реальный сервер 1.21.1: один агент, 8 октября
+## Real server 1.21.1: One agent, 8 October
 
-`examples/recipes-live.js`, агент BlakeGrowth, новый мир пользователя, начальный инвентарь пустой.
+`examples/recipes-live.js`, Agent BlakeGrowth, New user world, Start equipment empty.
 
-| Проверка | Результат |
+| Verification | Result |
 |---|---|
-| Цель | Древесина по классу → верстак → деревянная кирка |
-| Время | 153,6 секунды |
-| Рецепты | 1 290 объявлено сервером; 57 результатов проиндексировано по запросу |
-| Крафт | 6 успешных операций, станция установлена |
-| Добыча и подбор | 3 успешные добычи, 3 успешных подбора |
-| Ошибки | 4 недоступные позиции добычи; агент затем выбрал другой подход |
-| Планировщик | 30 эпизодов, 324 обновления весов; восстановление модели проверено |
-| Навигация | 175 переходов, 2 855 обновлений весов |
+| Goal | Wood by class → crafting table → wooden pick |
+| Time | 153,6 seconds |
+| Reciprocies | 1 290 announced by server; 57 Results indexed on request |
+| craft | 6 Successful operations, Station installed |
+| Mining and selection | 3 Successful mining, 3 successful selection |
+| Errors | 4 Unaffordable mining sites; The agent then took another approach |
+| Planner | 30 episodes, 324 Balance updating; Model recovery verified |
+| Navigation | 175 transitions, 2 855 balance updates |
 
-Итоговый инвентарь: деревянная кирка, 3 дубовые доски, 2 палки. Установленный верстак находится в мире. Административные выдачи тест не выполняет. Сырой отчёт сохраняется локально в `data/recipes-live-report.json`.
+Final inventory: wooden pick, 3 oak board, 2 Sticks. The established is in the world. Administrative issuances fail to perform the test. The raw report is kept locally in `data/recipes-live-report.json`.
 
-## Более ранние игровые проверки
+## Early game tests
 
-- 2 октября, AtlasLearning: три коротких маршрута, 15 переходов, 135 обновлений весов; книга мира и восстановление нейросети подтверждены.
-- PillarScout01: обычный прыжок со строительством трёх блоков под ногами и разбор своего столба; здоровье 20, коррекций сервера 0.
+- 2 October, AtlasLearning: Three short routes, 15 transitions, 135 balance updates; Peace Book and Neuronet Recovery confirmed.
+- PillarScout01: A simple jump with three blocks under your feet and a pole-by-post review; Health 20, server correction 0.
 
-## Командный тест
+## Command test
 
-Первый запуск 10 агентов остановился на входе: LAN-сервер имел 8 слотов, семь ботов и хозяин мира заполнили его. Ресурсный этап не запускался; успешная кооперация из этого не следует.
+First launch 10 agents stopped at the entrance: LAN-The server had 8 Slots, Seven bots and the world's master filled it up. Resource phase not started; Successful cooperation is not a result.
 
-Прогон 20 агентов на отдельном vanilla-сервере 1.21.1 завершился до изменений отзывчивости со статусом `incomplete`: 11 из 20 агентов имели деревянную кирку, зафиксированы 663 сообщения координации и 406 заявок на ресурсы. Это не успешное завершение всей командной цели. Отчёт находится локально в `data/fleet-learning-live.json`; повторный игровой прогон ещё нужен.
+Run 20 Agents on a separate vanilla-server 1.21.1 completed before the change in responsiveness with status `incomplete`: 11 from 20 agents had a wooden pick, recorded 663 coordination and 406 resource requests. This is not a successful completion of the entire command objective. The report is located locally in `data/fleet-learning-live.json`; I still need a re-play.
 
-## Что пока не доказано
+## What has not yet been proven
 
-Полная победа над драконом с пустого инвентаря, уровень PvP против сильного человека, живое незеритовое улучшение и работоспособность игровых адаптеров 26.3/старых версий не подтверждены этими проверками. Варка зелий пока представлена планировщиком без нативного исполнителя.
+A complete victory over the dragon from empty equipment, level PvP Against a Strong Man, Living non-serite improvement and performance of game adapters 26.3/old versions not confirmed by these checks. The potion barca is now presented by the planner without a real performer.

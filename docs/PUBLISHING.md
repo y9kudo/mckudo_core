@@ -1,10 +1,10 @@
-# GitHub и распространение
+# GitHub and dissemination
 
-Официальные репозитории автора **y9kudo**: [MCKudo Core](https://github.com/y9kudo/mckudo_core) и [KudoConnect](https://github.com/y9kudo/kudoconnect). Лицензия MIT. Версия этого выпуска — **0.6.0**.
+Official repository of the author **y9kudo**: [OvermindMC](https://github.com/y9kudo/mckudo_core) and [OMConnect](https://github.com/y9kudo/kudoconnect). Licensing MIT. Version of this issue — **0.6.0**.
 
-## Перед публикацией на GitHub
+## Before publication at GitHub
 
-В корне проекта находятся MIT-лицензия, README, документы API, тесты и workflow CI. В `.gitignore` исключены токены, локальная память, зависимости и архивы npm.
+The project is at its root MIT-licence, README, documents API, tests and workflow CI. B `.gitignore` Deleted currents, Local memory, Dependence and archives npm.
 
 ```powershell
 npm.cmd run check
@@ -13,13 +13,13 @@ npm.cmd run test:package
 git status --short
 ```
 
-`release:check` сверяет версии пакетов/lock-файлов/публичных констант, импорты в архивах, локальные ссылки документации и отсутствие runtime-файлов. `test:package` собирает оба архива, устанавливает их в отдельное временное приложение и проверяет API без Mineflayer. По умолчанию установка использует кэш и при необходимости npm registry. Для проверки без сети: `npm.cmd run test:package -- --offline`; для неё нужны и архивы зависимостей, и их метаданные в npm-кэше. Один `npm ci` не гарантирует наличие метаданных диапазонов версий.
+`release:check` Checks package versions/lock-Files/Public constant, Imports in archives, Local links and lack of documentation runtime-Files. `test:package` Collects both archives, Sets them in a separate provisional annex and checks them API without Mineflayer. By default, the installation uses cache and if necessary npm registry. For unconnected testing: `npm.cmd run test:package -- --offline`; She needs the records of addictions, and their metadata in npm-Cash. One `npm ci` does not guarantee metadata of version ranges.
 
-Игровые проверки запускаются отдельно: `npm.cmd run test:live:agent`. Нужны offline-сервер Java 1.21.1 и новое имя через `MC_USER`. Неудачные результаты сохраняются; тест раннего выживания не является победой над драконом. [Методика и результаты](TESTING-06.md).
+Playchecks are started separately: `npm.cmd run test:live:agent`. Requires offline-server Java 1.21.1 and a new name through `MC_USER`. Failures maintained; Early survival test is not a victory over a dragon. [Methodology and results](TESTING-06.md).
 
-## Коммиты и релизы
+## Communications and releases
 
-Добавляй конкретные файлы своего изменения и пиши сообщение о его назначении:
+Add specific files of your change and write a message about his appointment:
 
 ```powershell
 git add src/agent-manager.js test/shutdown.test.js
@@ -27,19 +27,19 @@ git commit -m "fix(core): close clients when memory saving fails"
 git push origin main
 ```
 
-GitHub Actions проверяет **Linux/Windows × Node.js 22/24**. После успешной матрицы push в `main` запускает релизную задачу: она читает версию `package.json`, создаёт тег `v<версия>` на проверенном коммите и GitHub Release с `.tgz` и `SHA256SUMS.txt`. Для выпуска необходим файл `docs/releases/<версия>.md`. Существующий релиз не изменяется; существующий тег с другим коммитом вызывает ошибку. Релизная задача использует встроенный `GITHUB_TOKEN` с правом `contents: write` только в своём job.
+GitHub Actions Checks **Linux/Windows × Node.js 22/24**. After successful matrix push in `main` Runs the release task: She reads the version `package.json`, Creates a tag `v<version>` on a proven commie and GitHub Release with `.tgz` and `SHA256SUMS.txt`. File required for release `docs/releases/<version>.md`. Existing release unchanged; The existing tag with another commite causes a mistake. The task of the reference uses built-in `GITHUB_TOKEN` with the right `contents: write` Only in my own job.
 
-Исходник самостоятельного клиента находится в `packages/kudoconnect`. В отдельный репозиторий переносится содержимое этой папки: код, типы, тесты, документация, lock-файл и CI. Слои MCKudo, память, тестовые миры и личные настройки туда не копируются. Изменения клиента в двух репозиториях должны совпадать.
+The source of the independent client is in `packages/omconnect`. The contents of this folder are transferred to a separate repository: code, Types, tests, Documentation, lock-file and CI. The layers OvermindMC, memory, Test worlds and personal settings are not copied. The change in the client in the two repositorys must coincide.
 
-Войдите в GitHub штатным способом через VS Code или Git Credential Manager. Токен не вставляй в URL репозитория и не сохраняй в исходниках. `.gitignore` не удаляет уже отслеживаемый файл или его историю.
+Come in GitHub by regular means through VS Code or Git Credential Manager. Token, don't put it in URL Repository and don't keep it in the originals. `.gitignore` does not delete the already monitored file or its history.
 
-Публикация GitHub и публикация npm — разные действия. Даже до npm разработчик может установить библиотеку из локальной папки, `.tgz` или собственного опубликованного Git-репозитория.
+Publication GitHub and publication npm — Different actions. Even before npm Developer can install a library from a local folder, `.tgz` or its own published Git-Repository.
 
 ## npm
 
-1. Проверь доступность имени `mckudo` и право публиковать под этим именем. Если оно занято, выбери свободное scoped-имя под своим аккаунтом и обнови импорты документации.
-2. Заполни `repository.url` и при необходимости `homepage`/`bugs` реальным адресом GitHub.
-3. Запусти тесты и проверь содержимое `npm.cmd pack --dry-run`.
-4. Войди в свой npm-аккаунт и публикуй только согласованную версию. `prepublishOnly` отклоняет публикацию, пока URL репозитория не заполнен.
+1. Check the accessibility of the name `mckudo` and the right to publish under that name. If it's occupied, choose a free one scoped-name under its account and new documentation imports.
+2. Fill it out `repository.url` and as appropriate `homepage`/`bugs` real address GitHub.
+3. Run the tests and check the contents `npm.cmd pack --dry-run`.
+4. Come into your own npm-Account and publish only the agreed version. `prepublishOnly` Rejects publication, Goodbye URL Repository not filled.
 
-Этот CI создаёт GitHub Release, но **не публикует в npm**, не использует игровые аккаунты и не выполняет вход в Minecraft. До отдельной публикации npm устанавливай `.tgz` из официального GitHub Release: `npm.cmd install C:/путь/к/mckudo-0.6.0.tgz`. Самостоятельный KudoConnect устанавливается аналогично; встроенный уже доступен через `mckudo/connect`.
+This one CI Creates GitHub Release, but **does not publish in npm**, does not use games accounts and does not enter Minecraft. Before a separate publication npm Set `.tgz` official GitHub Release: `npm.cmd install C:/path/to/mckudo-0.6.0.tgz`. Self-contained OMConnect shall be installed in the same way; built-in already available via `overmindmc/connect`.

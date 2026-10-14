@@ -1,33 +1,33 @@
-# Кооперативное испытание пяти агентов 0.7
+# Cooperative test of five agents 0.7
 
-Испытание запускает ArKaDiU656, `_FISTFIGHT_`, MrGiraffe6614, DERTKE и LazyP1nk. Каждый должен получить алмазные шлем, нагрудник, поножи, ботинки, кирку, меч и топор; четыре части брони должны быть надеты. Решения о добыче, крафте, занятости ресурсов и обмене выполняют библиотеки MCKudo Core и KudoConnect.
+Start test ArKaDiU656, `_FISTFIGHT_`, MrGiraffe6614, DERTKE and LazyP1nk. Everyone needs to get a diamond helmet, breast plate, ♪ Beautiful ♪, Shoes, Kirk, Sword and Axe; four parts of the armor must be worn. Mining decisions, krafte, The libraries are responsible for the creation of a new network of new and more efficient and efficient services OvermindMC and OMConnect.
 
-## Запуск на Java 1.21.1
+## Launch on Java 1.21.1
 
-В локальном мире с входом `offline` нужно пять свободных слотов. Положи минимум пять элитр в первый доступный сундук, а минимум 80 фейерверков без взрывных звёзд — во второй. Координаты и надписи необязательны: агенты ищут хранилища в полученных чанках. Каждый берёт только недостающее до одной пары элитр и 16 ракет. Недоступные сундуки попадают в отчёт; один агент не забирает весь запас команды.
+In the local world with the entrance `offline` I need five free slots. Put at least five elites in the first available chest, a minimum 80 Fireworks without explosive stars — Second. Coordinates and inscriptions are optional: Agents are looking for storage in the cupboards they received. Everyone takes only the missing pair of elites and 16 Missiles. Unable chests are in the report; One agent doesn't take the entire reserve of the team.
 
 ```powershell
 npm.cmd run test:cooperative-diamonds:check
 npm.cmd run test:live:cooperative-diamonds
 ```
 
-Панель: `http://127.0.0.1:4181/`. Срок одного запуска — 30 минут; можно задать `$env:MC_TEST_MINUTES='120'`. Для другого порта используй `$env:MC_PORT='25566'`; количество ракет каждому меняется через `$env:MC_ROCKETS_EACH='32'`. Остановка — `Ctrl+C`.
+Panel: `http://127.0.0.1:4181/`. Time frame for one launch — 30 minutes; Can I ask you something `$env:MC_TEST_MINUTES='120'`. Use it for another port `$env:MC_PORT='25566'`; The number of missiles changes each through `$env:MC_ROCKETS_EACH='32'`. Stop — `Ctrl+C`.
 
-В `data/cooperative-diamonds-live.json` сохраняются исходные и текущие инвентари, выданные из сундуков припасы, этапы добычи, ошибки, смерти, сообщения команды и результаты передач. Память находится в `data/cooperative-diamonds-memory`. При повторном подключении персонажи сохраняют серверные предметы. Перезапуск с накопленными предметами не считается новым прохождением с пустого инвентаря. После смерти разрешены до трёх обычных возрождений; потерянное снаряжение не восстанавливается командой.
+B `data/cooperative-diamonds-live.json` Base and current inventory retained, supplies from the chest, Production phases, Errors, Death, Command messages and gear results. Memory is in `data/cooperative-diamonds-memory`. When reconnected, characters retain server items. Restarting with accumulated items is not considered as a new passage from empty equipment. Up to three normal rebirths are allowed after death; Lost equipment not recovered by team.
 
-`passed` выставляется только после проверки всей пятёрки. Наличие сообщений или резервирования ресурсов само по себе не доказывает успешный обмен или добычу алмазов. Получение элитр также отдельно от подтверждённого полёта: этот сценарий проверяет ресурсы и кооперацию.
+`passed` shall only be displayed after checking the full five. The existence of reports or reserves of resources does not in itself prove the successful exchange or extraction of diamonds. Getting an elite also separate from confirmed flight: This scenario checks resources and cooperation.
 
-## Эксперимент 26.3
+## Experiment 26.3
 
-Нативные проверенные профили KudoConnect сейчас — 1.21 и 1.21.1. Сервер 26.3 был обнаружен по протоколу 777. Экспериментальный клиент прошёл вход и получил чанки, но соединение закрылось после первого игрового тика. Затем испытание перевели обратно на 1.21.1. Поддержка 26.3 **не подтверждена**.
+Intactly tested profiles OMConnect Now — 1.21 and 1.21.1. server 26.3 was discovered under the protocol 777. The experimental client went in and got cups, But the connection closed after the first game tick. Then the test was moved back to 1.21.1. Support 26.3 **Not confirmed**.
 
-Исследовательский адаптер `createJava263Profile` подключается через `new KudoConnect(options,{versionProfile})`. Он отделён от стандартных зависимостей. Для воспроизведения разработчиком:
+Research adapter `createJava263Profile` connected via `new OMConnect(options,{versionProfile})`. It's separated from the standard addictions. For playback by the developer:
 
 ```powershell
 node scripts/setup-java263.js
 node examples/version263-smoke.js
 ```
 
-Изолированный каталог зависимостей — `data/compat263/runtime`, версии закреплены в `examples/compat263-runtime.package.json`; установочные скрипты пакетов отключены. Использованы BSD/MIT форки [протокола](https://github.com/wupengabc/node-minecraft-protocol), [каталогов](https://github.com/wupengabc/node-minecraft-data) и [чанков](https://github.com/wupengabc/prismarine-chunk). В основной ветке PrismarineJS [интеграция 26.3](https://github.com/PrismarineJS/node-minecraft-protocol/pull/1532) и [новый формат движения сущностей](https://github.com/PrismarineJS/node-minecraft-protocol/pull/1538) ещё обсуждаются.
+Isolated Idea Catalogue — `data/compat263/runtime`, The versions are fixed in `examples/compat263-runtime.package.json`; Package sets disabled. Used BSD/MIT Forky [of the Protocol](https://github.com/wupengabc/node-minecraft-protocol), [Catalogues](https://github.com/wupengabc/node-minecraft-data) and [chunks](https://github.com/wupengabc/prismarine-chunk). In the main branch PrismarineJS [integration 26.3](https://github.com/PrismarineJS/node-minecraft-protocol/pull/1532) and [New entity movement format](https://github.com/PrismarineJS/node-minecraft-protocol/pull/1538) still under discussion.
 
-Эксперимент использует явно обозначенный каталог рецептов версии, а не полный граф рецептов сервера. Метаданные старых семейств сущностей временно наследуются от 26.1.2 и требуют проверки. Клики инвентаря ждут серверной синхронизации, без локального создания предметов. До устойчивого smoke-теста и проверки добычи, крафта, сундуков и полёта профиль не следует считать поддержкой 26.3.
+The experiment uses a clearly defined version recipe catalogue, Not the full server recipe graph. The metadata of old entities are temporarily inherited from 26.1.2 and require verification. The hardware clicks are waiting for server sync, without local creation of items. Until sustainable smoke-Test and test production, craft, The profile should not be considered support 26.3.

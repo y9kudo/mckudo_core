@@ -1,21 +1,21 @@
-# Исправления 0.7 по результатам гонки
+# Corrections 0.7 on the results of the race
 
-Автор: **y9kudo**. Изменения относятся к рабочей ветке после `v0.7.0-dev.0`; опубликованный архив и исторические участники гонки остаются неизменными. [Результаты первого этапа](results/diamond-race-2026-10-12-stage1.md) содержат времена, счётчики действий и происхождение исходников.
+Author: **y9kudo**. Changes refer to the operating branch after `v0.7.0-dev.0`; The published archives and historical contestants remain unchanged. [Results of phase I](results/diamond-race-2026-10-12-stage1.md) The time, Action meter and source origin.
 
-После двух этапов отдельная рабочая сборка **подтвердила добычу алмаза за 93,353 секунды**, продолжив с сохранёнными ресурсами. [Отчёт диагностики](results/race-fix-probe-2026-10-12.md) отделён от [исторической гонки](results/diamond-race-2026-10-12-stage2.md). Автоматические проверки: 368 тестов, все прошли; проверка конфигурации и комплектности пакетов также прошла.
+After two steps, separate assembly **confirmed diamond mining for 93,353 seconds**, Continue with stored resources. [Diagnostic report](results/race-fix-probe-2026-10-12.md) Separated from [The History Race](results/diamond-race-2026-10-12-stage2.md). Automatic checks: 368 tests, Everyone's gone; The package configuration and completeness test was also passed.
 
-## Что изменилось в библиотеках
+## What Changed in the Library
 
-| Наблюдение | Воспроизведённый механизм | Исправление | Проверка |
+| Observation | Reproduced mechanism | Corrigendum | Verification |
 |---|---|---|---|
-| 47 неудачных подборов у 0.7-dev за первый этап | Первый подход к предмету повторялся даже после ошибки, остальные позиции не пробовались | `KudoConnect.executeCollect` перебирает другие достижимые позиции и помнит отклонённые до смены клетки предмета, позиции или ревизии мира | `packages/kudoconnect/test/collection.test.js`: первый подход заблокирован, второй подтверждает инвентарь |
-| Одни и те же недоступные предметы отвлекают от выживания | Задержка подбора оставалась одинаковой после каждого отказа | `createLootReactor`: 5, 10, 20, 40, 80, 120 секунд по умолчанию; максимум 256 записей. Движение агента на 3 блока, предмета на 1 блок или смена измерения сбрасывают запись | `test/survival-brain.test.js`: повторный отказ увеличивает ожидание; переместившийся предмет доступен сразу |
-| 144 неудачных перехода у 0.7-dev | Истёкший таймер возвращал ту же недоступную ступень в очередь без изменения местности | `createSurvivalReactor`: запоминание неудачного перехода до смены клетки агента, ревизии мира или блоков около старта/цели; максимум 256 записей | `test/survival-brain.test.js`: время само не разблокирует маршрут, изменение блока разблокирует |
-| На втором этапе железная кирка исчезла до алмазного слоя, затем агент создал новую | Выбор инструмента учитывал только скорость; железная кирка использовалась и для обычного камня | Мозг передаёт `preservePickaxeTier: 2`: выбирается подходящая младшая кирка, если она есть. Для алмазной руды железная сохраняется в выборе; единственный подходящий инструмент не запрещается | `storage-equipment.test.js` проверяет камень, алмазную руду и единственную кирку; `survival-brain.test.js` проверяет передачу политики |
+| 47 failed rebounds 0.7-dev for the first phase | The first approach to the subject was repeated even after the error, The rest of the positions weren't broken | `OMConnect.executeCollect` selects other achievable positions and remembers the object's rejected cells before changing cells, or audits of the world | `packages/omconnect/test/collection.test.js`: First approach blocked, Second confirms the inventory |
+| The same things that are inaccessible distract from survival | The rebound delay remained the same after each failure | `createLootReactor`: 5, 10, 20, 40, 80, 120 default seconds; maximum 256 Records. Agent movement on 3 block, object 1 The recording shall be dropped by the unit or change of measurement | `test/survival-brain.test.js`: repeated failure increases waiting; moving object is available immediately |
+| 144 failed transitions 0.7-dev | The remaining timer returned the same unreachable step in line without changing the location | `createSurvivalReactor`: memory of a failed transition before the agent's cell changes, Peace audits or blocks near launch/objectives; maximum 256 Records | `test/survival-brain.test.js`: Time doesn't unlock the route itself, The change in block will unlock |
+| In the second phase, the iron pick disappeared to the diamond layer, Then the agent created a new one | The choice of tool was only based on speed; The iron pick was also used for the ordinary stone | The brain is transmitting `preservePickaxeTier: 2`: A suitable junior pick is selected, If there is one. For diamond ore, iron is retained in the selection; the only suitable instrument is not prohibited | `storage-equipment.test.js` Checks the stone, Diamond ore and the only brick; `survival-brain.test.js` Checks policy transfer |
 
-Счётчики показывают масштаб проблемы, а не доказывают причину каждой отдельной ошибки. Механизмы воспроизведены локально: новые регрессионные проверки сначала не проходили на прежнем коде. Порог времени, границы карты, защита построек и подтверждение сервером не отменены. Отмена подбора для защиты/остановки и запоздавшее обновление инвентаря проверяются отдельно.
+The meter shows the scale of the problem, Not prove the cause of each individual error. Mechanisms reproduced locally: New regression tests did not first run on the old code. Time limit, map boundaries, Building security and server confirmation not cancelled. Rescission of selection for protection/Stopping and late updating of the equipment shall be checked separately.
 
-`loot.retryMs` задаёт **начальную** задержку, а не фиксированный интервал. Например:
+`loot.retryMs` it's a problem **Primary** Delay, Not a fixed interval. For example:
 
 ```js
 createMinecraftBrain({
@@ -26,17 +26,17 @@ createMinecraftBrain({
 });
 ```
 
-`preservePickaxeTier` включён в мозге по умолчанию: 1 — каменная, 2 — железная, 3 — алмазная, 4 — незеритовая. `false` отключает сбережение. Прямой `chooseMiningTool` KudoConnect без этой опции по-прежнему выбирает самый быстрый подходящий инструмент. Это политика расходования прочности, а не гарантия, что инструмент никогда не сломается.
+`preservePickaxeTier` is in the brain default: 1 — Stone, 2 — iron, 3 — Diamond, 4 — non-heritite. `false` Disables saving. Direct `chooseMiningTool` OMConnect without this option-still picks the fastest tool available. It's a policy to spend on strength, Not the guarantee, I'm sure the tool will never break.
 
-## Что изменилось только в приложении гонки
+## What changed only in the race app
 
-Логистический помощник сохраняет последний верстак и лучший инструмент донора, не передаёт верстак 0.2 без крафта и может подарить младшую кирку после улучшения. Это код `examples/benchmark/race-metrics.js`, который не является историческим мозгом. Изменения помощника между этапами учитываются как условие эксперимента; они не объявляются улучшением скорости старых ядер.
+The Logistic Assistant keeps the last of the characters and the best instrument of the donor, Doesn't give you a copy of the book 0.2 Without a craft and can give the younger kirch after improvement. It's a code `examples/benchmark/race-metrics.js`, which is not a historical brain. Changes of the assistant between phases are included as a condition of the experiment; They're not declared to be an improvement in the speed of old kernels.
 
-Продолжение через `MC_RACE_RESUME` описано в [руководстве гонки](DIAMOND-RACE.md). Погибшие участники не возрождаются. После их гибели автоматическое продолжение полного состава отклоняется: для нового испытания нужны новые имена и отдельный отчёт.
+Continuation through `MC_RACE_RESUME` as described in [of the race](DIAMOND-RACE.md). Dead members not reborn. After their death, the automatic continuation of the whole is rejected: For a new test, new names and separate report are needed.
 
-## Проверка рабочей сборки на сервере
+## Checking the server assembly
 
-Историческая гонка проверяет опубликованные снимки. Для новых исправлений есть отдельная диагностика, которая **не участвует в её рейтинге**:
+The historical race checks published images. There is a separate diagnostic for new corrections, which **Not in her rating**:
 
 ```powershell
 $env:MC_HOST = '127.0.0.1'
@@ -46,8 +46,8 @@ $env:MC_TEST_MINUTES = '3'
 npm.cmd run test:live:race-fixes
 ```
 
-Нужен offline-сервер Java 1.21.1, свободный слот и survival. Новое имя проверяется на пустой инвентарь. Профиль использует мозг из рабочей копии, цель `diamond: 1`, без сундуков, сна, необязательной охоты и атак на игроков. Он может добывать и размещать блоки обычными действиями; команды выдачи, телепортация и изменение режима не используются. На смерти попытка завершается.
+Requires offline-server Java 1.21.1, free slot and survival. The new name is checked for empty equipment. Profile uses brain from working copy, Objective `diamond: 1`, No chests, Sleep, ♪ I don't need to hunt and attack the players ♪. It can extract and install blocks by normal action; Extradition teams, Transport and mode change not used. At death, the attempt ends.
 
-Для диагностики живого участника **после закрытия всех процессов гонки** можно указать его имя и завершённый отчёт через `MC_PROBE_PREVIOUS_REPORT`. Отчёт должен подтверждать живого участника, закрытие процесса и тот же сервер. В таком запуске `fromEmptyInventory: false` явно обозначает продолжение с ресурсами. Не запускайте два клиента под одним именем одновременно.
+For diagnosis of a live participant **After all the processes of the race are closed** can state his name and final report via `MC_PROBE_PREVIOUS_REPORT`. Report to confirm live participant, Closing of the process and the same server. In this launch `fromEmptyInventory: false` Clearly indicates a continuation with resources. Don't start two clients under the same name at the same time.
 
-В `data/race-fix-probe-<время>.json` сохраняются хеши исправленных файлов, исходный и конечный инвентари, события действий, позиции, ошибки и доказательства алмаза при их наличии. `historicalRanking: false` отделяет диагностику от гонки. Статус `time-limit` означает только окончание наблюдения; успешный вход не доказывает успешную добычу или прохождение Minecraft.
+B `data/race-fix-probe-<timestamp>.json` Save the shesheches of corrected files, Source and end-user, developments, Position, errors and proof of the diamond if any. `historicalRanking: false` Segregate diagnostics from the race. Status `time-limit` means only the end of observation; Successful entry does not prove successful extraction or passing Minecraft.

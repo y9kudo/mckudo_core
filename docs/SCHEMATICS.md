@@ -1,53 +1,53 @@
-# Постройка по схеме в Creative
+# Construction in the Creative
 
-MCKudo Core читает схемы Minecraft Java, выбирает свободное место по загруженным чанкам и строит постепенно через действия KudoConnect: берёт предмет из Creative-инвентаря, подходит, поворачивается, ставит блок и сверяет его с состоянием мира. Команды `/fill` и `/setblock` строитель не использует. Состояния вроде `facing=east` передаются в компоненте предмета `minecraft:block_state`; этот путь проверен на сервере Java 1.21.1 с лестницей.
+OvermindMC reads charts Minecraft Java, Chooses a free seat on loaded cups and builds gradually through action OMConnect: Takes an object from Creative-equipment, It's good, turns around, Puts a block and checks it against the state of peace. Commands `/fill` and `/setblock` building doesn't use. Things like `facing=east` in the component of the subject `minecraft:block_state`; This path is checked on the server Java 1.21.1 with a ladder.
 
-## Форматы
+## Formats
 
-| Расширение | Что читается |
+| Extension | What Reads |
 | --- | --- |
-| `.nbt` | Структура, сохранённая блоком структур Java. |
-| `.litematic`, `.litematica` | Регионы Litematica, палитры и упакованные индексы. |
-| `.schem` | Sponge Schematic v2/v3, как у современного WorldEdit; палитра, VarInt, свойства и `Offset`. |
-| `.schematic` | Старый MCEdit/Schematica `Alpha`; только простые блоки без числовой metadata. Непереносимые ID отклоняются с подсказкой конвертировать файл в `.schem`. |
+| `.nbt` | Structure, saved by the structure block Java. |
+| `.litematic`, `.litematica` | Regions Litematica, palettes and packaged indices. |
+| `.schem` | Sponge Schematic v2/v3, Like modern WorldEdit; Palitrate, VarInt, properties and `Offset`. |
+| `.schematic` | Old MCEdit/Schematica `Alpha`; Simple blocks only without numbers metadata. Non-transferable ID Reverse with a clue to convert a file to `.schem`. |
 
-Загрузка ограничена 8 МиБ сжатого файла, 32 МиБ распакованного NBT, 65 536 ячейками объёма и 4096 устанавливаемыми блоками. Пустые ячейки не разрушают существующий мир. Схема с объектами блоков (например содержимым сундуков или текстом табличек) пока переносит только сам блок, а не его содержимое. Для выживания остаётся API `buildSchematic`, которое проверяет материалы и не подменяет сложные состояния обычными блоками.
+Loading limited 8 MB compressed file, 32 MIB unpacked NBT, 65 536 volume and 4096 units. Empty Cells Do Not Destroy the World. Map with block objects (e.g. contents of chests or tablets) As long as the block is carrying, Not its contents. To survive, it remains API `buildSchematic`, which checks materials and does not replace complex conditions with conventional blocks.
 
-## Запуск без программирования
+## Start without programming
 
-1. Запусти локальный сервер Java 1.21.1 в Creative с входом `offline` и открой папку `mckudo_core` в VS Code.
-2. Открой терминал PowerShell и выполни команду ниже. Путь к файлу обязательно заключи в кавычки, если в нём есть пробелы:
+1. Run the local server Java 1.21.1 in Creative Incoming `offline` Open the folder `mckudo_core` in VS Code.
+2. Open the terminal PowerShell And you'll have to do the lower team. You must write the path to the file in quotes, If there are gaps in it:
 
 ```powershell
 npm.cmd ci
 node examples/creative-schematic-build.js "C:\Users\y9kudo\Downloads\31942.schem"
 ```
 
-Агент `KudoBuilder07` дождётся чанков, проверит опору под всей схемой и отсутствие построек в её объёме. Во время стройки он держится в полёте, перелетает между соседними точками обзора и приземляется только тогда, когда полёт невозможен. В терминале появятся выбранные координаты и прогресс. Файл `data/creative-schematic-run.json` хранит идентификатор схемы, сервер и площадку. Повторный запуск с тем же файлом продолжит строительство на прежнем месте, сверяя каждый блок с миром. Для остановки нажми `Ctrl+C`: агент завершит текущее действие и отключится. Не удаляй файл прогресса, если хочешь продолжить ту же постройку.
+Agent `OMBuilder07` I'll have some tea, Check the support under the whole scheme and the absence of structures in its volume. He's on a plane during the construction, Fly between adjacent points of vision and land only then, When no flight is possible. The selected coordinates and progress will be made in the terminal. File `data/creative-schematic-run.json` stores a diagram identifier, server and site. Restart with the same file will continue construction at the previous location, by checking every block with the world. To stop, press `Ctrl+C`: Agent will complete the current action and pass out. Do not delete the progress file, If you want to continue the same construction.
 
-Для другого порта перед запуском укажи `$env:MC_PORT='25566'`; для другого ника — `$env:MC_NAME='MyBuilder'`. Схему можно загрузить и в локальной панели `http://127.0.0.1:4180/`, но полное поэтапное строительство крупного файла удобно наблюдать через пример выше.
+For another port, point before launch `$env:MC_PORT='25566'`; For another nick — `$env:MC_NAME='MyBuilder'`. The scheme can also be downloaded from the local panel `http://127.0.0.1:4180/`, but full-scale construction of a large file is convenient to observe through an example above.
 
-## Пять строителей для съёмки
+## Five builders for filming
 
 ```powershell
 node examples/creative-schematic-crew.js "C:\Users\y9kudo\Downloads\31942.schem"
 ```
 
-Команда запускает `KudoMason01`–`KudoMason05`, ищет отдельную пустую площадку и делит ширину схемы на пять непересекающихся рабочих полос. Агенты используют полёт, берут блоки в Creative-инвентаре и ставят их по одному. В журнале видны прогресс и ошибки каждого. Координаты новой площадки записываются в `data/creative-schematic-video5-site.json`, поэтому повторный запуск продолжает работу в том же месте. Для нового дубля на другой свободной площадке установи `$env:MC_CREW_NEW='1'` перед запуском. Когда начнёшь съёмку, телепортируй своего персонажа к координатам `team-site` из журнала.
+Command is running `OMMason01`–`OMMason05`, Find a separate empty site and divide the width of the diagram into five non-transverse workstations. Agents use flight, Take blocks to Creative-and each of them each. The magazine shows progress and mistakes of each person. New site coordinates are recorded in `data/creative-schematic-video5-site.json`, The re-launch therefore continues at the same location. I'll put a new take on another free site `$env:MC_CREW_NEW='1'` Before launch. When you start shooting, Teleport your character to the coordinates `team-site` From the magazine.
 
-## Использование как библиотеки
+## Use as libraries
 
 ```js
 import {readFile} from 'node:fs/promises';
-import {parseSchematic,findSchematicSite,buildSchematicPhysical} from 'mckudo';
-import {createKudoConnect} from 'mckudo/connect';
+import {parseSchematic,findSchematicSite,buildSchematicPhysical} from 'overmindmc';
+import {createOMConnect} from 'overmindmc/connect';
 
-const client=createKudoConnect({host:'127.0.0.1',port:25565,version:'1.21.1',auth:'offline',username:'Builder'});
+const client=createOMConnect({host:'127.0.0.1',port:25565,version:'1.21.1',auth:'offline',username:'Builder'});
 try {
   await client.connect();
   const schematic=parseSchematic(await readFile('house.schem'),{filename:'house.schem'});
   const placement=findSchematicSite(client,schematic);
-  if(!placement)throw new Error('Нет проверенной свободной площадки в полученных чанках.');
+  if(!placement)throw new Error("No checked free space in the cups received.");
   let result;
   do {
     result=await buildSchematicPhysical(client,schematic,placement.origin,{maxActions:64});
@@ -56,6 +56,6 @@ try {
 } finally { await client.close(); }
 ```
 
-`findSchematicSite` читает только полученные от сервера чанки и не очищает чужие постройки. Для большой схемы её блоки должны помещаться в зону видимости сервера. `buildSchematicPhysical` возвращает `completed` только после сверки всех состояний блоков; `partial` означает лимит действий за вызов, `blocked` содержит причины и координаты проблем. Когда у схемы есть `Offset`, `placement.origin` уже включает его: подставляй именно его, а не координаты `site`.
+`findSchematicSite` reads only cups received from the server and does not clean other people's buildings. For a large circuit, its blocks must be placed in the server visibility area. `buildSchematicPhysical` Returns `completed` Only after all the status of the blocks have been checked; `partial` means the limit of action for calling, `blocked` contains the causes and coordinates of the problems. When the scheme has `Offset`, `placement.origin` already includes it: Set him up, Not coordinates `site`.
 
-Схема может требовать размещения растения в горшке, многочастного блока или поддержки, которую обычное действие игрока не предоставляет. Такие случаи остаются в `failures` и не считаются завершёнными. Результат конкретного испытания записывай отдельно от обещаний поддержки формата в целом.
+The scheme may require a potted plant, multiple block or support, which the player's usual action does not provide. Such cases remain in the `failures` and are not considered completed. The result of a specific test shall be recorded separately from the general format support promises.

@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-14",
+  "author": "y9kudo",
+  "version": "1.0.0-Arthas-dev.1",
+  "automatedTests": 527,
+  "policies": [
+    {
+      "algorithm": "ppo",
+      "featureSchema": "om-physical-v1",
+      "actionSchema": "om-controls-v1",
+      "fixture": "flat, no mobs, fixed north goal",
+      "batches": 400,
+      "transitions": 12800,
+      "episodes": 1179,
+      "successes": 1160,
+      "heldOut": {
+        "passed": 32,
+        "total": 32
+      },
+      "elapsedMs": 791.1222,
+      "rssMb": 97.359375,
+      "policy": {
+        "algorithm": "PPO",
+        "inputs": 18,
+        "actions": 9,
+        "hidden": 32,
+        "parameters": 938,
+        "replaySize": 0,
+        "capacity": 8192,
+        "updates": 400
+      }
+    },
+    {
+      "algorithm": "sac",
+      "featureSchema": "om-physical-v1",
+      "actionSchema": "om-controls-v1",
+      "fixture": "flat, no mobs, fixed north goal",
+      "batches": 600,
+      "transitions": 19200,
+      "episodes": 717,
+      "successes": 605,
+      "heldOut": {
+        "passed": 32,
+        "total": 32
+      },
+      "elapsedMs": 1157.3851,
+      "rssMb": 141.91796875,
+      "policy": {
+        "algorithm": "DiscreteSAC",
+        "inputs": 18,
+        "actions": 9,
+        "hidden": 32,
+        "parameters": 2715,
+        "replaySize": 19200,
+        "capacity": 20000,
+        "updates": 600,
+        "alpha": 0.1,
+        "tau": 0.01
+      }
+    }
+  ],
+  "liveRL": {
+    "name": "ArthasRL",
+    "algorithm": "ppo",
+    "status": "passed",
+    "start": {
+      "x": 1.5,
+      "y": 99,
+      "z": -5.056681676297746
+    },
+    "goal": {
+      "x": 1.5,
+      "y": 99,
+      "z": -9.056681676297746
+    },
+    "axis": "north",
+    "finalPosition": {
+      "x": 1.5,
+      "y": 99,
+      "z": -8.500000000000004
+    },
+    "healthBefore": 20,
+    "healthAfter": 20,
+    "corrections": 0,
+    "decisions": 7
+  },
+  "survival": {
+    "name": "ArthasAudit",
+    "status": "passed",
+    "fromZero": true,
+    "seconds": 161.12,
+    "stages": [
+      {
+        "id": "logs",
+        "status": "passed"
+      },
+      {
+        "id": "table",
+        "status": "passed"
+      },
+      {
+        "id": "wood-pickaxe",
+        "status": "passed"
+      },
+      {
+        "id": "cobblestone",
+        "status": "passed"
+      },
+      {
+        "id": "stone-pickaxe",
+        "status": "passed"
+      },
+      {
+        "id": "furnace",
+        "status": "passed"
+      }
+    ],
+    "actions": 54,
+    "failedActions": 1,
+    "health": 20,
+    "corrections": 0
+  },
+  "scope": "Bounded physical policy and symbolic survival trials; not autonomous Dragon completion"
+}

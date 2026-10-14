@@ -1,11 +1,11 @@
-# Разработка MCKudo
+# Development OvermindMC
 
-Автор проекта — y9kudo. Лицензия MIT находится в `LICENSE`.
+Drafter — y9kudo. Licensing MIT is in `LICENSE`.
 
-Запуск: Node.js 22+, `npm run check`, `npm run demo`. У ядра нет внешних runtime-зависимостей. Для Windows PowerShell используй `npm.cmd`.
+Starting: Node.js 22+, `npm run check`, `npm run demo`. The kernel has no external runtime-Dependency. For Windows PowerShell Use it `npm.cmd`.
 
-Изменение публичного API должно включать документацию, объявления типов и тесты наблюдаемого поведения. Если меняется JSON, обнови и runtime-валидатор, и `schemas/agent.schema.json`. Если меняется сетевой bridge несовместимым образом, увеличь номер протокола.
+Change in public API should include documentation, Type declarations and observed behaviour tests. If it changes JSON, Update and runtime-Valator, and `schemas/agent.schema.json`. If the network changes bridge incompatible, Increase the protocol number.
 
-Навык обязан учитывать AbortSignal. Адаптер объявляет только реализованные навыки. Не передавай в snapshot токены, сокеты или изменяемые игровые объекты. Игровые проверки указывают точную версию Minecraft, загрузчик и модпак; mock-тест не помечается как реальная игровая совместимость.
+Skills to account for AbortSignal. Adaptationr declares only the skills that have been implemented. Don't tell me to snapshot currents, Sockets or variable game objects. Game checks indicate exact version Minecraft, loader and fashion pack; mock-The test is not marked as real game compatibility.
 
-Игровые транспорты и пользовательские интерфейсы разрабатываются как опциональные модули. Общая библиотека должна сохранять независимость от конкретного клиента и загрузчика.
+Play Transport and User Interfaces are developed as options modules. The common library should maintain independence from a particular customer and downloader.

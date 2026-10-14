@@ -1,51 +1,51 @@
-# Forge, NeoForge и Fabric
+# Forge, NeoForge and Fabric
 
-Приоритет проекта: **новые Forge и NeoForge**. Fabric оставлен как последующее направление. Проверка источников: 22 сентября 2026 года.
+Project priority: **new Forge and NeoForge**. Fabric retained as a subsequent direction. Verification of sources: 22 September 2026 Year.
 
-| Интеграция | Что есть в 0.2.0 | Чего пока нет |
+| Integration | What is in 0.2.0 | What isn't yet |
 |---|---|---|
-| Vanilla / Mineflayer | JavaScript-адаптер для eat, gather, goto; пример и тест с имитацией API | Проверенного входа этой сборки в настоящий игровой мир |
-| Forge | Проверка bridge-контракта, loader и capabilities; имена модовых навыков | Игрового Java-мода, сетевого транспорта и `.jar` |
-| NeoForge | Тот же контракт с обязательным совпадением loader | Игрового Java-мода, сетевого транспорта и `.jar` |
-| Fabric | Расширяемый контракт и тест на имитации транспорта | Игрового адаптера; направление отложено |
+| Vanilla / Mineflayer | JavaScript-adapter for eat, gather, goto; Example and simulation test API | The test entry of this assembly into the real game world |
+| Forge | Verification bridge-contracts, loader and capabilities; Fashion skills names | Play Java-Fashion, transport and `.jar` |
+| NeoForge | Same contract with mandatory match loader | Play Java-Fashion, transport and `.jar` |
+| Fabric | Extended contract and transport simulation test | Game adapter; direction postponed |
 
-**Тест bridge с `loader: "forge"` не является испытанием на Forge-сервере.** Совместимость с произвольным модпаком пока не заявляется.
+**Test bridge with `loader: "forge"` is not a test at Forge-server.** The compatibility with arbitrary fashion pack has not yet been declared.
 
-## На какие новые версии ориентироваться
+## Which new versions to look for
 
-- [Официальная страница Forge](https://files.minecraftforge.net/net/minecraftforge/forge/) на дату проверки показывает Minecraft **26.3**, сборку **66.0.2**. Это основной новый кандидат для Forge-адаптера.
-- В [официальном Maven NeoForge](https://maven.neoforged.net/releases/net/neoforged/neoforge/) подтверждена ветка **26.2**, включая [26.2.0.62](https://maven.neoforged.net/releases/net/neoforged/neoforge/26.2.0.62/). На этой проверке сборка NeoForge для 26.3 в индексе не найдена. Не считаем публикацию [руководства миграции на 26.3](https://docs.neoforged.net/primer/docs/26.3/) доказательством готовой сборки загрузчика.
-- Для современной Java-части потребуется **JDK 25**: это указано в [актуальной инструкции NeoForge](https://github.com/neoforged/Documentation/blob/main/docs/gettingstarted/index.md). JS-ядро по-прежнему работает на Node.js.
+- [Official page Forge](https://files.minecraftforge.net/net/minecraftforge/forge/) as at the date of verification Minecraft **26.3**, assembly **66.0.2**. This is the main new candidate for the Forge-adapter.
+- B [official Maven NeoForge](https://maven.neoforged.net/releases/net/neoforged/neoforge/) Accompanied branch **26.2**, including [26.2.0.62](https://maven.neoforged.net/releases/net/neoforged/neoforge/26.2.0.62/). On this test, assembly NeoForge for 26.3 Not found in index. We don't think it's a publication [migration management 26.3](https://docs.neoforged.net/primer/docs/26.3/) proof of the pre-assembly of the loader.
+- For the modern Java-parts required **JDK 25**: This is indicated in [of the relevant instructions NeoForge](https://github.com/neoforged/Documentation/blob/main/docs/gettingstarted/index.md). JS-Core-still working for Node.js.
 
-Точные версии загрузчиков нужно закрепить в будущих Gradle-проектах после выбора и сборки игровых адаптеров. В этом репозитории пока нет Java-кода, который выдавался бы за проверенную интеграцию.
+The exact versions of downloaders need to be fixed in future Gradle-After selection and assembly of game adapters. Not yet in this repository Java-code, which would be awarded for verified integration.
 
-## Почему нужен отдельный игровой мод
+## Why You Need a Special Play Fashion
 
-Моды добавляют свои предметы, меню, возможности и сетевые сообщения. Их каналы и обработчики различаются: [Forge SimpleImpl](https://docs.minecraftforge.net/en/1.20.x/networking/simpleimpl/), [NeoForge payloads](https://docs.neoforged.net/docs/networking/payload/), [Fabric networking](https://docs.fabricmc.net/develop/networking). Ссылки описывают механизмы своих версий, а не гарантируют совместимость одного Java-файла со всеми версиями.
+Fashion Adds its Items, menu, Opportunities and networking. Their channels and processors differ: [Forge SimpleImpl](https://docs.minecraftforge.net/en/1.20.x/networking/simpleimpl/), [NeoForge payloads](https://docs.neoforged.net/docs/networking/payload/), [Fabric networking](https://docs.fabricmc.net/develop/networking). References describe the mechanisms of their versions, not guarantee compatibility of one Java-Files with all versions.
 
-Наша архитектура: JSON → JS-ядро → bridge-транспорт → мод внутри настоящего клиента Minecraft. Мод получает наблюдения из игровых реестров и выполняет разрешённые действия на игровом потоке. Для совместимости с клиентскими модами это предпочтительнее попытки притвориться Forge-клиентом через обычный Mineflayer. Эта архитектура ещё требует реализации игрового компонента.
+Our architecture: JSON → JS-Core → bridge-Transport → Fashion inside a real client Minecraft. Maud receives observations from the playbooks and performs authorized actions on the game stream. For compatibility with client fashions, it's preferable to pretending Forge-by the customer through the usual Mineflayer. This architecture still requires the implementation of the game component.
 
-## Контракт bridge v1
+## Contract bridge v1
 
 ```js
-import { createBridgeAdapter } from 'mckudo/adapters/bridge';
+import { createBridgeAdapter } from 'overmindmc/adapters/bridge';
 const adapter = await createBridgeAdapter({
   expectedLoader: 'neoforge',
   transport: yourImplementedTransport
 });
 ```
 
-Транспорт обязан реализовать четыре операции:
+Transport is required to carry out four operations:
 
-| Операция | Вход | Ответ |
+| Operation | Entry | Response |
 |---|---|---|
-| `describe()` | Нет | `{ protocolVersion: 1, loader, minecraftVersion, skills: [...] }` |
-| `observe({ signal })` | Отмена наблюдения | Обычный JSON текущего мира |
-| `execute({ requestId, action })` | Уникальный ID, имя навыка и args | `{ ok: true }` либо `{ ok: false, message }` после фактического завершения |
-| `cancel({ requestId })` | ID текущего действия | `{ stopped: true }` только после реальной остановки |
+| `describe()` | No | `{ protocolVersion: 1, loader, minecraftVersion, skills: [...] }` |
+| `observe({ signal })` | Cancellation of observation | Normal JSON of the world |
+| `execute({ requestId, action })` | Unique ID, skills and args | `{ ok: true }` either `{ ok: false, message }` After actual completion |
+| `cancel({ requestId })` | ID Current status | `{ stopped: true }` Only after actual stop |
 
-Клиент bridge не выдаёт успех только потому, что запрос отправлен. Если остановка не подтверждена или связь потеряна без результата действия, адаптер блокируется до нового подключения. `execute()` обязан завершиться после остановки; ядро не запускает новую работу, пока это не произошло.
+Client bridge It doesn't work out just because, I'm sure the request is sent. If the stop is not confirmed or the connection is lost without effect, adapter locked to new connection. `execute()` must end after stop; Core doesn't start a new job, Until it happened.
 
-Для сетевого транспорта нужно отдельно реализовать авторизацию, ограничение размеров сообщений, проверку идентификаторов запросов и обработку отключения клиента. Настоящий игровой мод должен выполнять действия через игровые API на нужном потоке и сообщать только реальные возможности. Из JavaScript нельзя без подтверждения считать предмет созданным, блок разрушенным или машину активированной.
+Network transport needs to be separately licensed, Limitation of the size of communications, Checking the request identifiers and processing the deactivation of the client. Real game fashion must perform actions through game fashions API on the right stream and only to communicate the real possibilities. From JavaScript cannot be considered as having been created without confirmation, unit destroyed or activated.
 
-Предметы и навыки используют полные имена: `minecraft:oak_log`, `create:brass_ingot`, `my_mod:activate_machine`. Поддержка namespace уже работает в правилах и bridge-контракте; взаимодействие с конкретной машиной всё равно требует отдельного навыка.
+Items and skills use full names: `minecraft:oak_log`, `create:brass_ingot`, `my_mod:activate_machine`. Support namespace already in the regulations and bridge-contract; Working with a particular machine still requires a separate skill.
