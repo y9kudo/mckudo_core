@@ -8,14 +8,14 @@
     {
       "id": "eat-first",
       "priority": 100,
-      "description": "Сначала поесть, если голод ниже 16.",
+      "description": "First eat, If hunger is lower 16.",
       "when": { "all": [{ "fact": "/self/food", "lt": 16 }, { "fact": "/inventory/minecraft:bread", "gt": 0 }] },
       "action": { "skill": "eat", "args": { "item": "minecraft:bread" } }
     },
     {
       "id": "collect-wood",
       "priority": 10,
-      "description": "Собрать запас из четырёх дубовых брёвен.",
+      "description": "Collect a supply of four oak logs.",
       "when": { "fact": "/inventory/minecraft:oak_log", "lt": 4 },
       "action": { "skill": "gather", "args": { "block": "minecraft:oak_log", "count": 1 } }
     }

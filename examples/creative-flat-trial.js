@@ -1,7 +1,7 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import nbt from 'prismarine-nbt';
 import {gzipSync} from 'node:zlib';
-import {createKudoConnect} from '../packages/kudoconnect/index.js';
+import {createOMConnect} from '../packages/omconnect/index.js';
 import {parseSchematic,buildSchematic} from '../src/schematics.js';
 
 const filename=process.env.MC_SCHEMATIC;
@@ -17,10 +17,10 @@ const sampleName=process.env.MC_SAMPLE_FORMAT==='schem'?'creative-flat-sample.sc
 const source=filename?await readFile(filename):sampleName.endsWith('.schem')?sampleSponge():sample();
 if(!filename){await mkdir('data',{recursive:true});await writeFile('data/'+sampleName,source);}
 const schematic=parseSchematic(source,{filename:filename||sampleName});
-const client=createKudoConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1',username:process.env.MC_NAME||'KudoCreative07',auth:'offline',viewDistance:24});
+const client=createOMConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1',username:process.env.MC_NAME||'OMCreative07',auth:'offline',viewDistance:24});
 try{
   await client.connect();
-  if(client.state.gameMode!=='creative')throw new Error('Этот тест требует Creative.');
+  if(client.state.gameMode!=='creative')throw new Error("This test requires Creative.");
   const foot=client.state.position,site={x:Math.floor(foot.x)+5,z:Math.floor(foot.z)+2};
   let ground=null;for(let y=Math.floor(foot.y)+2;y>=client.world.minY;y--){const b=client.world.blockAt({x:site.x,y,z:site.z});if(b?.boundingBox==='block'){ground=y;break;}}
   const origin=process.env.MC_BUILD_XYZ?Object.fromEntries(process.env.MC_BUILD_XYZ.split(',').map((v,i)=>[['x','y','z'][i],Number(v)])):{...site,y:(ground??Math.floor(foot.y)-1)+1};

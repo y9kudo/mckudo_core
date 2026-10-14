@@ -1,10 +1,10 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
-import {createKudoConnect,planRouteAsync} from '../kudoconnect/index.js';
-import {isAir,isFullBlock} from '../packages/kudoconnect/src/navigation.js';
+import {createOMConnect,planRouteAsync} from '../omconnect/index.js';
+import {isAir,isFullBlock} from '../packages/omconnect/src/navigation.js';
 
 // One client; ordinary movement over observed blocks, no admin commands or resources.
-const client=createKudoConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),username:process.env.MC_NAME||'MilesClock',version:'1.21.1',auth:'offline'});
+const client=createOMConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),username:process.env.MC_NAME||'MilesClock',version:'1.21.1',auth:'offline'});
 const report={startedAt:new Date().toISOString(),status:'incomplete',kind:'local-cadence-and-movement'};
 try{
   await client.connect();await delay(1500);report.initial=client.snapshot();
@@ -19,7 +19,7 @@ try{
     }
     if(target)break;
   }
-  if(!target)throw new Error('Нет короткого проверяемого маршрута у спавна.');
+  if(!target)throw new Error("No short-checked route at spav.");
   report.target=target;
   report.movement=await client.execute({skill:'navigate',args:{...target,range:0,bridge:false,sprintJump:false}},{signal:AbortSignal.timeout(15000)});
   await delay(3000);report.final=client.snapshot();

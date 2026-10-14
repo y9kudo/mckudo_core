@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createExperienceModel, createCore, createAdaptiveScenario } from '../mckudo_core.js';
+import { createExperienceModel, createCore, createAdaptiveScenario } from '../overmindmc.js';
 const action = { skill: 'gather', args: { block: '#logs' } };
 const observation = n => ({ dimension: 'minecraft:overworld', inventory: { wood: n }, world: { reachable: true } });
 const model = options => createExperienceModel({ worldId: 'lab', facts: ['/inventory/wood'], contextFacts: ['/dimension', '/world/reachable'], ...options });

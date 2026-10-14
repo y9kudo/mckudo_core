@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { EventEmitter } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
-import { createCore, catalogFromMinecraftData, createBlockTaxonomy, resourceSources, planResources, planResourceClasses, planRoute, createDefenseReactor, createFoodReactor, createCatalog, importVanillaRecipes } from '../mckudo_core.js';
+import { createCore, catalogFromMinecraftData, createBlockTaxonomy, resourceSources, planResources, planResourceClasses, planRoute, createDefenseReactor, createFoodReactor, createCatalog, importVanillaRecipes } from '../overmindmc.js';
 import { createMineflayerAdapter } from '../adapters/mineflayer.js';
 import { createWorldActions } from '../adapters/mineflayer-actions.js';
 import { createNavigator } from '../adapters/mineflayer-navigation.js';
-import { planExploration, createResourceReactor } from '../mckudo_core.js';
+import { planExploration, createResourceReactor } from '../overmindmc.js';
 import { parseJavaDataArchive } from '../src/java-data.js';
 const require = createRequire(import.meta.url);
 const data = require('minecraft-data')('1.21.1'), catalog = catalogFromMinecraftData(data), taxonomy = createBlockTaxonomy(catalog);
@@ -21,7 +21,7 @@ test('every 1.21.1 block is classified; overlapping semantic classes and mod cla
   assert.ok(taxonomy.has('deepslate_iron_ore', 'ores')); assert.ok(taxonomy.has('deepslate_iron_ore', 'deepslate_ores'));
   const custom = createBlockTaxonomy(catalog, { classes: { metal_source: { members: ['deepslate_iron_ore'], parents: ['custom_resource'] } } });
   assert.ok(custom.has('deepslate_iron_ore', 'custom_resource'));
-  assert.throws(() => createBlockTaxonomy(catalog, { classes: { a: { parents: ['b'] }, b: { parents: ['a'] } } }), /Цикл/);
+  assert.throws(() => createBlockTaxonomy(catalog, { classes: { a: { parents: ['b'] }, b: { parents: ['a'] } } }), /cycle/i);
   assert.ok(taxonomy.select({ all: ['tree'], none: ['leaves', 'saplings'] }).includes('minecraft:acacia_log'));
 });
 test('savanna recipes use acacia end to end; class targets resolve an available wood', () => {

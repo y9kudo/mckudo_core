@@ -2,11 +2,11 @@
 import mineflayer from 'mineflayer';
 import pathfinder from 'mineflayer-pathfinder';
 import { readFile } from 'node:fs/promises';
-import { createCore } from '../mckudo_core.js';
+import { createCore } from '../overmindmc.js';
 import { createMineflayerAdapter } from '../adapters/mineflayer.js';
 const config = JSON.parse(await readFile(new URL('./agent.json', import.meta.url), 'utf8'));
 const bot = mineflayer.createBot({ host: process.env.MC_HOST || '127.0.0.1', port: Number(process.env.MC_PORT || 25565),
-  username: process.env.MC_USERNAME || 'MCKudoAgent', auth: process.env.MC_AUTH || 'offline', version: process.env.MC_VERSION || false });
+  username: process.env.MC_USERNAME || 'OvermindMCAgent', auth: process.env.MC_AUTH || 'offline', version: process.env.MC_VERSION || false });
 bot.loadPlugin(pathfinder.pathfinder);
 let core;
 bot.once('spawn', () => {

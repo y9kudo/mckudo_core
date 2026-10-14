@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {KudoConnect} from '../kudoconnect/index.js';
-import {predictFallLanding,planPearlEscape,decideFallRescue} from '../packages/kudoconnect/src/fall-safety.js';
+import {OMConnect} from '../omconnect/index.js';
+import {predictFallLanding,planPearlEscape,decideFallRescue} from '../packages/omconnect/src/fall-safety.js';
 
 const stone={name:'end_stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]};
 const air={name:'air',boundingBox:'empty',shapes:[]};
@@ -40,8 +40,8 @@ test('normal ladder contact never interrupts a climb to waste an ender pearl',()
   assert.equal(decideFallRescue(state,()=>air,{water_bucket:1,ender_pearl:16},{highestY:54}),null);
 });
 
-test('KudoConnect dispatches emergency actions at higher priority than movement',async()=>{
-  const c=new KudoConnect({username:'Avery07'});const dispatched=[];
+test('OMConnect dispatches emergency actions at higher priority than movement',async()=>{
+  const c=new OMConnect({username:'Avery07'});const dispatched=[];
   c.state={...c.state,status:'ready',position:{x:8.5,y:75,z:.5},velocity:{x:0,y:-.5,z:0},health:20,onGround:false,dimension:'minecraft:the_end'};
   c.world.blockAt=ground;c.inventory.slots[36]={name:'water_bucket',item:'minecraft:water_bucket',count:1,slot:36};
   c.execute=async(action,options)=>{dispatched.push({action,options});return {ok:true};};
@@ -50,7 +50,7 @@ test('KudoConnect dispatches emergency actions at higher priority than movement'
 });
 
 test('water clutch places and recovers water after confirmed landing',async()=>{
-  const c=new KudoConnect({username:'Avery07',fallSafety:false});let water=false;const placements=[];
+  const c=new OMConnect({username:'Avery07',fallSafety:false});let water=false;const placements=[];
   c.state={...c.state,status:'ready',position:{x:8.5,y:66.5,z:.5},velocity:{x:0,y:-.5,z:0},health:20,onGround:false,dimension:'minecraft:the_end'};
   c.client={state:'play'};c.world.blockAt=p=>p.y===64&&water?{name:'water',boundingBox:'empty',shapes:[]}:ground(p);
   c.inventory.slots[36]={name:'water_bucket',item:'minecraft:water_bucket',count:1,slot:36};
@@ -66,7 +66,7 @@ test('water clutch places and recovers water after confirmed landing',async()=>{
 });
 
 test('emergency pearl action sends one use packet only after a checked landing exists',async()=>{
-  const c=new KudoConnect({username:'Avery07',fallSafety:false});const packets=[];
+  const c=new OMConnect({username:'Avery07',fallSafety:false});const packets=[];
   c.state={...c.state,status:'ready',position:{x:0,y:80,z:.5},velocity:{x:0,y:-.25,z:0},health:20,onGround:false,dimension:'minecraft:the_end'};
   c.client={state:'play'};c.world.blockAt=island;
   c.inventory.slots[36]={name:'ender_pearl',item:'minecraft:ender_pearl',count:2,slot:36};
@@ -75,6 +75,6 @@ test('emergency pearl action sends one use packet only after a checked landing e
   assert.equal(result.thrown,true);assert.equal(result.landingConfirmed,false);
   assert.equal(packets.filter(p=>p.name==='use_item').length,1);
   c.world.blockAt=()=>null;
-  await assert.rejects(c.execute({skill:'escapePearl'}),/площадки/);
+  await assert.rejects(c.execute({skill:'escapePearl'}),/wide area/i);
   assert.equal(packets.filter(p=>p.name==='use_item').length,1);
 });

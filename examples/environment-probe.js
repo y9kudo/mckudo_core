@@ -1,6 +1,6 @@
-import {createKudoConnect} from '../kudoconnect/index.js';
+import {createOMConnect} from '../omconnect/index.js';
 import {mkdir,writeFile} from 'node:fs/promises';
-const c=createKudoConnect({username:process.env.MC_USERNAME||'Owen',host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565)});
+const c=createOMConnect({username:process.env.MC_USERNAME||'Owen',host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565)});
 const report={startedAt:new Date().toISOString(),status:'running',warnings:[],recipes:0};
 c.on('warning',e=>{report.warnings.push(e.message);console.log(e.message);});
 c.on('decodeFailure',e=>{void mkdir('data',{recursive:true}).then(()=>writeFile('data/decode-last.json',JSON.stringify({...e,bytes:e.bytes.toString('base64')},null,2)));});

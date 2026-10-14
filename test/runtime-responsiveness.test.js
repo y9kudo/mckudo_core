@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import minecraftData from 'minecraft-data';
-import { createCore, createSurvivalReactor, catalogFromMinecraftData } from '../mckudo_core.js';
-import { createKudoAdapter } from '../adapters/kudoconnect.js';
-import { KudoConnect } from '../kudoconnect/index.js';
+import { createCore, createSurvivalReactor, catalogFromMinecraftData } from '../overmindmc.js';
+import { createOMAdapter } from '../adapters/omconnect.js';
+import { OMConnect } from '../omconnect/index.js';
 
 const observation = { dimension: 'minecraft:overworld', self: { position: { x: 0, y: 64, z: 0 }, health: 20 }, inventory: {}, world: { sampledBlocks: [1, 2].map(x => ({ name: 'minecraft:birch_log', position: { x, y: 64, z: 0 } })) } };
 const config = { schemaVersion: 4, name: 'Responsive', worldId: 'test', rules: [], failureBackoffMs: 1000 };
@@ -35,11 +35,11 @@ test('scoped failure still blocks the same action regardless of JSON key order; 
 });
 
 test('adapter caches immutable item IDs but observes fresh inventory counts', async () => {
-  const client = new KudoConnect(); Object.assign(client.state, { position: { x: .5, y: 64, z: .5 }, health: 20, food: 20, dimension: 'minecraft:overworld' });
+  const client = new OMConnect(); Object.assign(client.state, { position: { x: .5, y: 64, z: .5 }, health: 20, food: 20, dimension: 'minecraft:overworld' });
   let lists = 0, inventory = {};
   const observe = client.observe.bind(client);
   client.observe = () => ({ ...observe(), inventory });
-  const adapter = createKudoAdapter(client, { trackedBlocks: [], catalog: { ...catalog, items: () => { lists++; return catalog.items(); } } });
+  const adapter = createOMAdapter(client, { trackedBlocks: [], catalog: { ...catalog, items: () => { lists++; return catalog.items(); } } });
   const signal = new AbortController().signal;
   const first = await adapter.observe({ signal }); first.inventory['minecraft:birch_log'] = 99;
   inventory = { 'minecraft:birch_log': 3 };

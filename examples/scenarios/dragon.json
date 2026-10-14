@@ -1,5 +1,5 @@
 {
   "schemaVersion": 1,
-  "name": "Испытание боя в End",
+  "name": "Battle test in End",
   "steps": [{ "id": "dragon", "type": "dragon" }]
 }

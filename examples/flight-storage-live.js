@@ -1,12 +1,12 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
-import {createKudoConnect,KUDOCONNECT} from '../kudoconnect/index.js';
-import {findLabelledStorage,sortStorage} from '../mckudo_core.js';
+import {createOMConnect,OMCONNECT} from '../omconnect/index.js';
+import {findLabelledStorage,sortStorage} from '../overmindmc.js';
 
 const mode=process.argv[2]||'survey';
-if(!['survey','flight','storage'].includes(mode))throw new Error('Режим: survey, flight или storage.');
-const client=createKudoConnect({host:process.env.MCKUDO_HOST||'127.0.0.1',port:Number(process.env.MCKUDO_PORT||25565),username:process.env.MCKUDO_NAME||'Avery07',version:'1.21.1',auth:'offline',viewDistance:10});
-const report={version:KUDOCONNECT.version,minecraft:'1.21.1',mode,startedAt:new Date().toISOString(),status:'running',events:[]};
+if(!['survey','flight','storage'].includes(mode))throw new Error("Mode: survey, flight or storage.");
+const client=createOMConnect({host:process.env.OVERMIND_HOST||'127.0.0.1',port:Number(process.env.OVERMIND_PORT||25565),username:process.env.OVERMIND_NAME||'Avery07',version:'1.21.1',auth:'offline',viewDistance:10});
+const report={version:OMCONNECT.version,minecraft:'1.21.1',mode,startedAt:new Date().toISOString(),status:'running',events:[]};
 let observer,timer;
 const event=(kind,value)=>{const entry={kind,...value};report.events.push(entry);console.log(JSON.stringify(entry));};
 const position=p=>({x:Math.floor(p.x),y:Math.floor(p.y),z:Math.floor(p.z)});
@@ -25,7 +25,7 @@ function landingCandidates(c,start){
 }
 try{
   await client.connect();
-  if(client.snapshot().identity.version!==report.version)throw new Error('Версия клиента не совпадает с версией испытания.');
+  if(client.snapshot().identity.version!==report.version)throw new Error("Client and trial versions do not match.");
   await delay(2000);report.start=client.snapshot();
   client.on('warning',e=>event('warning',{message:e.message}));
   client.on('action',a=>event('action',a));
@@ -39,9 +39,9 @@ try{
     report.fixture={position:source,contents:before.contents.map(i=>({item:i.item,count:i.count}))};
     const amounts={};if(!client.inventory.ownedCount('elytra'))amounts.elytra=1;if(client.inventory.count('firework_rocket')<8)amounts.firework_rocket=8-client.inventory.count('firework_rocket');
     if(Object.keys(amounts).length)event('equipment',await client.execute({skill:'takeStorage',args:{...source,amounts}}));
-    const candidates=landingCandidates(client,client.state.position);if(!candidates.length)throw new Error('Не найдена наблюдаемая площадка для прямого полёта.');
+    const candidates=landingCandidates(client,client.state.position);if(!candidates.length)throw new Error("No observation surface for direct flight found.");
     report.target=candidates[0].target;event('flight-target',{start:client.state.position,target:report.target});
-    observer=createKudoConnect({username:'Scout07',viewDistance:10});await observer.connect();await delay(1000);
+    observer=createOMConnect({username:'Scout07',viewDistance:10});await observer.connect();await delay(1000);
     report.observer={samples:[],serverFlightFlag:false};
     timer=setInterval(()=>{const e=[...observer.entities.values()].find(e=>e.username===client.options.username);if(e){report.observer.serverFlightFlag||=Boolean(e.metadata.shared_flags&128);report.observer.samples.push({...e.position,flags:e.metadata.shared_flags});}},100);
     const status=setInterval(()=>console.log(JSON.stringify({kind:'flight-progress',position:client.state.position,phase:client.state.flightPhase,gliding:client.state.gliding,boost:client.state.rocketBoost})),2000);
@@ -49,7 +49,7 @@ try{
     finally{clearInterval(status);clearInterval(timer);}
     const samples=report.observer.samples;report.observer.samplesCount=samples.length;
     if(samples.length){report.observer.maxY=Math.max(...samples.map(p=>p.y));report.observer.displacement=Math.hypot(samples.at(-1).x-samples[0].x,samples.at(-1).z-samples[0].z);}
-    if(!report.observer.serverFlightFlag||samples.length<10)throw new Error('Независимый клиент не подтвердил полёт сервера.');
+    if(!report.observer.serverFlightFlag||samples.length<10)throw new Error("Independent client did not confirm server flight.");
     event('flight-result',report.flight);
     const after=await client.execute({skill:'inspectStorage',args:source});report.fixtureAfter=after.contents.map(i=>({item:i.item,count:i.count}));
   }

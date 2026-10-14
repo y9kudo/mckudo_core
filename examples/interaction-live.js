@@ -1,9 +1,9 @@
-import { createFleet } from '../kudoconnect/index.js';
-import { previewInteraction, runInteraction, createMinecraftBrain } from '../mckudo_core.js';
+import { createFleet } from '../omconnect/index.js';
+import { previewInteraction, runInteraction, createMinecraftBrain } from '../overmindmc.js';
 import { writeFile, mkdir } from 'node:fs/promises';
 const names = (process.env.MC_NAMES || 'Henry,Ivy').split(',');
 const mode = process.argv[2] || 'meet';
-if (!['meet','give','gather-give','retaliation'].includes(mode)) throw new Error('Режим: meet, give, gather-give, retaliation.');
+if (!['meet','give','gather-give','retaliation'].includes(mode)) throw new Error("Mode: meet, give, gather-give, retaliation.");
 const fleet = createFleet({ count: 2, names, connection: { host: process.env.MC_HOST || '127.0.0.1', port: Number(process.env.MC_PORT || 25565), viewDistance: 8, connectTimeoutMs: 10000 } });
 const report = { startedAt: new Date().toISOString(), status: 'running', chatPackets: 0 };
 let brain;
@@ -21,13 +21,13 @@ try {
   if (mode === 'gather-give') {
     report.gather = await from.execute({skill:'gather',args:{block:'#logs',count:1}},{signal:AbortSignal.timeout(30000)});
     item = from.inventory.items().find(i => i.name.endsWith('_log'))?.name;
-    if (!item) throw new Error('После добычи нет полученного бревна.');
+    if (!item) throw new Error("No log after extraction.");
   }
   report.preview = previewInteraction({ from, to, kind, item }); console.log(JSON.stringify(report.preview));
   report.interaction = await runInteraction({ from, to, peers: fleet.peers, kind, item, count: 1, timeoutMs: 30000 });
   report.status = report.interaction.status; console.log(JSON.stringify(report.interaction));
   if (mode === 'retaliation' && report.status === 'completed') {
-    if (from.inventory.held() || to.inventory.items().some(i => /_(sword|axe)$/.test(i.name)) || Math.min(from.state.health,to.state.health) < 16) throw new Error('Этот тест требует здоровых агентов без оружия.');
+    if (from.inventory.held() || to.inventory.items().some(i => /_(sword|axe)$/.test(i.name)) || Math.min(from.state.health,to.state.health) < 16) throw new Error("This test requires healthy agents without weapons.");
     // Let the vanilla post-login invulnerability expire before counting real damage.
     await from.execute({skill:'wait',args:{durationMs:2000}}); await from.execute({skill:'wait',args:{durationMs:2000}});
     const hits = []; to.on('damage',e=>{if(e.entityId===String(to.state.entityId)&&e.sourceId===String(from.state.entityId))hits.push({...e,at:Date.now()});});
@@ -36,7 +36,7 @@ try {
     await from.execute({skill:'attack',args:{entityId:String(to.state.entityId),allowPlayer:true}});
     await to.waitFor(()=>hits.length>=1,{event:'damage',timeoutMs:2000});
     await from.execute({skill:'wait',args:{durationMs:700}});
-    if (strikes.length) throw new Error('Ответный удар после первого попадания.');
+    if (strikes.length) throw new Error("Reverse strike after first hit.");
     const target=to.state.position;
     await from.execute({skill:'navigate',args:{x:Math.floor(target.x),y:Math.floor(target.y),z:Math.floor(target.z),range:2,bridge:false}},{signal:AbortSignal.timeout(10000)});
     await from.execute({skill:'attack',args:{entityId:String(to.state.entityId),allowPlayer:true}});

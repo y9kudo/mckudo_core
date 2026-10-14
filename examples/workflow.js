@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { createCore } from '../mckudo_core.js';
+import { createCore } from '../overmindmc.js';
 import { createSimulator } from '../adapters/simulator.js';
 const config = JSON.parse(await readFile(new URL('./workshop.json', import.meta.url), 'utf8'));
 const core = createCore({ config, adapter: createSimulator() });

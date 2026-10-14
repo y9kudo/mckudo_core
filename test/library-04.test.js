@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCore, createCatalog, importVanillaRecipes, planResources, resourceWorkflow, createShelterBlueprint, validateBlueprint, billOfMaterials, planConstruction, createConstructionReactor, createSurvivalProgression, createDefenseReactor, blockKey } from '../mckudo_core.js';
+import { createCore, createCatalog, importVanillaRecipes, planResources, resourceWorkflow, createShelterBlueprint, validateBlueprint, billOfMaterials, planConstruction, createConstructionReactor, createSurvivalProgression, createDefenseReactor, blockKey } from '../overmindmc.js';
 import { createCatalogSimulator } from '../adapters/catalog-simulator.js';
 import { sampleCatalog, sampleSources } from '../examples/sample-catalog.js';
 const catalog = sampleCatalog(), sources = sampleSources();
@@ -21,13 +21,13 @@ test('catalog retains all records including indexed unsupported recipes and isol
   const c=createCatalog({version:'test',items:[{id:'minecraft:oak_log'}],blocks:[],recipes});
   assert.equal(c.summary().recipes,1);assert.equal(c.recipe('a').executable,false);
   const item=c.item('oak_log');item.id='changed';assert.equal(c.item('oak_log').id,'minecraft:oak_log');
-  assert.throws(()=>createCatalog({version:'test',items:[{id:'x'},{id:'x'}],blocks:[]}),/Повтор/);
+  assert.throws(()=>createCatalog({version:'test',items:[{id:'x'},{id:'x'}],blocks:[]}),/Retry/);
 });
 test('tag alternatives resolve recursively; cycles and unknown tags remain explicit unsupported records',()=>{
   const raw={'minecraft:boards':{type:'minecraft:crafting_shapeless',ingredients:[{tag:'minecraft:logs'}],result:{id:'minecraft:oak_planks',count:4}}};
   const recipes=importVanillaRecipes(raw,{'minecraft:logs':{values:['#minecraft:logs2']},'minecraft:logs2':{values:['minecraft:oak_log']}});
   assert.deepEqual(recipes[0].ingredients[0].choices,['minecraft:oak_log']);
-  const cycle=importVanillaRecipes(raw,{'minecraft:logs':{values:['#minecraft:logs']}});assert.equal(cycle[0].executable,false);assert.match(cycle[0].reason,/Цикл/);
+  const cycle=importVanillaRecipes(raw,{'minecraft:logs':{values:['#minecraft:logs']}});assert.equal(cycle[0].executable,false);assert.match(cycle[0].reason,/Cycle/);
 });
 test('resource planner makes and places a station before crafting wooden tools',async()=>{
   const {plan}=await run({'minecraft:wooden_pickaxe':1});
@@ -46,7 +46,7 @@ test('missing source, unknown item and search limits produce blocked plans witho
 });
 test('blueprints include floor, roof, walls and a two-block door, reject conflicting coordinates',()=>{
   const b=createShelterBlueprint();assert.equal(b.dependent.length,1);assert.equal(billOfMaterials(b)['minecraft:oak_door'],1);
-  assert.throws(()=>validateBlueprint({...b,cells:[...b.cells,b.cells[0]]}),/повторяющиеся/);
+  assert.throws(()=>validateBlueprint({...b,cells:[...b.cells,b.cells[0]]}),/repeated/);
   assert.ok(b.cells.some(c=>c.y===b.origin.y));assert.ok(b.cells.some(c=>c.y===b.origin.y+b.size.height+1));
 });
 test('construction refuses unknown or occupied sites and reports material shortages',()=>{
@@ -96,5 +96,5 @@ test('Reactor priority, invalid results, unsupported skills and execution are co
   const core=createCore({config:cfg(),adapter,reactors:[createDefenseReactor()]});await core.tick();assert.equal(called,1);assert.equal(core.snapshot().decision.kind,'reactor');
   const invalid=createCore({config:cfg(),adapter,reactors:[{id:'invalid',apiVersion:1,react:()=>({action:{skill:'attack'},priority:9999,reason:'bad'})}]});
   await invalid.tick();assert.equal(called,1);assert.equal(invalid.snapshot().trace.reactors[0].error,true);
-  assert.throws(()=>createCore({config:cfg(),adapter}),/Добавь/);
+  assert.throws(()=>createCore({config:cfg(),adapter}),/Add/);
 });

@@ -7,19 +7,36 @@ import { resourceSources } from '../src/taxonomy.js';
 import { createLootReactor, createSurvivalReactor, diamondSetTargets, diamondSetCondition } from '../src/survival-brain.js';
 import { itemValue, proposeTrade, survivalReserves } from '../src/item-value.js';
 import { matches } from '../src/conditions.js';
-import {KudoProtection} from '../packages/kudoconnect/index.js';
+import {OMProtection} from '../packages/omconnect/index.js';
+import {createBlockTaxonomy} from '../src/taxonomy.js';
 
 const registry = minecraftData('1.21.1'), catalog = catalogFromMinecraftData(registry);
+
+test('tree classes cover legacy log metadata families as well as modern named species',()=>{
+  for(const version of ['1.8.8','1.16.5','1.18.2','1.19.4','1.20.4','1.21.1','26.1']){
+    const c=catalogFromMinecraftData(minecraftData(version)),taxonomy=createBlockTaxonomy(c),log=version==='1.8.8'?'minecraft:log':'minecraft:birch_log';
+    assert.equal(taxonomy.has(log,'logs'),true,version);assert.equal(taxonomy.has(log,'tree'),true,version);assert.ok(taxonomy.members('leaves').length>0,version);
+  }
+});
 const rid = n => n.startsWith('minecraft:') ? n : 'minecraft:' + n;
 const key = p => `${p.x},${p.y},${p.z}`;
 const p = { x: 0, y: 64, z: 0 };
 const observation = (inventory = {}, sampledBlocks = []) => ({ dimension: 'minecraft:overworld', self: { position: p, health: 20, food: 20, freeInventorySlots: 36 }, inventory, world: { sampledBlocks }, drops: [] });
 const block = (name, position) => ({ ...registry.blocksByName[name], position });
 
+test('a leaf-covered birch trunk opens a reachable leaf face before mining the log',()=>{
+  const trunk={x:3,y:65,z:0},leaf={x:2,y:65,z:0};let cleared=false;
+  const world={blockAt:q=>({...block(q.x===3&&q.y===65&&q.z===0?'birch_log':!cleared&&q.x===2&&q.y===65&&q.z===0?'birch_leaves':q.y<64?'stone':'air',q),boundingBox:q.y<64||q.x===3&&q.y===65||!cleared&&q.x===2&&q.y===65?'block':'empty'})};
+  const r=createSurvivalReactor({catalog,client:{world},targets:{'#logs':1},exploration:false});
+  const o=observation({},[{name:rid('birch_log'),position:trunk}]);o.self.position={x:.5,y:64,z:.5};
+  const first=r.react(o);assert.equal(first.action.skill,'dig');assert.equal(first.action.args.block,rid('birch_leaves'));assert.equal(first.action.args.x,leaf.x);
+  cleared=true;assert.equal(r.react(o).action.args.block,rid('birch_log'));
+});
+
 test('tree-class planning skips protected house beams and selects a nearby natural species',()=>{
   const beam={x:2,y:64,z:0},tree={x:8,y:64,z:0};
   const world={blockAt:q=>block(q.x===2&&q.y===64&&q.z===0?'oak_log':q.x===3&&q.y===64&&q.z===0?'oak_planks':q.x===8&&q.y===64&&q.z===0?'birch_log':q.y<64?'stone':'air',q)};
-  const client={world,protection:new KudoProtection()};
+  const client={world,protection:new OMProtection()};
   const r=createSurvivalReactor({catalog,client,targets:{'#logs':1},exploration:false});
   const next=r.react(observation({},[{name:rid('oak_log'),position:beam},{name:rid('birch_log'),position:tree}]));
   assert.equal(next.action.skill,'dig');assert.equal(next.action.args.block,rid('birch_log'));assert.equal(next.action.args.x,8);
@@ -66,7 +83,7 @@ test('an unreachable source stays excluded after timer expiry until the agent ch
   let now=1000;const world={blockAt:q=>block(q.x===2&&q.y===64&&q.z===0?'oak_log':q.x===4&&q.y===64&&q.z===0?'birch_log':q.y<64?'stone':'air',q)};
   const r=createSurvivalReactor({catalog,client:{world},target:'wood',exploration:false,clock:()=>now});
   const o=observation({},[{name:rid('oak_log'),position:{x:2,y:64,z:0}},{name:rid('birch_log'),position:{x:4,y:64,z:0}}]);
-  const first=r.react(o);assert.equal(first.action.args.x,2);r.recordResult({outcome:'failure',detail:'Нет достижимой позиции с видимостью целевого блока.'},first.action);
+  const first=r.react(o);assert.equal(first.action.args.x,2);r.recordResult({outcome:'failure',detail:"No reachable position with line of sight to the target block."},first.action);
   now+=300000;assert.notEqual(r.react(o).action?.args.x,2);
   o.self.position={x:0,y:64,z:3};assert.equal(r.react(o).action.args.x,2);
 });
@@ -152,7 +169,7 @@ test('unreachable backtracking is not retried merely because its timer expired',
   const r=createSurvivalReactor({catalog,client:{world},targets:{diamond:1},clock:()=>now});
   const o=observation({'minecraft:iron_pickaxe':1});
   const first=r.react(o);assert.equal(first.action.skill,'navigate');
-  r.recordResult({outcome:'failure',detail:'Нет пути в наблюдаемой области с заданными правилами.'},first.action);
+  r.recordResult({outcome:'failure',detail:"No route through observed terrain under the current rules."},first.action);
   now+=300000;assert.notDeepEqual(r.react(o).action,first.action);
 });
 
@@ -161,7 +178,7 @@ test('a changed local passage clears remembered navigation failure',()=>{
   const air={name:'air',boundingBox:'empty',shapes:[]},stone={...registry.blocksByName.stone,name:'stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]};
   const world={minY:-64,blockAt:q=>q.x===0&&q.z===0&&q.y>=64||q.x===3&&q.z===0&&q.y>=65||changed&&q.x===2&&q.z===0&&q.y===65?air:q.y<65?stone:null};
   const r=createSurvivalReactor({catalog,client:{world},targets:{diamond:1},clock:()=>now}),o=observation({'minecraft:iron_pickaxe':1});
-  const first=r.react(o);r.recordResult({outcome:'failure',detail:'Нет пути.'},first.action);
+  const first=r.react(o);r.recordResult({outcome:'failure',detail:"No route."},first.action);
   changed=true;assert.deepEqual(r.react(o).action,first.action,'a real block change permits an immediate new attempt');
 });
 

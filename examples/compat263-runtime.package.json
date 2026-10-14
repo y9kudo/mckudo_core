@@ -1,6 +1,6 @@
 {
   "private": true,
-  "description": "Isolated experimental codecs for Minecraft 26.3; not a tested native KudoConnect profile",
+  "description": "Isolated experimental codecs for Minecraft 26.3; not a tested native OMConnect profile",
   "dependencies": {
     "@wp2508/minecraft-data": "3.111.6",
     "@wp2508/minecraft-protocol": "1.69.1",

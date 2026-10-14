@@ -1,4 +1,4 @@
-import {createMachineGraph,planMachineResources} from '../mckudo_core.js';
+import {createMachineGraph,planMachineResources} from '../overmindmc.js';
 import {readFile} from 'node:fs/promises';
 
 const graph=createMachineGraph(JSON.parse(await readFile(new URL('machine-recipes.json',import.meta.url),'utf8')));

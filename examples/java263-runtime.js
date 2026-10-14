@@ -1,4 +1,4 @@
-import {KudoConnect,createJava263Profile} from '../kudoconnect/index.js';
+import {OMConnect,createJava263Profile} from '../omconnect/index.js';
 
 const root='../data/compat263/runtime/node_modules/';
 const [{default:wire},{default:registry},{default:chunks},{default:blocks}]=await Promise.all([
@@ -13,5 +13,5 @@ const profile=createJava263Profile({loadRegistry:version=>{
   for(const entity of data.entitiesArray)if(!entity.metadataKeys&&prior.entitiesByName[entity.name]?.metadataKeys)entity.metadataKeys=[...prior.entitiesByName[entity.name].metadataKeys];
   return data;
 },createProtocolClient:options=>wire.createClient(options),chunkFactory:chunks,blockFactory:blocks});
-export const create263Client=options=>new KudoConnect({...options,version:'26.3'},{versionProfile:profile});
+export const create263Client=options=>new OMConnect({...options,version:'26.3'},{versionProfile:profile});
 

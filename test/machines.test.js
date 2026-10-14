@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createMachineGraph,planMachineResources,executeMachinePlan} from '../mckudo_core.js';
+import {createMachineGraph,planMachineResources,executeMachinePlan} from '../overmindmc.js';
 const item=(id,amount=1)=>({id,amount,kind:'item'}),fluid=(id,amount)=>({id,amount,kind:'fluid'});
 const document={schemaVersion:1,minecraftVersion:'1.21.1',source:'fixture',recipes:[
   {id:'demo:crush',machine:'demo:crusher',inputs:[item('demo:ore')],outputs:[item('demo:dust',2),item('demo:grit')],energy:{unit:'demo:fe',amount:100},durationTicks:20},
@@ -22,13 +22,13 @@ test('planner reserves earlier final targets instead of consuming them in anothe
 test('catalyst shortages, cyclic recipes and bounded searches stop without partial plans',()=>{
   const p=planMachineResources({graph,inventory:inventory.slice(0,2),executors,targets:[item('demo:ingot')]});assert.equal(p.status,'blocked');assert.deepEqual(p.steps,[]);
   const cycle=createMachineGraph({schemaVersion:1,minecraftVersion:'1.21.1',recipes:[{id:'x:a',machine:'x:m',inputs:[item('x:b')],outputs:[item('x:a')]},{id:'x:b',machine:'x:m',inputs:[item('x:a')],outputs:[item('x:b')]}]});
-  assert.match(planMachineResources({graph:cycle,targets:[item('x:a')]}).reason,/Цикл/);
+  assert.match(planMachineResources({graph:cycle,targets:[item('x:a')]}).reason,/Cycle/);
   assert.equal(planMachineResources({graph,inventory,targets:[item('demo:ingot')],maxNodes:1}).status,'blocked');
 });
 test('malformed and probabilistic machine exports are rejected',()=>{
-  assert.throws(()=>createMachineGraph({...document,recipes:[{...document.recipes[0],chance:.5}]}),/Вероятностный/);
-  assert.throws(()=>createMachineGraph({...document,recipes:[{...document.recipes[0],outputs:[{...item('demo:dust'),chance:.5}]}]}),/Вероятностный/);
-  assert.throws(()=>createMachineGraph({...document,recipes:[document.recipes[0],document.recipes[0]]}),/Повторный/);
+  assert.throws(()=>createMachineGraph({...document,recipes:[{...document.recipes[0],chance:.5}]}),/Probable/);
+  assert.throws(()=>createMachineGraph({...document,recipes:[{...document.recipes[0],outputs:[{...item('demo:dust'),chance:.5}]}]}),/Probable/);
+  assert.throws(()=>createMachineGraph({...document,recipes:[document.recipes[0],document.recipes[0]]}),/duplicate recipe/i);
   assert.throws(()=>createMachineGraph({...document,recipes:[{...document.recipes[0],inputs:[item('demo:ore',Infinity)]}]}),/amount/);
 });
 test('failed recipe branches do not consume stock needed by a valid alternative',()=>{
@@ -43,7 +43,7 @@ test('machine execution verifies revisions and balances rather than trusting a r
   const observe=()=>({revision,resources:resources.filter(r=>r.amount>0)});
   const run=async step=>{for(const r of step.inputs)resources.find(x=>x.kind===r.kind&&x.id===r.id).amount-=r.amount*step.batches;for(const r of step.outputs){const x=resources.find(x=>x.kind===r.kind&&x.id===r.id);if(x)x.amount+=r.amount*step.batches;else resources.push({...r,amount:r.amount*step.batches});}revision++;};
   const result=await executeMachinePlan({plan,executors:Object.fromEntries(executors.map(id=>[id,run])),observe});assert.equal(result.receipts.length,2);
-  await assert.rejects(executeMachinePlan({plan,executors:Object.fromEntries(executors.map(id=>[id,async()=>({ok:true})])),observe:()=>({revision:1,resources:inventory})}),/подтверждения/);
+  await assert.rejects(executeMachinePlan({plan,executors:Object.fromEntries(executors.map(id=>[id,async()=>({ok:true})])),observe:()=>({revision:1,resources:inventory})}),/server confirmation/i);
 });
 test('already cancelled machine plans do not invoke an executor',async()=>{
   const plan=planMachineResources({graph,inventory,executors,targets:[item('demo:ingot')]});let calls=0;

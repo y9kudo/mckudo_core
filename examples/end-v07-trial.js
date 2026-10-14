@@ -1,13 +1,13 @@
-import {createKudoConnect,KUDOCONNECT} from '../kudoconnect/index.js';
-import {createDragonPolicy,createCombatReactor,findLabelledStorage} from '../mckudo_core.js';
+import {createOMConnect,OMCONNECT} from '../omconnect/index.js';
+import {createDragonPolicy,createCombatReactor,findLabelledStorage} from '../overmindmc.js';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 
-const client=createKudoConnect({host:process.env.MCKUDO_HOST||'127.0.0.1',port:Number(process.env.MCKUDO_PORT||25565),username:process.env.MCKUDO_NAME||'Avery07',version:'1.21.1',auth:'offline',viewDistance:12});
+const client=createOMConnect({host:process.env.OVERMIND_HOST||'127.0.0.1',port:Number(process.env.OVERMIND_PORT||25565),username:process.env.OVERMIND_NAME||'Avery07',version:'1.21.1',auth:'offline',viewDistance:12});
 const minutesArg=process.argv.find(arg=>arg.startsWith('--minutes='));
-const minutes=Number(minutesArg?.slice('--minutes='.length)??process.env.MCKUDO_END_MINUTES??20);
+const minutes=Number(minutesArg?.slice('--minutes='.length)??process.env.OVERMIND_END_MINUTES??20);
 if(!Number.isFinite(minutes)||minutes<1||minutes>60)throw new Error('--minutes: 1–60.');
-const report={version:KUDOCONNECT.version,stage:'preparing',status:'running',startedAt:new Date().toISOString(),actions:[],events:[]};
+const report={version:OMCONNECT.version,stage:'preparing',status:'running',startedAt:new Date().toISOString(),actions:[],events:[]};
 const event=(type,value={})=>{const e={at:new Date().toISOString(),type,...value};report.events.push(e);console.log(JSON.stringify(e));};
 const save=async()=>{await mkdir('data',{recursive:true});await writeFile('data/end-v07-trial.json',JSON.stringify(report,null,2)+'\n');};
 const doAction=async(skill,args={},priority=100)=>{
@@ -32,19 +32,19 @@ client.on('damage',damage=>{
   })().catch(error=>event('enderman-defense-error',{message:error.message})).finally(()=>{urgent=null;});
 });
 try{
-  await client.connect();if(client.snapshot().identity.version!==report.version)throw new Error('Версия клиента не совпадает с версией испытания.');
-  if(client.state.status==='dead')throw new Error('Агент мёртв: возроди и телепортируй его в End перед новым прогоном.');
-  if(client.state.dimension!=='minecraft:the_end')throw new Error('Агент не в Энде.');
+  await client.connect();if(client.snapshot().identity.version!==report.version)throw new Error("Client and trial versions do not match.");
+  if(client.state.status==='dead')throw new Error("Agent is dead: Resurrection and teleport it to End before the new run.");
+  if(client.state.dimension!=='minecraft:the_end')throw new Error("Agent is not in Ende.");
   await delay(750);report.initial=client.snapshot();
   const equipped=['netherite_helmet','netherite_chestplate','netherite_leggings','netherite_boots'].every(n=>client.inventory.ownedCount(n)>0);
   const supplied=equipped&&client.inventory.count('bow')>0&&client.inventory.count('arrow')>=32&&client.inventory.count('end_stone')>=32&&client.inventory.count('water_bucket')>0&&client.inventory.count('ender_pearl')>=8;
   if(!supplied){
-  const chest=findLabelledStorage(client,'Снаряжение',{radius:24});report.chest=chest;
+  const chest=findLabelledStorage(client,"Equipment",{radius:24});report.chest=chest;
   const contents=await doAction('inspectStorage',chest);
   if(contents.outcome!=='success')throw new Error(contents.error);
   const stock=Object.fromEntries(contents.result.contents.map(i=>[i.name,(contents.result.contents.filter(j=>j.name===i.name).reduce((n,j)=>n+j.count,0))]));report.stock=stock;
   const required=['bow','arrow','netherite_sword','netherite_helmet','netherite_chestplate','netherite_leggings','netherite_boots','end_stone','water_bucket','ender_pearl'];
-  const missing=required.filter(n=>!stock[n]&&!client.inventory.ownedCount(n));report.missing=missing;if(missing.length&&!process.argv.includes('--prepare'))throw new Error('В сундуке нет: '+missing.join(', '));
+  const missing=required.filter(n=>!stock[n]&&!client.inventory.ownedCount(n));report.missing=missing;if(missing.length&&!process.argv.includes('--prepare'))throw new Error("There's no in the chest: "+missing.join(', '));
   const amounts={};
   for(const [name,want] of Object.entries({bow:1,arrow:128,netherite_sword:1,netherite_helmet:1,netherite_chestplate:1,netherite_leggings:1,netherite_boots:1,netherite_pickaxe:1,shield:1,end_stone:128,golden_apple:16,water_bucket:1,ender_pearl:16,totem_of_undying:1})){
     const need=Math.min(stock[name]||0,Math.max(0,want-client.inventory.ownedCount(name)));if(need)amounts[name]=need;

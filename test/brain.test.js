@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { createCore, createSymbolicPlanner, normalizeObservation, validateOperators, validateConfig } from '../mckudo_core.js';
+import { createCore, createSymbolicPlanner, normalizeObservation, validateOperators, validateConfig } from '../overmindmc.js';
 import { createSimulator } from '../adapters/simulator.js';
 import { createMineflayerAdapter } from '../adapters/mineflayer.js';
 const read = async name => JSON.parse(await readFile(new URL('../examples/' + name, import.meta.url), 'utf8'));
@@ -64,25 +64,25 @@ test('planner rejects invented operators, bad ordering, unknown facts and unfini
   }
   const c = copy(config); c.rules = []; c.goals[0].desired = { fact: '/imaginary/fact', eq: true };
   const core = createCore({ config: c, adapter: createSimulator(), planning: planning() });
-  assert.match((await core.tick()).reason, /неизвестный факт/);
-  assert.throws(() => validateOperators([{ ...operators[0], effects: [{ fact: '/constructor/x', set: 1 }] }]), /Защищённый/);
-  assert.throws(() => validateOperators([{ ...operators[0], effects: [{ fact: '/x', add: 1 }, { fact: '/x/y', set: 1 }] }]), /пересекаться/);
+  assert.match((await core.tick()).reason, /unknown fact/);
+  assert.throws(() => validateOperators([{ ...operators[0], effects: [{ fact: '/constructor/x', set: 1 }] }]), /protected effect path/i);
+  assert.throws(() => validateOperators([{ ...operators[0], effects: [{ fact: '/x', add: 1 }, { fact: '/x/y', set: 1 }] }]), /overlap/i);
 });
 test('symbolic search obeys bounds and cancellation; impossible world never causes arbitrary actions', async () => {
   const core = createCore({ config: { ...config, rules: [] }, adapter: createSimulator({ world: { nearbyBlocks: { 'minecraft:oak_log': false } } }), planning: planning() });
   assert.equal((await core.tick()).status, 'blocked'); assert.equal(core.snapshot().history.length, 0);
   const bounded = createCore({ config, adapter: createSimulator(), planning: planning({ planner: createSymbolicPlanner({ maxNodes: 1 }) }) });
-  await bounded.tick(); assert.match((await bounded.tick()).reason, /бюджета поиска/);
+  await bounded.tick(); assert.match((await bounded.tick()).reason, /search budget/i);
   const ac = new AbortController(); ac.abort();
   await assert.rejects(createSymbolicPlanner().plan({}, { signal: ac.signal }));
 });
 test('calls are rate-limited, persisted and capped after restoring memory', async () => {
   let now = 1000, calls = 0;
   const opts = { config: { ...config, rules: [] }, adapter: createSimulator(), clock: () => now,
-    planning: planning({ maxCalls: 1, retryDelayMs: 100, planner: { id: 'custom', apiVersion: 1, plan: async () => { calls++; return { steps: [], reason: 'Нет пути' }; } } }) };
+    planning: planning({ maxCalls: 1, retryDelayMs: 100, planner: { id: 'custom', apiVersion: 1, plan: async () => { calls++; return { steps: [], reason: "No route" }; } } }) };
   const core = createCore(opts); await core.tick(); await core.tick(); assert.equal(calls, 1);
   now += 1000; const restored = createCore({ ...opts, memory: core.exportMemory() });
-  assert.match((await restored.tick()).reason, /бюджет вызовов/); assert.equal(calls, 1);
+  assert.match((await restored.tick()).reason, /planner call budget/i); assert.equal(calls, 1);
 });
 test('planning is locked and cancelled before execution, invalid planner cannot mutate the real observation', async () => {
   const entered = deferred(); let didExecute = false;
@@ -94,7 +94,7 @@ test('planning is locked and cancelled before execution, invalid planner cannot 
     }
   } }) });
   const first = core.tick(); assert.equal(core.tick(), first); await entered.promise;
-  assert.throws(() => core.registerSkill('x', () => {}), /дождись/);
+  assert.throws(() => core.registerSkill('x', () => {}), /Wait/);
   await core.pause(); assert.equal(didExecute, false); assert.equal(core.snapshot().observation.inventory['minecraft:crafting_table'], 0);
 });
 test('saved in-flight action needs manual recovery; changed goals invalidate brain memory', async () => {
@@ -105,7 +105,7 @@ test('saved in-flight action needs manual recovery; changed goals invalidate bra
   assert.equal((await restored.tick()).brain.goals[0].status, 'interrupted'); assert.equal(restored.snapshot().history.length, 0);
   restored.retryGoal('prepare-workshop'); await restored.tick(); assert.equal(restored.snapshot().decision.operatorId, 'make-planks');
   const c = copy(config); c.rules = []; c.goals[0].maxActions++;
-  assert.throws(() => createCore({ config: c, adapter: sim, planning: planning(), memory: saved }), /несовместима/);
+  assert.throws(() => createCore({ config: c, adapter: sim, planning: planning(), memory: saved }), /incompatible/);
 });
 
 function craftBot({ requiresTable = false, confirm = true, tablePresent = true, ingredients = 4 } = {}) {
@@ -127,13 +127,13 @@ test('Mineflayer crafts by recipe repetitions and checks actual inventory (mock 
   await fixture.adapter.execute({ skill: 'craft', args: { item: 'minecraft:stick', times: 2 } }, { signal: signal() });
   assert.equal(fixture.count(), 2); assert.equal(fixture.moved(), 0);
   const unconfirmed = craftBot({ confirm: false });
-  await assert.rejects(unconfirmed.adapter.execute({ skill: 'craft', args: { item: 'minecraft:stick' } }, { signal: signal() }), /не подтвердил/);
+  await assert.rejects(unconfirmed.adapter.execute({ skill: 'craft', args: { item: 'minecraft:stick' } }, { signal: signal() }), /did not confirm/);
 });
 test('Mineflayer requires ingredients and walks to a real crafting table for table recipes', async () => {
   const fixture = craftBot({ requiresTable: true });
   await fixture.adapter.execute({ skill: 'craft', args: { item: 'stick' } }, { signal: signal() }); assert.equal(fixture.moved(), 1);
   const missing = craftBot({ requiresTable: true, tablePresent: false });
-  await assert.rejects(missing.adapter.execute({ skill: 'craft', args: { item: 'stick' } }, { signal: signal() }), /нет верстака/);
+  await assert.rejects(missing.adapter.execute({ skill: 'craft', args: { item: 'stick' } }, { signal: signal() }), /no nearby crafting table/i);
   const insufficient = craftBot({ ingredients: 2 });
   await assert.rejects(insufficient.adapter.execute({ skill: 'craft', args: { item: 'stick', times: 2 } }, { signal: signal() })); assert.equal(insufficient.count(), 0);
 });
@@ -167,5 +167,5 @@ test('world changed while planner awaited: no stale action executes before fresh
     observe: async ctx => { const o = await sim.observe(ctx); if (changed) o.world.nearbyBlocks['minecraft:oak_log'] = false; return o; },
     execute: async () => { executed++; }
   }, planning: planning({ planner: { id: 'slow', apiVersion: 1, async plan(c, ctx) { const p = await base.plan(c, ctx); changed = true; return p; } } }) });
-  const state = await core.tick(); assert.equal(executed, 0); assert.equal(state.trace.selected, null); assert.match(state.reason, /Мир изменился/);
+  const state = await core.tick(); assert.equal(executed, 0); assert.equal(state.trace.selected, null); assert.match(state.reason, /world changed/i);
 });

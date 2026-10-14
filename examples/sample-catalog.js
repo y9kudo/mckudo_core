@@ -1,5 +1,5 @@
 // Small authored fixture for offline examples. Real applications import their game's full registry.
-import { createCatalog, importVanillaRecipes } from '../mckudo_core.js';
+import { createCatalog, importVanillaRecipes } from '../overmindmc.js';
 const id = n => 'minecraft:' + n;
 const items = ['oak_log','oak_planks','stick','crafting_table','wooden_pickaxe','cobblestone','stone_pickaxe','furnace','raw_iron','iron_ingot','iron_pickaxe','oak_door'];
 const shaped = (pattern, key, result, count = 1) => ({ type: 'minecraft:crafting_shaped', pattern, key: Object.fromEntries(Object.entries(key).map(([k,v]) => [k, { item: id(v) }])), result: { id: id(result), count } });

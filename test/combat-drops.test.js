@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { Vec3 } from 'vec3';
-import { combatDecision, chooseWeapon, createCombatReactor } from '../mckudo_core.js';
+import { combatDecision, chooseWeapon, createCombatReactor } from '../overmindmc.js';
 import { createCombatExecutor } from '../adapters/mineflayer-combat.js';
 import { createDropCollector } from '../adapters/mineflayer-drops.js';
 const self = { health: 20, shield: true, position: { x: 0, y: 64, z: 0 } };
@@ -77,7 +77,7 @@ test('another player collecting an item or an entity unloading cannot count as o
   const f = collectorBot(), collector = createDropCollector(f.bot, { goals, check });
   const task = collector.collect({ item: 'minecraft:oak_log', timeoutMs: 200 }, signal());
   f.bot.emit('playerCollect', { id: 90 }, f.drop); delete f.bot.entities[2];
-  await assert.rejects(task, /не подтверждён/); assert.equal(f.bot.listenerCount('playerCollect'), 0);
+  await assert.rejects(task, /not confirmed/i); assert.equal(f.bot.listenerCount('playerCollect'), 0);
 });
 test('drop merging does not pin collection to a vanished entity ID', async () => {
   const f = collectorBot(), collector = createDropCollector(f.bot, { goals, check });

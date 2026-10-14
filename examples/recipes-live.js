@@ -1,13 +1,13 @@
 import {mkdir,writeFile} from 'node:fs/promises';
-import {createKudoConnect} from '../kudoconnect/index.js';
-import {createMinecraftBrain,createScenario,createSurvivalReactor,catalogFromMinecraftData,createTaskQueue,createNeuralPlanner} from '../mckudo_core.js';
+import {createOMConnect} from '../omconnect/index.js';
+import {createMinecraftBrain,createScenario,createSurvivalReactor,catalogFromMinecraftData,createTaskQueue,createNeuralPlanner} from '../overmindmc.js';
 
-const client=createKudoConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),username:process.env.MC_USER||'BlakeRecipes',version:'1.21.1'}),worldId=process.env.MC_WORLD||'local-survival';
+const client=createOMConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),username:process.env.MC_USER||'BlakeRecipes',version:'1.21.1'}),worldId=process.env.MC_WORLD||'local-survival';
 const report={version:'0.6.0',status:'incomplete',startedAt:new Date().toISOString(),actions:[]};let brain,queue,current;
 client.on('action',e=>{report.actions.push({...e,args:current?.args,inventory:client.inventory.snapshot(),position:client.state.position});console.log(e.skill,e.outcome,e.detail);});
 try{
   await client.connect();report.initial=client.inventory.snapshot();report.worldId=worldId;
-  if(Object.keys(report.initial).length)throw new Error('Для проверки с пустым инвентарём нужно новое имя агента.');
+  if(Object.keys(report.initial).length)throw new Error("For verification with empty equipment, you need a new agent name.");
   await client.waitFor(()=>client.recipeBook.received,{event:'recipes',timeoutMs:10000});
   const catalog=catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook});
   const scenario={schemaVersion:1,name:'Observed resources and server crafting',steps:[{id:'logs',type:'resources',targets:{'#logs':1}},{id:'table',type:'resources',targets:{'minecraft:crafting_table':1}},{id:'pickaxe',type:'resources',targets:{'minecraft:wooden_pickaxe':1}}]};

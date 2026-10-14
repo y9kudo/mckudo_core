@@ -1,4 +1,4 @@
-import { planRoute } from '../mckudo_core.js';
+import { planRoute } from '../overmindmc.js';
 // A known corridor with a two-block gap. The kernel only plans; an adapter executes.
 const route = planRoute({ start: { x: 0, y: 0, z: 0 }, goal: { x: 3, y: 0, z: 0 }, bridgeBudget: 2,
   getBlock(p) {

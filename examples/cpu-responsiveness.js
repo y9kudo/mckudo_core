@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout as delay } from 'node:timers/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { createCpuPool, planExploration } from '../mckudo_core.js';
+import { createCpuPool, planExploration } from '../overmindmc.js';
 import { captureVoxels, readVoxelSnapshot } from '../src/voxel-snapshot.js';
 
 // A closed observed wall separates reachable ground from preferred frontiers.

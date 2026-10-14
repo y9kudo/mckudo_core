@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import minecraftData from 'minecraft-data';
-import {STORAGE_CATEGORIES,storageCategory,findLabelledStorage} from '../mckudo_core.js';
+import {STORAGE_CATEGORIES,storageCategory,findLabelledStorage} from '../overmindmc.js';
 const registry=minecraftData('1.21.1');
 test('warehouse categories cover every item and group equivalent wood species',()=>{
   for(const item of registry.itemsArray)assert.ok(Object.hasOwn(STORAGE_CATEGORIES,storageCategory(item,registry)));
@@ -11,5 +11,5 @@ test('warehouse categories cover every item and group equivalent wood species',(
 test('label discovery follows wall-sign orientation and rejects duplicate user labels',()=>{
   const sign={position:{x:3,y:72,z:1},front:['Random','','',''],back:[]};
   const client={findSigns:()=>[sign],world:{blockAt:()=>({name:'oak_wall_sign',getProperties:()=>({facing:'east'})})}};
-  assert.deepEqual(findLabelledStorage(client,'Random'),{x:2,y:72,z:1});client.findSigns=()=>[sign,sign];assert.throws(()=>findLabelledStorage(client,'Random'),/найдено 2/);
+  assert.deepEqual(findLabelledStorage(client,'Random'),{x:2,y:72,z:1});client.findSigns=()=>[sign,sign];assert.throws(()=>findLabelledStorage(client,'Random'),/found 2/);
 });

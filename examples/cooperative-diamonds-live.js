@@ -2,23 +2,23 @@
 import {mkdir,writeFile,rename} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 import protocol from 'minecraft-protocol';
-import {MCKUDO,createAgentManager,startDashboard,diamondSetTargets,distributeStorageSupplies} from '../mckudo_core.js';
+import {OVERMIND,createAgentManager,startDashboard,diamondSetTargets,distributeStorageSupplies} from '../overmindmc.js';
 
 const names=['ArKaDiU656','_FISTFIGHT_','MrGiraffe6614','DERTKE','LazyP1nk'];
 const version=process.env.MC_VERSION||'1.21.1',host=process.env.MC_HOST||'127.0.0.1',port=Number(process.env.MC_PORT||25565);
 const minutes=Number(process.env.MC_TEST_MINUTES||30),rockets=Number(process.env.MC_ROCKETS_EACH||16);
 if(!Number.isFinite(minutes)||minutes<1||minutes>240||!Number.isInteger(rockets)||rockets<1||rockets>64)throw new Error('MC_TEST_MINUTES: 1–240; MC_ROCKETS_EACH: 1–64.');
 if(process.argv.includes('--check')){console.log(JSON.stringify({version,host,port,names,goal:diamondSetTargets(),flightKit:{elytra:1,firework_rocket:rockets}}));process.exit(0);}
-const report={startedAt:new Date().toISOString(),version:MCKUDO.version,minecraftVersion:version,server:`${host}:${port}`,names,status:'preparing',agents:{},phases:[],coordination:{messages:0,claims:0},transfers:[]};
+const report={startedAt:new Date().toISOString(),version:OVERMIND.version,minecraftVersion:version,server:`${host}:${port}`,names,status:'preparing',agents:{},phases:[],coordination:{messages:0,claims:0},transfers:[]};
 let manager,dashboard,saveQueue=Promise.resolve();const abort=new AbortController();
 await mkdir('data',{recursive:true});
 const save=()=>{const json=JSON.stringify(report,null,2);return saveQueue=saveQueue.catch(()=>{}).then(async()=>{await writeFile('data/cooperative-diamonds-live.json.tmp',json);await rename('data/cooperative-diamonds-live.json.tmp','data/cooperative-diamonds-live.json');});};
-process.once('SIGINT',()=>abort.abort(new Error('Испытание остановлено.')));
-process.once('SIGTERM',()=>abort.abort(new Error('Испытание остановлено.')));
+process.once('SIGINT',()=>abort.abort(new Error("Trial stopped.")));
+process.once('SIGTERM',()=>abort.abort(new Error("Trial stopped.")));
 try{
   const status=await protocol.ping({host,port,closeTimeout:5000});report.serverStatus={version:status.version,players:status.players,latency:status.latency};
-  if(status.version?.name!==version)throw new Error(`Сервер сообщает ${status.version?.name}, запрошена ${version}.`);
-  if(status.players.max-status.players.online<names.length)throw new Error('На сервере недостаточно свободных слотов для пяти агентов.');
+  if(status.version?.name!==version)throw new Error(`The server reports ${status.version?.name}, requested ${version}.`);
+  if(status.players.max-status.players.online<names.length)throw new Error("There aren't enough slots available on the server for five agents.");
   let createClient;
   if(version==='26.3')({create263Client:createClient}=await import('./java263-runtime.js'));
   manager=createAgentManager({count:5,names,worldId:process.env.MC_WORLD||`cooperative-diamonds-${version}-2026-10-13`,connection:{host,port,version,auth:'offline',viewDistance:16,maxDrop:12,maxFallDamage:8,fallHealthReserve:8},...(createClient?{createClient}:{}),memoryDirectory:'data/cooperative-diamonds-memory',supplyTargets:{'minecraft:elytra':1,'minecraft:firework_rocket':rockets},brainOptions:{storage:false,defense:{attackPlayers:false},config:{actionTimeoutMs:45000},adapterOptions:{searchRadius:128}}});
@@ -35,7 +35,7 @@ try{
     await manager.execute(name,'connect');
     if(c.state.status==='dead'){await manager.execute(name,'respawn');r.respawns++;}
     await c.waitFor(()=>c.recipeBook.received,{event:'recipes',timeoutMs:10000});
-    if(c.state.gameMode!=='survival')throw new Error(`${name}: нужен Survival, получен ${c.state.gameMode}.`);
+    if(c.state.gameMode!=='survival')throw new Error(`${name}: requires Survival, received ${c.state.gameMode}.`);
     r.initial=c.snapshot();console.log(JSON.stringify({phase:'connected',name,position:c.state.position,inventory:c.inventory.snapshot()}));await save();
   }
   await delay(2500,undefined,{signal:abort.signal});

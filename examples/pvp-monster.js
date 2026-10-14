@@ -1,29 +1,29 @@
 // examples/pvp-monster.js
-// PvP-монстр v2: с бронёй, оружием, щитом, тактикой.
+// PvP-monster v2: Armoured, Arms, Shield, Tactical.
 
-import { createKudoConnect } from '../packages/kudoconnect/index.js';
-import { createKudoAdapter } from '../adapters/kudoconnect.js';
+import { createOMConnect } from '../packages/omconnect/index.js';
+import { createOMAdapter } from '../adapters/omconnect.js';
 import {
   createCore,
   createEquipmentReactor,
   chooseWeapon,
   weaponProfile,
-} from '../mckudo_core.js';
+} from '../overmindmc.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-// ==================== НАСТРОЙКИ ====================
+// ==================== RUNS ====================
 const HOST = process.env.MC_HOST || '127.0.0.1';
 const PORT = Number(process.env.MC_PORT || 25565);
 const USERNAME = process.env.MC_USERNAME || 'Monster';
 const VERSION = '1.21.1';
 
 const KILL_RADIUS = 32;
-const RETREAT_HEALTH = 10;         // отступление при 10
-const CRITICAL_HEALTH = 6;         // паника при 6
-const ATTACK_RANGE = 3.5;          // радиус удара
-const DANGER_GROUP = 3;            // отступление от 3+ мобов
+const RETREAT_HEALTH = 10;         // derogation from 10
+const CRITICAL_HEALTH = 6;         // panic 6
+const ATTACK_RANGE = 3.5;          // Impact radius
+const DANGER_GROUP = 3;            // derogation 3+ Mobs
 
-// Белые списки (как раньше)
+// White lists (Like before)
 const FRIENDLY = new Set([
   'cow', 'mooshroom', 'pig', 'sheep', 'chicken', 'rabbit',
   'horse', 'donkey', 'mule', 'llama', 'trader_llama',
@@ -44,14 +44,14 @@ const IGNORED = new Set([
   'marker', 'interaction', 'display',
 ]);
 
-// ==================== ЛОГ ====================
+// ==================== LAGUE ====================
 const t0 = Date.now();
 const log = (msg) => {
   const dt = String(Date.now() - t0).padStart(6, ' ');
   console.log(`[+${dt}ms] [Monster] ${msg}`);
 };
 
-// ==================== СОСТОЯНИЕ ====================
+// ==================== STATE ====================
 const report = {
   startedAt: new Date().toISOString(),
   username: USERNAME,
@@ -78,9 +78,9 @@ function createPvpReactor() {
       const self = observation.self?.position;
       const health = observation.self?.health;
 
-      if (!self) return { action: null, reason: 'Нет позиции.' };
+      if (!self) return { action: null, reason: "No position." };
 
-      // --- Собрать угрозы ---
+      // --- Collect threats ---
       const threats = (observation.entities || [])
         .filter((e) => e.position && e.id !== observation.self.entityId)
         .filter((e) => !IGNORED.has(e.name))
@@ -101,7 +101,7 @@ function createPvpReactor() {
       const nearbyCreepers = threats.filter((t) => t.name === 'creeper' && t.distance <= 5).length;
       const nearbyCount = threats.filter((t) => t.distance <= 8).length;
 
-      // --- Отступление ---
+      // --- Retreat ---
       const needRetreat =
         (health != null && health <= CRITICAL_HEALTH) ||
         (health != null && health <= RETREAT_HEALTH && nearbyCreepers > 0) ||
@@ -116,24 +116,24 @@ function createPvpReactor() {
             skill: 'flee',
             args: { entityId: threats[0].id, maxDistance: KILL_RADIUS },
           },
-          reason: `Отступление: hp=${health}, угроз=${nearbyCount}, криперов=${nearbyCreepers}.`,
+          reason: `Retreat: hp=${health}, Threat threats=${nearbyCount}, Kryper=${nearbyCreepers}.`,
         };
       }
 
       if (now < retreatUntil) {
-        return { action: null, reason: 'Отступление.' };
+        return { action: null, reason: "Retreat." };
       }
 
-      // --- Нет целей ---
+      // --- No targets ---
       if (!threats.length) {
         currentTargetId = null;
-        return { action: null, reason: 'Нет целей.' };
+        return { action: null, reason: "No Purpose." };
       }
 
       const target = threats[0];
       currentTargetId = target.id;
 
-      // --- Ближний бой: combat ---
+      // --- Melee combat: combat ---
       if (target.distance <= ATTACK_RANGE + 1) {
         lastAttackAt = now;
         return {
@@ -148,11 +148,11 @@ function createPvpReactor() {
               retreatHealth: RETREAT_HEALTH,
             },
           },
-          reason: `Бой с ${target.name} (${target.distance.toFixed(1)}м).`,
+          reason: `Fight with ${target.name} (${target.distance.toFixed(1)}m).`,
         };
       }
 
-      // --- Подход ---
+      // --- Approach ---
       return {
         priority: 900,
         action: {
@@ -166,21 +166,21 @@ function createPvpReactor() {
             sprintJump: false,
           },
         },
-        reason: `Подход к ${target.name} (${target.distance.toFixed(1)}м).`,
+        reason: `Approach ${target.name} (${target.distance.toFixed(1)}m).`,
       };
     },
   };
 }
 
-// ==================== ЗАПУСК ====================
+// ==================== STARTUP ====================
 log('════════════════════════════════════════');
 log(`  PVP-MONSTER v2: ${USERNAME}`);
-log(`  Броня, оружие, щит, тактика`);
+log(`  Armour, Arms, shield, Tactical`);
 log('════════════════════════════════════════');
 
-log(`подключаюсь...`);
+log(`I'm getting involved...`);
 
-const client = createKudoConnect({
+const client = createOMConnect({
   host: HOST, port: PORT,
   username: USERNAME,
   version: VERSION, auth: 'offline',
@@ -193,18 +193,18 @@ client.on('warning', (e) => {
 });
 
 client.on('death', () => {
-  log(`💀 погиб`);
+  log(`💀 died`);
   report.errors.push('death');
 });
 
 try {
   await client.connect();
   const p = client.state.position;
-  log(`подключён: (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})`);
+  log(`connected: (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})`);
 
   report.status = 'running';
 
-  const adapter = createKudoAdapter(client, {
+  const adapter = createOMAdapter(client, {
     searchRadius: 32,
     entityRadius: KILL_RADIUS,
     trackedBlocks: ['#logs', '#ores'],
@@ -219,7 +219,7 @@ try {
     },
     adapter,
     reactors: [
-      createEquipmentReactor(),  // ← броня
+      createEquipmentReactor(),  // ← armor
       createPvpReactor(),
     ],
   });
@@ -242,7 +242,7 @@ try {
     if (!e) return;
     const name = e.name || 'unknown';
     report.kills[name] = (report.kills[name] || 0) + 1;
-    log(`☠ убит: ${name} (всего ${report.kills[name]})`);
+    log(`☠ Killed: ${name} (Total ${report.kills[name]})`);
   });
 
   core.start();
@@ -255,9 +255,9 @@ try {
     const path = 'data/pvp-monster.json';
     await mkdir('data', { recursive: true });
     await writeFile(path, JSON.stringify(report, null, 2));
-    log(`отчёт: ${path}`);
-    log(`атак: ${report.attacks}, отступлений: ${report.retreats}`);
-    log(`убийств: ${JSON.stringify(report.kills)}`);
+    log(`Report: ${path}`);
+    log(`attacks: ${report.attacks}, of the Convention: ${report.retreats}`);
+    log(`Murders: ${JSON.stringify(report.kills)}`);
     process.exit(0);
   };
 

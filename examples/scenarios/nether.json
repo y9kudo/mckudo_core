@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "name": "Портал и стержни ифрита",
+  "name": "Portal and rods of fritte",
   "steps": [
     { "id": "portal", "type": "netherPortal" },
     { "id": "enter-nether", "type": "travel", "dimension": "minecraft:the_nether" },

@@ -2,7 +2,7 @@
 import { performance } from 'node:perf_hooks';
 import { setTimeout as delay } from 'node:timers/promises';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { planRoute, planRouteAsync } from '../kudoconnect/index.js';
+import { planRoute, planRouteAsync } from '../omconnect/index.js';
 
 const count = Number(process.env.MC_COUNT || 20);
 if (!Number.isInteger(count) || count < 1 || count > 20) throw new Error('MC_COUNT: 1–20.');

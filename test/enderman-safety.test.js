@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {KudoConnect} from '../kudoconnect/index.js';
-import {createCombatReactor} from '../mckudo_core.js';
-import {endermanGazeRisk} from '../packages/kudoconnect/src/enderman-gaze.js';
+import {OMConnect} from '../omconnect/index.js';
+import {createCombatReactor} from '../overmindmc.js';
+import {endermanGazeRisk} from '../packages/omconnect/src/enderman-gaze.js';
 
 const enderman={id:'7',name:'enderman',kind:'entity',position:{x:8,y:64,z:0},metadata:{},velocity:{x:0,y:0,z:0}};
 
 test('every intermediate look frame avoids observed Enderman eyes',()=>{
-  const c=new KudoConnect({username:'Avery07'});
+  const c=new OMConnect({username:'Avery07'});
   c.state.position={x:0,y:64,z:0};c.state.yaw=0;c.state.pitch=0;
   c.entities.set(7,{...enderman});
   c.lookAt({x:0,y:65.62,z:-12});
@@ -19,7 +19,7 @@ test('every intermediate look frame avoids observed Enderman eyes',()=>{
 });
 
 test('direct look target is pitched away while retaining horizontal bearing',()=>{
-  const c=new KudoConnect({username:'Avery07'});
+  const c=new OMConnect({username:'Avery07'});
   c.state.position={x:0,y:64,z:0};
   c.entities.set(7,{...enderman});
   c.lookAt({x:8,y:66.55,z:0});
@@ -43,7 +43,7 @@ test('Enderman retaliation uses water once, then sword combat; passive ones are 
 });
 
 test('water guard places a source under the agent only with a verified support',async()=>{
-  const c=new KudoConnect({username:'Avery07'});let water=false;const packets=[];
+  const c=new OMConnect({username:'Avery07'});let water=false;const packets=[];
   c.state={...c.state,status:'ready',position:{x:2.5,y:64,z:3.5},health:20,dimension:'minecraft:the_end'};
   c.inventory.slots[36]={name:'water_bucket',item:'minecraft:water_bucket',type:1,count:1,slot:36};
   c.world.blockAt=p=>p.y===63?{name:'end_stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]}:p.y===64&&water?{name:'water',boundingBox:'empty',shapes:[]}:{name:'air',boundingBox:'empty',shapes:[]};

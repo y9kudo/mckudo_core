@@ -1,17 +1,17 @@
 /** Real-server acceptance test. Decisions remain inside createMinecraftBrain. */
-import {createFleet} from '../kudoconnect/index.js';
-import {createMinecraftBrain,diamondSetTargets,runInteraction} from '../mckudo_core.js';
+import {createFleet} from '../omconnect/index.js';
+import {createMinecraftBrain,diamondSetTargets,runInteraction} from '../overmindmc.js';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
 const names=(process.env.MC_NAMES||'Owen,Liam,Noah').split(',');
 const minutes=Number(process.env.MC_TEST_MINUTES||10);
-if(names.length!==3||!Number.isFinite(minutes)||minutes<1||minutes>120)throw new Error('Нужны три имени и MC_TEST_MINUTES 1–120.');
+if(names.length!==3||!Number.isFinite(minutes)||minutes<1||minutes>120)throw new Error("Three names, and MC_TEST_MINUTES 1–120.");
 const report={startedAt:new Date().toISOString(),server:'127.0.0.1:25565',status:'running',fromZero:true,goalAchieved:false,phases:[],agents:{}};
 const fleet=createFleet({count:3,names}),clients=[...fleet.agents.values()],brains=[],controller=new AbortController();
 let saveQueue=Promise.resolve();
 const save=()=>saveQueue=saveQueue.then(()=>writeFile('data/native-campaign.json',JSON.stringify(report,null,2)));
 const phase=(name,status,evidence)=>{const value={at:new Date().toISOString(),name,status,evidence};report.phases.push(value);console.log(JSON.stringify(value));return value;};
-process.once('SIGINT',()=>controller.abort(new Error('Остановлено пользователем.')));
+process.once('SIGINT',()=>controller.abort(new Error("Stopped by the user.")));
 await mkdir('data',{recursive:true});
 try{
   for(const c of clients){

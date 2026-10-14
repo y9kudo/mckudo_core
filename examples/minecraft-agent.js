@@ -1,7 +1,7 @@
-import { createKudoConnect } from '../kudoconnect/index.js';
-import { createMinecraftBrain } from '../mckudo_core.js';
+import { createOMConnect } from '../omconnect/index.js';
+import { createMinecraftBrain } from '../overmindmc.js';
 // Only application lifecycle lives here; behavior is supplied by the two libraries.
-const client = createKudoConnect({username:process.env.MC_USERNAME || 'Henry',host:process.env.MC_HOST || '127.0.0.1',port:Number(process.env.MC_PORT || 25565)});
+const client = createOMConnect({username:process.env.MC_USERNAME || 'Henry',host:process.env.MC_HOST || '127.0.0.1',port:Number(process.env.MC_PORT || 25565)});
 const brain = createMinecraftBrain({client,worldId:process.env.MC_WORLD || 'local-world'});
 let closing;
 const close = () => closing ||= (async()=>{await brain.stop();await client.close();})();

@@ -2,18 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import minecraftData from 'minecraft-data';
-import { KudoConnect, KudoWorld, KudoInventory, stepPhysics, miningTime } from '../kudoconnect/index.js';
-import { createKudoAdapter } from '../adapters/kudoconnect.js';
-import { planRoute } from '../mckudo_core.js';
+import { OMConnect, OMWorld, OMInventory, stepPhysics, miningTime } from '../omconnect/index.js';
+import { createOMAdapter } from '../adapters/omconnect.js';
+import { planRoute } from '../overmindmc.js';
 const registry = minecraftData('1.21.1');
 const full = { name: 'stone', boundingBox: 'block', shapes: [[0, 0, 0, 1, 1, 1]] }, air = { name: 'air', boundingBox: 'empty', shapes: [] };
 const flat = p => p.y < 1 ? full : air;
 const player = () => ({ position: { x: 0.5, y: 1, z: 0.5 }, velocity: { x: 0, y: 0, z: 0 }, onGround: true });
 test('offline transport validates its actual version/auth support before opening any socket', () => {
-  assert.doesNotThrow(() => new KudoConnect({ auth: 'microsoft' }));
-  assert.throws(() => new KudoConnect({ version: '1.20.4' }), /1.21.1/);
-  assert.throws(() => new KudoConnect({ username: '../x' }), /Offline/);
-  assert.equal(new KudoConnect().snapshot().identity.author, 'y9kudo');
+  assert.doesNotThrow(() => new OMConnect({ auth: 'microsoft' }));
+  assert.throws(() => new OMConnect({ version: '1.20.4' }), /1.21.1/);
+  assert.throws(() => new OMConnect({ username: '../x' }), /Offline/);
+  assert.equal(new OMConnect().snapshot().identity.author, 'y9kudo');
 });
 test('own physics walks, lands on solid ground, collides with walls and freezes at unknown chunks', () => {
   let s = player();
@@ -30,7 +30,7 @@ test('own physics performs a bounded jump and returns to the same floor', () => 
   assert.ok(highest > 2 && highest < 2.3); assert.equal(s.position.y, 1); assert.equal(s.onGround, true);
 });
 test('chunk cache separates absent chunks from air, tracks server block changes and dimension reset', async () => {
-  const world = new KudoWorld(registry), column = new world.Chunk({ minY: -64, worldHeight: 384 });
+  const world = new OMWorld(registry), column = new world.Chunk({ minY: -64, worldHeight: 384 });
   assert.equal(world.blockAt({ x: 0, y: 64, z: 0 }), null);
   column.setBlockStateId({ x: 2, y: 64, z: 2 }, registry.blocksByName.birch_log.defaultState);
   column.setBlockStateId({ x: 10, y: 64, z: 2 }, registry.blocksByName.oak_log.defaultState);
@@ -41,21 +41,21 @@ test('chunk cache separates absent chunks from air, tracks server block changes 
   world.reset('minecraft:the_nether'); assert.equal(world.columns.size, 0); assert.equal(world.minY, 0);
 });
 test('inventory ignores foreign windows and uses server item IDs/counts', () => {
-  const inv = new KudoInventory(registry), raw = { itemCount: 3, itemId: registry.itemsByName.birch_log.id, components: [], removeComponents: [] };
+  const inv = new OMInventory(registry), raw = { itemCount: 3, itemId: registry.itemsByName.birch_log.id, components: [], removeComponents: [] };
   assert.equal(inv.updateWindow({ windowId: 1, items: [] }), false);
   inv.updateSlot({ windowId: 0, stateId: 1, slot: 36, item: raw });
   assert.equal(inv.count('minecraft:birch_log'), 3); assert.equal(inv.held().name, 'birch_log'); raw.itemCount = 90;
   assert.equal(inv.count('birch_log'), 3);
 });
 test('mining respects hardness and tool requirements rather than sending instant completion', () => {
-  const world = new KudoWorld(registry), log = world.Block.fromStateId(registry.blocksByName.birch_log.defaultState, 0), stone = world.Block.fromStateId(registry.blocksByName.stone.defaultState, 0);
+  const world = new OMWorld(registry), log = world.Block.fromStateId(registry.blocksByName.birch_log.defaultState, 0), stone = world.Block.fromStateId(registry.blocksByName.stone.defaultState, 0);
   assert.ok(miningTime(registry, log, null).milliseconds >= 3000);
   assert.equal(miningTime(registry, stone, null).harvestable, false);
   const woodenPick = { type: registry.itemsByName.wooden_pickaxe.id };
   assert.equal(miningTime(registry, stone, woodenPick).harvestable, true); assert.ok(miningTime(registry, stone, woodenPick).milliseconds < 2000);
 });
 function fakeClient() {
-  const c = new KudoConnect(), packets = [];
+  const c = new OMConnect(), packets = [];
   c.state = { ...c.state, ...player(), status: 'ready', health: 20, food: 20, dimension: 'minecraft:overworld', gameMode: 'survival' };
   c.client = { state: 'play', write: (name, packet) => { packets.push({ name, packet }); c.emit('sent', { name, packet }); }, end() {} };
   return { c, packets };
@@ -64,7 +64,7 @@ test('higher priority cancels digging before dispatch, with no late finish packe
   const { c, packets } = fakeClient(), block = { ...registry.blocksByName.oak_log, stateId: registry.blocksByName.oak_log.defaultState, shapes: [[0, 0, 0, 1, 1, 1]] };
   c.world = { blockAt: p => Math.floor(p.x) === 2 && Math.floor(p.y) === 1 && Math.floor(p.z) === 0 ? block : flat(p), stateAt: () => block.stateId };
   const started = new Promise(r => c.on('sent', ({ name, packet }) => { if (name === 'block_dig' && packet.status === 0) r(); }));
-  const digging = c.execute({ skill: 'dig', args: { x: 2, y: 1, z: 0 } }); const rejected = assert.rejects(digging, /приоритет/);
+  const digging = c.execute({ skill: 'dig', args: { x: 2, y: 1, z: 0 } }); const rejected = assert.rejects(digging, /priority/);
   // Measure cancellation/dispatch independently of the requested smooth camera turn.
   c.skills.set('urgentTest',async()=>({ok:true}));
   await started; const before = performance.now(); await c.execute({ skill: 'urgentTest' }, { priority: 10 }); await rejected;
@@ -88,6 +88,6 @@ test('short grass is traversable while fluids and portal blocks are not ordinary
 test('runtime dependency tree and new adapter are independent of Mineflayer', async () => {
   const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url)));
   assert.equal(pkg.dependencies.mineflayer, undefined); assert.equal(pkg.dependencies['mineflayer-pathfinder'], undefined);
-  const { c } = fakeClient(), adapter = createKudoAdapter(c); assert.equal(adapter.describe().kind, 'kudoconnect'); assert.ok(adapter.describe().skills.includes('gather'));
+  const { c } = fakeClient(), adapter = createOMAdapter(c); assert.equal(adapter.describe().kind, 'omconnect'); assert.ok(adapter.describe().skills.includes('gather'));
   await c.close();
 });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createHuntingReactor,createCombatReactor} from '../mckudo_core.js';
+import {createHuntingReactor,createCombatReactor} from '../overmindmc.js';
 const base=()=>({dimension:'minecraft:overworld',self:{position:{x:0,y:64,z:0},health:20,food:20,freeInventorySlots:36},inventory:{},entities:[{id:'7',name:'cow',kind:'entity',position:{x:2,y:64,z:0}}],world:{sampledBlocks:[]}});
 test('a fed empty-handed agent gathers tools before stockpiling meat, but hunts if hungry',()=>{
   const r=createHuntingReactor({targets:{},prepareWool:false}),o=base();assert.equal(r.react(o).action,null);
@@ -16,7 +16,7 @@ test('failed retreat changes to defensive combat instead of repeating the same i
   let now=1000;const r=createCombatReactor({attackPlayers:false,pathRetreat:true,clock:()=>now}),o=base();
   o.self.health=5;o.entities=[{id:'8',name:'zombie',kind:'entity',hostile:true,position:{x:2,y:64,z:0},health:20}];
   const escape=r.react(o).action;assert.equal(escape.skill,'evade');
-  r.recordResult({outcome:'failure',detail:'Нет пути в наблюдаемой области с заданными правилами.'},escape);
+  r.recordResult({outcome:'failure',detail:"No route through observed terrain under the current rules."},escape);
   const fallback=r.react(o).action;assert.equal(fallback.skill,'combat');assert.equal(fallback.args.retreatHealth,0);assert.equal(fallback.args.critical,false);
   now+=3100;assert.equal(r.react(o).action.skill,'evade');
 });

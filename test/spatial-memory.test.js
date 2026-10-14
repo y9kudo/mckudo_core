@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import minecraftData from 'minecraft-data';
-import { createSpatialMemory, createSurvivalReactor, catalogFromMinecraftData } from '../mckudo_core.js';
+import { createSpatialMemory, createSurvivalReactor, catalogFromMinecraftData } from '../overmindmc.js';
 
 const overworld = 'minecraft:overworld', nether = 'minecraft:the_nether';
 const block = (x, name = 'minecraft:birch_log') => ({ name, position: { x, y: 64, z: 0 } });
@@ -15,7 +15,7 @@ test('spatial memory persists evidence by world and dimension, expires and prote
   saved.entries[0].name = 'minecraft:air';
   assert.equal(restored.entries({ dimension: overworld })[0].name, 'minecraft:birch_log');
   assert.equal(restored.entries({ dimension: nether })[0].name, 'minecraft:ancient_debris');
-  assert.throws(() => createSpatialMemory({ worldId: 'b', memory: atlas.export() }), /другого мира/);
+  assert.throws(() => createSpatialMemory({ worldId: 'b', memory: atlas.export() }), /another world/);
   now += 1001; assert.equal(restored.entries().length, 0);
 });
 

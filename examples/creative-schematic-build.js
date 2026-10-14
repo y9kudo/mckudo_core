@@ -1,32 +1,32 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {createKudoConnect} from '../packages/kudoconnect/index.js';
+import {createOMConnect} from '../packages/omconnect/index.js';
 import {parseSchematic,findSchematicSite,buildSchematicPhysical} from '../src/schematics.js';
 
 const filename=process.argv[2]||process.env.MC_SCHEMATIC;
-if(!filename)throw new Error('Запуск: node examples/creative-schematic-build.js <путь к .schem>');
+if(!filename)throw new Error("Starting: node examples/creative-schematic-build.js <path to .schem>");
 const source=await readFile(filename),sha256=createHash('sha256').update(source).digest('hex');
 const schematic=parseSchematic(source,{filename});
 const part=process.env.MC_BUILD_PART||'';
-if(part&&!['west','east'].includes(part))throw new Error('MC_BUILD_PART должен быть west или east.');
+if(part&&!['west','east'].includes(part))throw new Error("MC_BUILD_PART must be west or east.");
 const baseCheckpoint='data/creative-schematic-run.json',checkpoint=part?`data/creative-schematic-run-${part}.json`:baseCheckpoint;
 const middle=Math.ceil(schematic.size.x/2),cellFilter=part==='west'?cell=>cell.x<middle:part==='east'?cell=>cell.x>=middle:()=>true;
 const assigned=schematic.cells.filter(cellFilter).length;
-const client=createKudoConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1',auth:'offline',username:process.env.MC_NAME||'KudoBuilder07',viewDistance:24});
+const client=createOMConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1',auth:'offline',username:process.env.MC_NAME||'OMBuilder07',viewDistance:24});
 let stopped=false;
-process.once('SIGINT',()=>{stopped=true;console.log('Остановка после текущего действия.');});
+process.once('SIGINT',()=>{stopped=true;console.log("Stop after current operation.");});
 try{
   await client.connect();
-  if(client.state.gameMode!=='creative')throw new Error('Сервер должен быть в Creative.');
+  if(client.state.gameMode!=='creative')throw new Error("The server should be in Creative.");
   await new Promise(resolve=>setTimeout(resolve,5000));
   let saved;try{saved=JSON.parse(await readFile(checkpoint,'utf8'));}catch{}
   if(part&&saved?.sha256!==sha256)try{saved=JSON.parse(await readFile(baseCheckpoint,'utf8'));}catch{}
-  if(part&&!(saved?.sha256===sha256&&saved?.server===`${client.options.host}:${client.options.port}`))throw new Error('Для совместной стройки сначала запусти основного агента, чтобы он сохранил выбранную площадку.');
+  if(part&&!(saved?.sha256===sha256&&saved?.server===`${client.options.host}:${client.options.port}`))throw new Error("For a joint building, first start the main agent, so that it can save the chosen site.");
   let origin,site;
   if(saved?.sha256===sha256&&saved?.server===`${client.options.host}:${client.options.port}`){({origin,site}=saved);}
   else{
     const found=findSchematicSite(client,schematic);
-    if(!found)throw new Error('Не найдена полностью свободная ровная площадка в загруженных чанках.');
+    if(!found)throw new Error("No fully free flat area found in loaded cups.");
     ({origin,site}=found);
   }
   await mkdir('data',{recursive:true});

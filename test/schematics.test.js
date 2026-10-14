@@ -34,8 +34,8 @@ test('Litematica packed indices and multi-region coordinates import correctly',(
 test('schematic importer rejects stateful placement and excessive volume',()=>{
   const stateful=nbt.writeUncompressed(nbt.comp({size:nbt.list(nbt.int([1,1,1])),palette:nbt.list(nbt.comp([{Name:nbt.string('minecraft:oak_stairs'),Properties:nbt.comp({facing:nbt.string('north')})}])),blocks:nbt.list(nbt.comp([{pos:nbt.list(nbt.int([0,0,0])),state:nbt.int(0)}]))}));
   const s=parseSchematic(stateful,{filename:'stairs.nbt'});assert.equal(s.unsupportedStates,1);
-  assert.throws(()=>schematicBlueprint(s,{x:0,y:64,z:0}),/свойствами/);
-  assert.throws(()=>parseSchematic(vanilla(),{filename:'bad.zip'}),/расширение/);
+  assert.throws(()=>schematicBlueprint(s,{x:0,y:64,z:0}),/properties/i);
+  assert.throws(()=>parseSchematic(vanilla(),{filename:'bad.zip'}),/expansion/);
 });
 
 const sponge=(version,states=[0,1,0,1],palette={'minecraft:stone':0,'minecraft:oak_planks':1},offset=[2,0,-1])=>{
@@ -62,13 +62,13 @@ test('Sponge .schem keeps state properties visible but refuses to place them inc
   const s=parseSchematic(sponge(3,[0,0,0,0],{'minecraft:oak_stairs[facing=east,half=bottom]':0}),{filename:'stairs.schem'});
   assert.equal(s.unsupportedStates,4);
   assert.deepEqual(s.cells[0].properties,{facing:'east',half:'bottom'});
-  assert.throws(()=>schematicBlueprint(s,{x:0,y:64,z:0}),/свойствами/);
+  assert.throws(()=>schematicBlueprint(s,{x:0,y:64,z:0}),/properties/i);
 });
 
 test('Sponge .schem rejects truncated and unknown palette indices',()=>{
-  assert.throws(()=>parseSchematic(sponge(3,[0,1,0],{'minecraft:stone':0}),{filename:'bad.schem'}),/обрезанные/);
-  assert.throws(()=>parseSchematic(sponge(2,[0,1,0,1],{'minecraft:stone':0}),{filename:'bad.schem'}),/отсутствует в палитре/);
-  assert.throws(()=>parseSchematic(sponge(4),{filename:'bad.schem'}),/версий 2 и 3/);
+  assert.throws(()=>parseSchematic(sponge(3,[0,1,0],{'minecraft:stone':0}),{filename:'bad.schem'}),/truncated/i);
+  assert.throws(()=>parseSchematic(sponge(2,[0,1,0,1],{'minecraft:stone':0}),{filename:'bad.schem'}),/missing in palette/);
+  assert.throws(()=>parseSchematic(sponge(4),{filename:'bad.schem'}),/versions 2 and 3/);
 });
 
 test('legacy MCEdit .schematic imports simple blocks but rejects unsafe numeric metadata',()=>{
@@ -78,6 +78,6 @@ test('legacy MCEdit .schematic imports simple blocks but rejects unsafe numeric 
   })})));
   const s=parseSchematic(source([1,4]),{filename:'old.schematic'});
   assert.equal(s.format,'schematic');assert.deepEqual(s.cells.map(c=>c.block),['minecraft:stone','minecraft:cobblestone']);
-  assert.throws(()=>parseSchematic(source([5,4],[1,0]),{filename:'old.schematic'}),/преобразования/);
-  assert.throws(()=>parseSchematic(source([53,4]),{filename:'old.schematic'}),/преобразования/);
+  assert.throws(()=>parseSchematic(source([5,4],[1,0]),{filename:'old.schematic'}),/conversion/i);
+  assert.throws(()=>parseSchematic(source([53,4]),{filename:'old.schematic'}),/conversion/i);
 });

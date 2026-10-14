@@ -31,7 +31,7 @@
   "goals": [
     {
       "id": "prepare-workshop",
-      "description": "Получить верстак и четыре палки.",
+      "description": "Get a top-down and four sticks.",
       "priority": 10,
       "maxActions": 32,
       "desired": {

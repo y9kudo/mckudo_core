@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import minecraftData from 'minecraft-data';
-import { createCore, createResourceReactor, catalogFromMinecraftData, createCatalog, importVanillaRecipes, validateScenario, createCombatReactor } from '../mckudo_core.js';
+import { createCore, createResourceReactor, catalogFromMinecraftData, createCatalog, importVanillaRecipes, validateScenario, createCombatReactor } from '../overmindmc.js';
 const mc = minecraftData('1.21.1');
 const crafting = {
   'minecraft:birch_planks': { type: 'minecraft:crafting_shapeless', ingredients: [{ item: 'minecraft:birch_log' }], result: { id: 'minecraft:birch_planks', count: 4 } },

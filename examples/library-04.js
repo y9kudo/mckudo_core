@@ -1,4 +1,4 @@
-import { createCore, createShelterBlueprint, planConstruction, billOfMaterials, blockKey, planResources, resourceWorkflow, createSurvivalProgression, createConstructionReactor } from '../mckudo_core.js';
+import { createCore, createShelterBlueprint, planConstruction, billOfMaterials, blockKey, planResources, resourceWorkflow, createSurvivalProgression, createConstructionReactor } from '../overmindmc.js';
 import { createCatalogSimulator } from '../adapters/catalog-simulator.js';
 import { sampleCatalog, sampleSources } from './sample-catalog.js';
 
@@ -17,7 +17,7 @@ for (let i = 0; i < 64; i++) {
   if (s.workflows[0].status === 'completed') break;
   if (s.status === 'fault') throw new Error(s.reason);
 }
-if (core.snapshot().workflows[0].status !== 'completed') throw new Error('Цепочка ресурсов не завершена.');
+if (core.snapshot().workflows[0].status !== 'completed') throw new Error("Resource chain not completed.");
 await core.stop();
 // Another application-controlled phase, with the same executor and a different core policy.
 const builder = createCore({ config: { schemaVersion: 4, name: 'BuilderExample', worldId: 'offline-example' }, adapter, reactors: [createConstructionReactor({ blueprint })] });
@@ -25,5 +25,5 @@ for (let i = 0; i <= blueprint.cells.length; i++) {
   const s = await builder.tick();
   const result = planConstruction(blueprint, { blocks: s.observation.world.blocks, inventory: s.observation.inventory });
   if (result.status === 'completed') { console.log(JSON.stringify({ resourceActions: plan.actions.length, buildingBlocks: blueprint.cells.length, construction: result.status, stages: progression.exportMemory() }, null, 2)); await builder.stop(); break; }
-  if (i === blueprint.cells.length || s.status === 'fault') throw new Error('Строительство не завершено: ' + s.reason);
+  if (i === blueprint.cells.length || s.status === 'fault') throw new Error("Construction not completed: " + s.reason);
 }

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import minecraftData from 'minecraft-data';
-import {createActionEvidenceMemory, createCore, createSurvivalReactor, catalogFromMinecraftData} from '../mckudo_core.js';
-import {planRoute, KudoActionError, blockEvidenceValue, WorldRecipeBook} from '../kudoconnect/index.js';
+import {createActionEvidenceMemory, createCore, createSurvivalReactor, catalogFromMinecraftData} from '../overmindmc.js';
+import {planRoute, OMActionError, blockEvidenceValue, WorldRecipeBook} from '../omconnect/index.js';
 
 const air={name:'air',boundingBox:'empty',shapes:[]};
 const stone={name:'stone',stateId:1,boundingBox:'block',shapes:[[0,0,0,1,1,1]]};
@@ -75,7 +75,7 @@ test('structured transport errors survive core action events and persisted histo
   const core=createCore({config:{schemaVersion:1,name:'Avery',worldId:'trial',rules:[{id:'walk',action}]},adapter:{
     describe:()=>({protocolVersion:1,kind:'test',skills:['navigate']}),
     observe:async()=>({dimension,self:{position,health:20,food:20}}),
-    execute:async()=>{throw new KudoActionError(failure.code,'Start precondition failed',failure.evidence);}
+    execute:async()=>{throw new OMActionError(failure.code,'Start precondition failed',failure.evidence);}
   }});
   let received;core.once('action:finish',e=>{received=e;});
   const state=await core.tick();assert.deepEqual(state.lastResult.failure,failure);assert.deepEqual(received.failure,failure);
@@ -94,7 +94,7 @@ test('survival uses the shared memory and resumes after observed support repair'
   const first=reactor.react(observation);assert.equal(first.action.skill,'navigate');
   support=slab;
   const failure=planRoute({start:position,goal,getBlock:world.blockAt}).failure;
-  reactor.recordResult({outcome:'failure',detail:'Старт не подтверждён как свободная ячейка с опорой.',failure},first.action);
+  reactor.recordResult({outcome:'failure',detail:"Start cell is not confirmed clear and supported.",failure},first.action);
   now=300000;assert.equal(reactor.react(observation).action,null);
   support=stone;assert.deepEqual(reactor.react(observation).action,first.action);
 });
@@ -116,7 +116,7 @@ test('the full core honors evidence repair immediately without a second independ
   const core=createCore({clock:()=>0,config:{schemaVersion:4,name:'Avery',worldId:'trial'},reactors:[reactor],adapter:{
     describe:()=>({protocolVersion:1,kind:'test',skills:['navigate']}),
     observe:async()=>({dimension,self:{position,health:20,food:20},inventory:{},world:{sampledBlocks:[]},drops:[]}),
-    execute:async()=>{calls++;const route=planRoute({start:position,goal,getBlock:world.blockAt});if(route.failure)throw new KudoActionError(route.failure.code,route.reason,route.failure.evidence);return {ok:true};}
+    execute:async()=>{calls++;const route=planRoute({start:position,goal,getBlock:world.blockAt});if(route.failure)throw new OMActionError(route.failure.code,route.reason,route.failure.evidence);return {ok:true};}
   }});
   reactor.attach(core);
   await core.tick();assert.equal(calls,1);

@@ -10,10 +10,10 @@ if(!settings)throw new Error('Use examples/diamond-race.js to run this worker.')
 const {release,host,port,runId}=settings;
 const send=(type,body={})=>process.connected&&process.send({type,name:release.name,...body});
 if(sourceDigest(release.directory)!==release.sourceSHA256)throw new Error('Historical source has changed.');
-const coreModule=await import(pathToFileURL(path.join(release.directory,'mckudo_core.js')));
-if(coreModule.MCKUDO.version!==release.version)throw new Error('Runtime identity differs from manifest.');
+const coreModule=await import(pathToFileURL(path.join(release.directory,'overmindmc.js')));
+if(coreModule.OVERMIND.version!==release.version)throw new Error('Runtime identity differs from manifest.');
 const native=typeof coreModule.createMinecraftBrain==='function';
-if(process.argv.includes('--check')){if(native){const transport=await import(pathToFileURL(path.join(release.directory,'kudoconnect/index.js')));if(typeof transport.createKudoConnect!=='function')throw new Error('Native factory missing.');}console.log(JSON.stringify({version:release.version,native,exports:Object.keys(coreModule).length}));process.exit(0);}
+if(process.argv.includes('--check')){if(native){const transport=await import(pathToFileURL(path.join(release.directory,'omconnect/index.js')));if(typeof transport.createOMConnect!=='function')throw new Error('Native factory missing.');}console.log(JSON.stringify({version:release.version,native,exports:Object.keys(coreModule).length}));process.exit(0);}
 const require=createRequire(new URL('../../package.json',import.meta.url));
 let client,bot,adapter,core,catalog,currentAction,startedAt,ending=false,ended=false,sampler,loops=0,transfer;
 const mined=[],pickups=[],drops=new Map(),counts={},milestones={},errors=[];
@@ -88,8 +88,8 @@ const legacySetup=async()=>{
  if(core)events(core);
 };
 const nativeSetup=async()=>{
- const module=await import(pathToFileURL(path.join(release.directory,'kudoconnect/index.js')));
- client=module.createKudoConnect({host,port,username:release.name,version:'1.21.1',auth:'offline',viewDistance:8});
+ const module=await import(pathToFileURL(path.join(release.directory,'omconnect/index.js')));
+ client=module.createOMConnect({host,port,username:release.name,version:'1.21.1',auth:'offline',viewDistance:8});
  client.on('warning',e=>{clip(errors,{at:Date.now(),reason:e.message},20);send('warning',{message:e.message});});
  client.on('drop',e=>{drops.set(String(e.id),{item:e.item?.name,position:{...e.position}});if(drops.size>2048)drops.delete(drops.keys().next().value);});
  client.on('collect',e=>{if(e.own){clip(pickups,{at:Date.now(),own:true,...drops.get(String(e.id))});sample();}});
@@ -161,5 +161,5 @@ try{
  if(!release.resume&&Object.keys(inventory()).length)throw new Error('Initial inventory is not empty. Use fresh names.');
  const gameMode=native?client.state.gameMode:bot.game.gameMode;
  if(gameMode!==0&&gameMode!=='survival')throw new Error('Benchmark requires survival mode; observed '+gameMode);
- status='ready';sample();send('ready',{version:coreModule.MCKUDO.version,transport:native?'kudoconnect':'mineflayer',capabilities:native?client.describe().skills:adapter.describe().skills,initial:{position:position(),health:health(),inventory:inventory(),gameMode}});
+ status='ready';sample();send('ready',{version:coreModule.OVERMIND.version,transport:native?'omconnect':'mineflayer',capabilities:native?client.describe().skills:adapter.describe().skills,initial:{position:position(),health:health(),inventory:inventory(),gameMode}});
 }catch(e){status='error';reason=e.message;send('fatal',{reason});await finish();}

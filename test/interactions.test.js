@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { previewInteraction, runInteraction } from '../mckudo_core.js';
-import { KudoConnect } from '../kudoconnect/index.js';
+import { previewInteraction, runInteraction } from '../overmindmc.js';
+import { OMConnect } from '../omconnect/index.js';
 const full = { name:'stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]] }, air={name:'air',boundingBox:'empty',shapes:[]};
 function pair() {
-  const a=new KudoConnect({username:'Alice'}),b=new KudoConnect({username:'Blake'});
+  const a=new OMConnect({username:'Alice'}),b=new OMConnect({username:'Blake'});
   for(const [c,other,id,x,yaw] of [[a,b,1,.5,-90],[b,a,2,2.5,90]]) {
     c.state={...c.state,status:'ready',entityId:id,position:{x,y:1,z:.5},yaw,pitch:0,health:20,dimension:'minecraft:overworld'};
     c.world.blockAt=p=>p.y<1?full:air;
@@ -20,7 +20,7 @@ function pair() {
 }
 test('meeting preview cannot act and rejects missing reciprocal identity',()=>{
   const {a,b}=pair();const plan=previewInteraction({from:a,to:b});assert.equal(plan.kind,'meet');assert.ok(plan.meeting);
-  b.players.directory.clear();b.entities.clear();assert.throws(()=>previewInteraction({from:a,to:b}),/Личности/);
+  b.players.directory.clear();b.entities.clear();assert.throws(()=>previewInteraction({from:a,to:b}),/identity/i);
 });
 
 test('exchange chooses a place away from a third player who could collect the gift',()=>{

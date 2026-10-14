@@ -3,15 +3,15 @@ import { readFile, stat } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { dirname, resolve, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MCKUDO } from '../mckudo_core.js';
-import { KUDOCONNECT } from '../packages/kudoconnect/index.js';
+import { OVERMIND } from '../overmindmc.js';
+import { OMCONNECT } from '../packages/omconnect/index.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const npm = process.env.npm_execpath;
 assert.ok(npm, 'Run this check with npm run release:check.');
 const json = async path => JSON.parse(await readFile(path, 'utf8'));
 const metadata = [];
-for (const [folder, identity] of [['.', MCKUDO], ['packages/kudoconnect', KUDOCONNECT]]) {
+for (const [folder, identity] of [['.', OVERMIND], ['packages/omconnect', OMCONNECT]]) {
   const directory = resolve(root, folder), pkg = await json(resolve(directory, 'package.json'));
   const lock = await json(resolve(directory, 'package-lock.json'));
   assert.equal(pkg.version, identity.version, `${pkg.name}: runtime version`);

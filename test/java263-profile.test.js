@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import minecraftData from 'minecraft-data';
-import {createJava263Profile,WorldRecipeBook,KudoConnect} from '../kudoconnect/index.js';
+import {createJava263Profile,WorldRecipeBook,OMConnect} from '../omconnect/index.js';
 
 const profile=()=>createJava263Profile({loadRegistry:()=>({}),createProtocolClient:()=>({}),chunkFactory:()=>({})});
 test('experimental 26.3 wire adapter carries teleport pose, movement flags and structured block hits',()=>{
@@ -24,5 +24,5 @@ test('version catalog is explicitly labelled and indexes crafting only on demand
   assert.equal(book.snapshot().indexedOutputs,1);
 });
 test('a version profile cannot be accidentally supplied for another requested protocol',()=>{
-  assert.throws(()=>new KudoConnect({version:'1.21.1'},{versionProfile:profile()}),/соответствовать версии/);
+  assert.throws(()=>new OMConnect({version:'1.21.1'},{versionProfile:profile()}),/match version/);
 });

@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { createMinecraftAgent, planRouteAsync } from '../mckudo_core.js';
+import { createMinecraftAgent, planRouteAsync } from '../overmindmc.js';
 
 // A goal-based integration test. No item grants, teleports or server commands.
 const agent=createMinecraftAgent({name:process.env.MC_USER||'MasonMission',worldId:process.env.MC_WORLD||'mission-trial-world',
@@ -12,7 +12,7 @@ process.once('SIGINT',stop);process.once('SIGTERM',stop);
 agent.client.on('action',e=>{if(report.actions.length<1024)report.actions.push({...e,position:{...agent.client.state.position},inventory:agent.client.inventory.snapshot()});console.log(e.skill,e.outcome,e.detail);});
 const progress=setInterval(()=>console.log('PROGRESS',JSON.stringify({position:agent.client.state.position,tasks:agent.snapshot().taskState,inventory:agent.snapshot().inventory})),15000);progress.unref();
 try {
-  if(process.argv.length>3||process.argv[2]!==undefined&&!navigationOnly)throw new Error('Запуск: node examples/mission-live.js [--navigation-only]');
+  if(process.argv.length>3||process.argv[2]!==undefined&&!navigationOnly)throw new Error("Starting: node examples/mission-live.js [--navigation-only]");
   await agent.connect();
   report.initial=agent.client.inventory.snapshot();
   if(Object.keys(report.initial).length)throw new Error('Use a fresh MC_USER with an empty inventory.');

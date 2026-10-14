@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createCore, validateConfig, ConfigError, matches, MCKUDO } from '../mckudo_core.js';
+import { createCore, validateConfig, ConfigError, matches, OVERMIND } from '../overmindmc.js';
 import { createSimulator } from '../adapters/simulator.js';
 import { createBridgeAdapter } from '../adapters/bridge.js';
 import { createMineflayerAdapter } from '../adapters/mineflayer.js';
@@ -19,20 +19,20 @@ test('public API runs a complete JSON plan and preserves author', async () => {
   const state = core.snapshot();
   assert.equal(state.observation.inventory['minecraft:oak_log'], 4);
   assert.equal(state.observation.self.food, 17); assert.equal(state.status, 'idle');
-  assert.equal(state.history.length, 5); assert.equal(MCKUDO.author, 'y9kudo');
+  assert.equal(state.history.length, 5); assert.equal(OVERMIND.author, 'y9kudo');
 });
 test('configuration reports the exact typo, rejects duplicate rules and invalid priorities', () => {
   assert.throws(() => validateConfig(config({ tickIntervaMs: 100 })), e => e instanceof ConfigError && e.path === '$.tickIntervaMs');
-  assert.throws(() => validateConfig(config({ rules: [config().rules[0], config().rules[0]] })), /уникальный/);
+  assert.throws(() => validateConfig(config({ rules: [config().rules[0], config().rules[0]] })), /unique/);
   assert.throws(() => validateConfig(config({ rules: [{ id: 'x', priority: 1.5, action: { skill: 'work' } }] })), /priority/);
 });
 test('JSON rejects functions, cycles, prototypes, excess depth and unsafe fields', () => {
   assert.throws(() => validateConfig(config({ rules: [{ id: 'x', action: { skill: 'work', args: { code: () => 1 } } }] })), /JSON/);
   const cycle = {}; cycle.x = cycle;
-  assert.throws(() => validateConfig(config({ rules: [{ id: 'x', action: { skill: 'work', args: cycle } }] })), /циклический/);
-  assert.throws(() => validateConfig(JSON.parse('{"__proto__":{}}')), /зарезервированное/);
+  assert.throws(() => validateConfig(config({ rules: [{ id: 'x', action: { skill: 'work', args: cycle } }] })), /cyclic/);
+  assert.throws(() => validateConfig(JSON.parse('{"__proto__":{}}')), /reserved/);
   let condition = { fact: '/x', eq: 1 }; for (let i = 0; i < 10; i++) condition = { not: condition };
-  assert.throws(() => validateConfig(config({ rules: [{ id: 'x', when: condition, action: { skill: 'work' } }] })), /вложено/);
+  assert.throws(() => validateConfig(config({ rules: [{ id: 'x', when: condition, action: { skill: 'work' } }] })), /nesting/i);
 });
 test('conditions use typed comparisons, escaped JSON Pointer and explicit missing facts', () => {
   const observation = { n: 5, text: '5', 'mod:item/key': 2 };
@@ -49,7 +49,7 @@ test('unsupported skills are blocked instead of being reported as success', asyn
   const core = createCore({ config: config(), adapter: adapter({ describe: () => ({ protocolVersion: 1, skills: [] }), execute: async () => { calls++; } }) });
   assert.equal((await core.tick()).status, 'blocked'); assert.equal(calls, 0);
   core.registerSkill('work', async () => { calls++; }); await core.tick(); assert.equal(calls, 1);
-  assert.throws(() => core.registerSkill('work', async () => {}), /уже/);
+  assert.throws(() => core.registerSkill('work', async () => {}), /already/);
 });
 test('concurrent and reentrant ticks share a lock and never overlap actions', async () => {
   const gate = deferred(), entered = deferred(); let calls = 0, again;
@@ -91,7 +91,7 @@ test('memory separates worlds and bounds history', async () => {
   for (let i = 0; i < 5; i++) await c.tick();
   const restored = createCore({ config: config(), adapter: adapter(), memory: c.exportMemory() });
   assert.equal(restored.snapshot().history.length, 2);
-  assert.throws(() => createCore({ config: config({ worldId: 'another' }), adapter: adapter(), memory: c.exportMemory() }), /другого мира/);
+  assert.throws(() => createCore({ config: config({ worldId: 'another' }), adapter: adapter(), memory: c.exportMemory() }), /another world/);
 });
 test('rule names cannot accidentally resolve Object.prototype counters', async () => {
   const c = createCore({ config: config({ rules: [{ id: 'toString', action: { skill: 'work' } }] }), adapter: adapter() });
@@ -121,17 +121,17 @@ for (const loader of ['forge', 'neoforge', 'fabric']) test(`bridge negotiates ${
 test('bridge rejects loader mismatch, quarantines unconfirmed cancellation and lost acknowledgement', async () => {
   const description = { protocolVersion: 1, loader: 'forge', minecraftVersion: '26.3', skills: ['work'] };
   const base = { describe: async () => description, observe: async () => ({}), execute: async () => ({ ok: true }), cancel: async () => ({ stopped: true }) };
-  await assert.rejects(createBridgeAdapter({ expectedLoader: 'neoforge', transport: base }), /несовместимый/);
+  await assert.rejects(createBridgeAdapter({ expectedLoader: 'neoforge', transport: base }), /incompatible/);
   const entered = deferred(), finished = deferred();
   const bridge = await createBridgeAdapter({ expectedLoader: 'forge', transport: { ...base,
     execute: async () => { entered.resolve(); return finished.promise; }, cancel: async () => { finished.resolve({ ok: false }); return { stopped: false }; },
   } });
   const ac = new AbortController(), pending = bridge.execute({ skill: 'work', args: {} }, { signal: ac.signal });
   await entered.promise; ac.abort(); await assert.rejects(pending);
-  await assert.rejects(bridge.observe({ signal: new AbortController().signal }), /не подтверждена/);
+  await assert.rejects(bridge.observe({ signal: new AbortController().signal }), /not confirmed/i);
   const lost = await createBridgeAdapter({ expectedLoader: 'forge', transport: { ...base, execute: async () => { throw new Error('Connection lost'); } } });
   await assert.rejects(lost.execute({ skill: 'work' }, { signal: new AbortController().signal }));
-  await assert.rejects(lost.observe({ signal: new AbortController().signal }), /не подтверждена/);
+  await assert.rejects(lost.observe({ signal: new AbortController().signal }), /not confirmed/i);
 });
 test('Mineflayer adapter supports real API shape, zero counts and cancellation (mock bot)', async () => {
   const entered = deferred(); let cancelled = false, finish;

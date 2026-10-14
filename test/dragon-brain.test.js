@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createDragonPolicy,dragonExpeditionScenario,validateScenario} from '../mckudo_core.js';
-import {createKudoConnect,perchedDragonHead} from '../kudoconnect/index.js';
+import {createDragonPolicy,dragonExpeditionScenario,validateScenario} from '../overmindmc.js';
+import {createOMConnect,perchedDragonHead} from '../omconnect/index.js';
 const air={name:'air',shapes:[],boundingBox:'empty'},stone={name:'end_stone',shapes:[[0,0,0,1,1,1]],boundingBox:'block'};
-function setup(){const c=createKudoConnect();c.state.position={x:.5,y:64,z:.5};c.world.blockAt=p=>p.y<64?stone:air;c.inventory.items=()=>[];const policy=createDragonPolicy({client:c});const o={dimension:'minecraft:the_end',self:{position:c.state.position,health:20},inventory:{'minecraft:bow':1,'minecraft:arrow':64},entities:[]};return {c,policy,o};}
+function setup(){const c=createOMConnect();c.state.position={x:.5,y:64,z:.5};c.world.blockAt=p=>p.y<64?stone:air;c.inventory.items=()=>[];const policy=createDragonPolicy({client:c});const o={dimension:'minecraft:the_end',self:{position:c.state.position,health:20},inventory:{'minecraft:bow':1,'minecraft:arrow':64},entities:[]};return {c,policy,o};}
 test('full objective contains supplies before entering the Nether and an explicit dragon goal',()=>{
   const s=validateScenario(dragonExpeditionScenario());assert.equal(s.steps.at(-1).type,'dragon');assert.ok(s.steps.findIndex(s=>s.id==='dragon-supplies')<s.steps.findIndex(s=>s.id==='enter-nether'));
 });

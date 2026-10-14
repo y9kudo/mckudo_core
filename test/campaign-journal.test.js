@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createCampaignJournal} from '../mckudo_core.js';
-const initial={scenario:{status:'running',current:'wood',completed:[],reason:'Добыть дерево'},self:{health:20,dimension:'minecraft:overworld'},inventory:{}};
+import {createCampaignJournal} from '../overmindmc.js';
+const initial={scenario:{status:'running',current:'wood',completed:[],reason:"Get a tree"},self:{health:20,dimension:'minecraft:overworld'},inventory:{}};
 test('campaign journal detects a stuck stage; position changes alone are not progression',()=>{
   let now=0;const journal=createCampaignJournal({clock:()=>now,stallAfterMs:1000});journal.observe(initial);now=2000;
   const stalled=journal.observe({...initial,self:{...initial.self,position:{x:100,y:64,z:100}}});assert.equal(stalled.status,'stalled');assert.equal(stalled.goalConfirmed,false);

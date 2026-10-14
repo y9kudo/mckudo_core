@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "name": "Ока и крепость",
+  "name": "Eye and Fortress",
   "steps": [
     { "id": "eyes", "type": "eyes", "count": 16 },
     { "id": "stronghold", "type": "stronghold" },

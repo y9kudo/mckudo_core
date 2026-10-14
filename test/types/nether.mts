@@ -1,0 +1,12 @@
+import {createMinecraftAgent,createNetherReactor,netherCapabilities,fullExpeditionScenario,createEndExpedition,defineMission,type ScenarioMemory} from '../../overmindmc.js';
+import {OMConnect,bridgeMaterials} from '../../omconnect/index.js';
+const client=new OMConnect({auth:'offline',version:'1.21.1',username:'NetherType'});
+const capabilities=netherCapabilities(client.registry);
+const reactor=createNetherReactor({client,targets:{blaze_rod:10,ender_pearl:20},maxBarters:64});
+const mission=defineMission([{nether:{blaze_rod:10}}]);
+const agent=createMinecraftAgent({worldId:'nether-type'});void agent.run(mission);
+const expedition=createEndExpedition({client,worldId:'nether-type',scenario:fullExpeditionScenario()});
+const memory:ScenarioMemory=expedition.controller.exportMemory();
+createEndExpedition({client,worldId:'nether-type',checkpoint:memory});
+bridgeMaterials(client.registry,client.inventory.items(),{dimension:'minecraft:the_nether'});
+console.log(capabilities,reactor.exportMemory());

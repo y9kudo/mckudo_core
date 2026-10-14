@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
 import minecraftData from 'minecraft-data';
 import blockLoader from 'prismarine-block';
-import {stepPhysics} from '../packages/kudoconnect/src/physics.js';
-import {chooseMiningTool} from '../packages/kudoconnect/src/equipment.js';
-import {planCreativeFlightRoute} from '../packages/kudoconnect/src/creative-flight.js';
+import {stepPhysics} from '../packages/omconnect/src/physics.js';
+import {chooseMiningTool} from '../packages/omconnect/src/equipment.js';
+import {planCreativeFlightRoute} from '../packages/omconnect/src/creative-flight.js';
 import {createVisionSnapshot} from '../src/vision.js';
 import {createTaskQueue} from '../src/task-queue.js';
 
@@ -50,9 +50,9 @@ test('parallel intentions interleave while only one body action is active',()=>{
   const tasks=['a','b'].map(id=>({id,title:id,type:'scenario',mode:'parallel',scenario:{schemaVersion:1,name:id,steps:[{id:'one',type:'resources',targets:{'minecraft:stone':1}}]}}));
   const q=createTaskQueue({tasks,scenarioFactory:()=>({reactor:{react:()=>({action:{skill:'wait',args:{durationMs:1}},priority:20,reason:'working'})},snapshot:()=>({status:'running'})})}),brain=new EventEmitter();q.attach(brain);
   const first=q.reactor.react({});assert.equal(first.action.skill,'wait');
-  brain.emit('action:start',{id:'mckudo:tasks',action:first.action});
+  brain.emit('action:start',{id:'overmind:tasks',action:first.action});
   assert.equal(q.reactor.react({}).action,null);
-  brain.emit('action:finish',{rule:'mckudo:tasks',outcome:'success'});
+  brain.emit('action:finish',{rule:'overmind:tasks',outcome:'success'});
   q.reactor.react({});
   assert.equal(q.snapshot().find(s=>s.status==='running').id,'b');
 });

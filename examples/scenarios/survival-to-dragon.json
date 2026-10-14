@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "name": "Эксперимент прохождения Minecraft",
+  "name": "Pilot passing Minecraft",
   "steps": [
     { "id": "wood", "type": "resources", "targets": { "minecraft:wooden_pickaxe": 1 } },
     { "id": "stone", "type": "resources", "targets": { "minecraft:stone_pickaxe": 1, "minecraft:stone_sword": 1 } },

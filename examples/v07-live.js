@@ -1,10 +1,10 @@
-import { createKudoConnect, KUDOCONNECT, planRoute, volumeClearance, traceVolume } from '../kudoconnect/index.js';
+import { createOMConnect, OMCONNECT, planRoute, volumeClearance, traceVolume } from '../omconnect/index.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 
 // Native, nonadministrative integration check. It never grants equipment or edits terrain.
-const client=createKudoConnect({host:process.env.MC_HOST??'127.0.0.1',port:Number(process.env.MC_PORT??25565),username:process.env.MC_NAME??'RowanVector07',version:'1.21.1'});
-const report={version:KUDOCONNECT.version,startedAt:new Date().toISOString(),status:'running',checks:[],warnings:[],fullDragonRun:false};
+const client=createOMConnect({host:process.env.MC_HOST??'127.0.0.1',port:Number(process.env.MC_PORT??25565),username:process.env.MC_NAME??'RowanVector07',version:'1.21.1'});
+const report={version:OMCONNECT.version,startedAt:new Date().toISOString(),status:'running',checks:[],warnings:[],fullDragonRun:false};
 const signal=AbortSignal.timeout(90000),check=(name,detail)=>{report.checks.push({name,status:'passed',detail});console.log(name+': passed');};
 client.on('warning',e=>report.warnings.push(String(e.message).slice(0,200)));
 try{
@@ -22,7 +22,7 @@ try{
   if(candidates[0]){
     const before=client.metrics.corrections,result=await client.execute({skill:'navigate',args:{...candidates[0].goal,range:0,bridge:false,excavate:false}},{signal});
     check('native-ground-navigation',{result,corrections:client.metrics.corrections-before});
-  }else report.checks.push({name:'native-ground-navigation',status:'not-tested',reason:'Нет безопасного наблюдаемого маршрута рядом со спавном.'});
+  }else report.checks.push({name:'native-ground-navigation',status:'not-tested',reason:"There is no safe observed route near the bead."});
   const found=await client.world.findBlocks({names:['water'],position:client.state.position,radius:24,count:32,signal});
   let vectorPlan=null;
   for(const water of found.blocks){
@@ -36,7 +36,7 @@ try{
     }if(vectorPlan)break;
   }
   if(vectorPlan)check('vectorize-on-server-chunks',{...vectorPlan,movementExecuted:false});
-  else report.checks.push({name:'vectorize-on-server-chunks',status:'not-tested',reason:'В загруженных чанках не найден пригодный водный объём.'});
+  else report.checks.push({name:'vectorize-on-server-chunks',status:'not-tested',reason:"No suitable water volume found in the loaded cups."});
   await delay(2000,undefined,{signal});report.snapshot=client.snapshot();report.status='passed';
 }catch(error){report.status='failed';report.reason=error.message;process.exitCode=1;}
 finally{await client.close();report.closed=client.state.status==='disconnected';report.finishedAt=new Date().toISOString();await mkdir('data',{recursive:true});await writeFile('data/v07-live.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));}

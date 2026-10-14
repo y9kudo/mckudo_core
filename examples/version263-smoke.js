@@ -8,6 +8,6 @@ client.on('kicked',reason=>console.log(JSON.stringify({kicked:reason})));
 client.on('end',reason=>console.log(JSON.stringify({ended:reason,abort:client.connectionAbort.signal.reason?.message})));
 try{
   await client.connect();console.log(JSON.stringify({phase:'connected',state:client.snapshot(),recipes:client.recipeBook.snapshot()}));
-  for(let i=0;i<15;i++){await delay(1000);if(client.state.status!=='ready')throw new Error(`Проверка устойчивости: ${client.state.status}; ${client.connectionAbort.signal.reason?.message||''}`);}
+  for(let i=0;i<15;i++){await delay(1000);if(client.state.status!=='ready')throw new Error(`Stability test: ${client.state.status}; ${client.connectionAbort.signal.reason?.message||''}`);}
   console.log(JSON.stringify({phase:'stable',state:client.snapshot(),recipes:client.recipeBook.snapshot()}));
 }finally{await client.close();}

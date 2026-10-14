@@ -25,13 +25,13 @@ test('CPU queue is bounded, queued cancellation does not kill unrelated work, ma
   try {
     const first=pool.run({type:'invalid'}).catch(e=>e.message);
     const cancelled=pool.run({type:'invalid'},{signal:abort.signal}).catch(e=>e.message);
-    await assert.rejects(pool.run({type:'invalid'}),/заполнена/);
+    await assert.rejects(pool.run({type:'invalid'}),/full/);
     abort.abort(new Error('cancel queued'));
-    assert.equal(await cancelled,'cancel queued'); assert.match(await first,/Неизвестная/);
+    assert.equal(await cancelled,'cancel queued'); assert.match(await first,/Unknown/);
     await assert.rejects(pool.run({type:'exploration',voxels:{}}),/snapshot/);
     assert.equal(pool.snapshot().cancelled,1); assert.equal(pool.snapshot().pending,0);
   } finally { await pool.close(); }
-  await assert.rejects(pool.run({}),/закрыт/);
+  await assert.rejects(pool.run({}),/closed/);
 });
 
 test('cancelling an active CPU job replaces its thread and the pool remains usable', async () => {
@@ -39,7 +39,7 @@ test('cancelling an active CPU job replaces its thread and the pool remains usab
   try {
     const cancelled=pool.run({type:'invalid'},{signal:abort.signal});abort.abort(new Error('cancel active'));
     await assert.rejects(cancelled,/cancel active/);
-    await assert.rejects(pool.run({type:'invalid'}),/Неизвестная/);
+    await assert.rejects(pool.run({type:'invalid'}),/Unknown/);
     assert.equal(pool.snapshot().pending,0);
   } finally { await pool.close(); }
 });

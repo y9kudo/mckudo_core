@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {teamSupplyTargets,shareTeamSupplies,diamondSetTargets,distributeStorageSupplies} from '../mckudo_core.js';
+import {teamSupplyTargets,shareTeamSupplies,diamondSetTargets,distributeStorageSupplies} from '../overmindmc.js';
 const client=(username,inventory,equipped={})=>({options:{username},state:{status:'ready',health:20,food:20,dimension:'minecraft:overworld',position:{x:0,y:64,z:0}},inventory:{snapshot:()=>({...inventory}),equipment:()=>equipped,count:n=>inventory[n.startsWith('minecraft:')?n:'minecraft:'+n]||0,ownedCount:n=>(inventory[n.startsWith('minecraft:')?n:'minecraft:'+n]||0)+Object.values(equipped).filter(i=>i.item==='minecraft:'+n.replace(/^minecraft:/,'')).length},items:inventory});
 
 test('five members each take one elytra and their rocket deficit from separate shared chests',async()=>{

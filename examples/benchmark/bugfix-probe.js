@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
-import {createMinecraftBrain,MCKUDO} from '../../mckudo_core.js';
-import {createKudoConnect} from '../../kudoconnect/index.js';
+import {createMinecraftBrain,OVERMIND} from '../../overmindmc.js';
+import {createOMConnect} from '../../omconnect/index.js';
 import {diamondEvidence} from './race-metrics.js';
 
 // Post-race diagnostic of the working build. It is never entered into the
@@ -17,9 +17,9 @@ if(process.env.MC_PROBE_PREVIOUS_REPORT){
   previous=Object.values(report.agents||{}).find(a=>a.name===username);
   if(!report.finishedAt||!previous?.processClosed||!(previous.state?.health>0)||report.server?.host!==host||report.server?.port!==port)throw new Error('Previous race must have finished on this server and closed this living contender.');
 }
-const client=createKudoConnect({host,port,username,version:'1.21.1',auth:'offline',viewDistance:8});
-const report={kind:'post-race-working-build-probe',historicalRanking:false,runtimeVersion:MCKUDO.version,username,createdAt:new Date().toISOString(),previousVersion:previous?.version??null,status:'connecting',actions:{},events:[],mined:[],pickups:[],warnings:[],inventorySamples:[]};
-report.sourceSHA256=Object.fromEntries(await Promise.all(['src/survival-brain.js','packages/kudoconnect/src/collection.js','packages/kudoconnect/src/equipment.js','packages/kudoconnect/src/actions.js'].map(async file=>[file,createHash('sha256').update(await fs.readFile(new URL('../../'+file,import.meta.url))).digest('hex')])));
+const client=createOMConnect({host,port,username,version:'1.21.1',auth:'offline',viewDistance:8});
+const report={kind:'post-race-working-build-probe',historicalRanking:false,runtimeVersion:OVERMIND.version,username,createdAt:new Date().toISOString(),previousVersion:previous?.version??null,status:'connecting',actions:{},events:[],mined:[],pickups:[],warnings:[],inventorySamples:[]};
+report.sourceSHA256=Object.fromEntries(await Promise.all(['src/survival-brain.js','packages/omconnect/src/collection.js','packages/omconnect/src/equipment.js','packages/omconnect/src/actions.js'].map(async file=>[file,createHash('sha256').update(await fs.readFile(new URL('../../'+file,import.meta.url))).digest('hex')])));
 let core,current,startedAt,abortTimer;const drops=new Map();
 const controller=new AbortController(),signal=controller.signal;
 const sample=()=>({at:Date.now(),position:{...client.state.position},health:client.state.health,inventory:client.inventory.snapshot()});

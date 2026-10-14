@@ -1,17 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
-import {createEquipmentReactor,createNightReactor,createHuntingReactor,createSurvivalReactor,diamondSetTargets,diamondSetCondition,matches,catalogFromMinecraftData} from '../mckudo_core.js';
-import {KudoConnect} from '../kudoconnect/index.js';
-import {readSlot} from '../packages/kudoconnect/src/inventory.js';
+import {createEquipmentReactor,createNightReactor,createHuntingReactor,createSurvivalReactor,diamondSetTargets,diamondSetCondition,matches,catalogFromMinecraftData} from '../overmindmc.js';
+import {OMConnect} from '../omconnect/index.js';
+import {readSlot} from '../packages/omconnect/src/inventory.js';
 import {planRoute} from '../src/navigation.js';
-import {personalSpaceControl} from '../packages/kudoconnect/src/movement.js';
+import {personalSpaceControl} from '../packages/omconnect/src/movement.js';
 import {equipmentTradeTargets,unequippedTargets} from '../src/equipment-policy.js';
 import {proposeTrade} from '../src/item-value.js';
-const c=new KudoConnect(),registry=c.registry;
+const c=new OMConnect(),registry=c.registry;
 
 test('sharing preserves diamonds for missing equipment and accounts for worn armor once',()=>{
-  const from=new KudoConnect(),to=new KudoConnect(),raw=name=>({itemCount:1,itemId:registry.itemsByName[name].id,components:[],removeComponents:[]});
+  const from=new OMConnect(),to=new OMConnect(),raw=name=>({itemCount:1,itemId:registry.itemsByName[name].id,components:[],removeComponents:[]});
   from.inventory.slots[5]=readSlot(raw('diamond_helmet'),registry,5);
   from.inventory.slots[36]=readSlot({...raw('diamond'),itemCount:40},registry,36);
   const goals={'minecraft:diamond_helmet':2,'minecraft:diamond_chestplate':1};
@@ -31,7 +31,7 @@ test('equipped armor satisfies ownership and survival goal without crafting dupl
   o.inventory['minecraft:netherite_helmet']=1;assert.equal(createEquipmentReactor().react(o).action.args.item,'minecraft:netherite_helmet');
 });
 test('armor swap awaits both authoritative slots and preserves old armor',async()=>{
-  const x=new KudoConnect();Object.assign(x.state,{status:'ready',health:20});
+  const x=new OMConnect();Object.assign(x.state,{status:'ready',health:20});
   const raw=name=>({itemCount:1,itemId:registry.itemsByName[name].id,components:[],removeComponents:[]});
   x.inventory.slots[36]=readSlot(raw('diamond_helmet'),registry,36);x.inventory.slots[5]=readSlot(raw('iron_helmet'),registry,5);
   x.client={state:'play',write(name,p){if(name==='window_click'){assert.equal(p.slot,5);const a=x.inventory.slots[5],b=x.inventory.slots[36];x.inventory.slots[5]={...b,slot:5};x.inventory.slots[36]={...a,slot:36};x.inventory.revision++;x.emit('inventory');}}};

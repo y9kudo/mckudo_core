@@ -1,0 +1,14 @@
+import {createDQN,createVectorEnvironment,createRewardAPI,createHTNPlanner,createMCTSPlanner,createLLMPlanner,createGoalStack,createPolicyRunner,openWorldStore,createTeamBlackboard,HEADLESS_FEATURES,HEADLESS_ACTIONS,createCurriculum,trainCurriculum,minecraftCurriculumStages} from 'overmindmc/intelligence';
+const policy=createDQN({inputs:HEADLESS_FEATURES.length,actions:HEADLESS_ACTIONS.length});
+const envs=createVectorEnvironment({count:128,environment:{task:'wood'}});
+const observations=await envs.reset();const outcomes=await envs.step(observations.map(o=>policy.act(o.observation,{mask:o.actionMask})));
+policy.remember({observation:observations[0].observation,action:0,reward:outcomes[0].reward,nextObservation:outcomes[0].observation,terminated:outcomes[0].terminated,truncated:outcomes[0].truncated});
+const curriculum=createCurriculum();await trainCurriculum({policy,environments:envs,curriculum,batches:1,validateStage:stage=>stage.task==='wood'});const restored=createCurriculum({memory:curriculum.export()});restored.record(true,{allowPromotion:false});minecraftCurriculumStages({tier:'iron'});await envs.close();
+const htn=createHTNPlanner<{wood:number}>({primitives:{wood:{applicable:()=>true,apply:s=>({...s,wood:1}),action:()=>({skill:'gather',args:{}})}}});htn.plan([{name:'wood'}],{wood:0});
+createMCTSPlanner({model:{actions:(n:number)=>[1,2],step:(n:number,a:number)=>({state:n+a,reward:a}),terminal:(n:number)=>n>3}}).plan(0);
+const goals=createGoalStack();goals.push({id:'wood'});goals.next();
+createLLMPlanner({request:async()=>'{"actions":[],"reason":"ok"}',skills:['wait'],validateAction:a=>a.skill==='wait'});
+const one=createDQN({inputs:1,actions:2});type O={self:{health:number};wood:number};const reward=createRewardAPI<{observation:number[];nextObservation:number[];terminated:boolean;before:O;after:O}>({terms:{wood:t=>t.after.wood-t.before.wood}});
+createPolicyRunner<O>({policy:one,adapter:{observe:async()=>({self:{health:20},wood:0}),execute:async()=>({})},encode:o=>[o.wood],actions:[{allowed:()=>true,action:()=>({skill:'gather',args:{}})},{allowed:()=>true,action:()=>({skill:'wait',args:{}})}],reward});
+const map=await openWorldStore({path:':memory:',worldId:'demo',serverId:'local',minecraftVersion:'1.21.1'});map.query({dimension:'minecraft:overworld',near:{x:0,y:64,z:0}});map.close();
+createTeamBlackboard({worldId:'demo'}).publish({id:'one',agent:'Alice',type:'request',payload:{item:'minecraft:oak_log'}});

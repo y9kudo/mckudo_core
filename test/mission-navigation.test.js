@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate as tick } from 'node:timers/promises';
-import { defineMission, validateScenario, createScenario, catalogFromMinecraftData, planRoute } from '../mckudo_core.js';
-import { KudoConnect } from '../kudoconnect/index.js';
+import { defineMission, validateScenario, createScenario, catalogFromMinecraftData, planRoute } from '../overmindmc.js';
+import { OMConnect } from '../omconnect/index.js';
 import { createNavigationGoal } from '../src/navigation-goal.js';
 
 const air={name:'air',boundingBox:'empty',shapes:[]}, stone={name:'stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]};
 function fixture(terrain,items=[]) {
-  const client=new KudoConnect();
+  const client=new OMConnect();
   const catalog=catalogFromMinecraftData(client.registry);
   client.world={blockAt:terrain,revision:0};client.inventory.items=()=>items;
   Object.assign(client.state,{position:{x:.5,y:101,z:.5},status:'ready',health:20,onGround:true,dimension:'minecraft:overworld'});
@@ -24,7 +24,7 @@ test('friendly missions compile class goals, recipe goals and explicit navigatio
   assert.deepEqual(mission.steps[2],{id:'step_3',type:'navigate',position:{x:20,y:64,z:-5},bridge:true});
   input[0].count=99;assert.equal(mission.steps[0].targets['#logs'],8);
   for(const bad of [[{get:'logs',craft:'axe'}],[{get:'oak_log',cout:8}],[{craft:'#logs'}],[{go:{x:1.5,y:64,z:0}}],[{go:{x:1,y:64,z:0},bridge:'yes'}],[{get:'#logs',count:0}]])assert.throws(()=>defineMission(bad));
-  assert.throws(()=>validateScenario({...mission,steps:[{...mission.steps[2],position:{x:0,z:0}}]}),/координаты/);
+  assert.throws(()=>validateScenario({...mission,steps:[{...mission.steps[2],position:{x:0,z:0}}]}),/coordinates/);
 });
 
 test('segmented A* reaches an observed frontier without inventing unloaded support',()=>{
@@ -64,7 +64,7 @@ test('failed waypoint is temporarily avoided and resources/position changes inva
   controller.recordResult({outcome:'failure'},action);controller.react(f.observation());await planned(controller);
   assert.deepEqual(seen,[false,true]);assert.equal(controller.react(f.observation()).action.args.x,3);
   assert.equal(controller.snapshot().avoided,1);
-  f.client.state.dimension='minecraft:the_nether';assert.match(controller.react(f.observation()).reason,/Измерение/);
+  f.client.state.dimension='minecraft:the_nether';assert.match(controller.react(f.observation()).reason,/Measurement/);
 });
 
 test('a plan calculated at an old position is discarded and a scenario records observed arrival',async()=>{

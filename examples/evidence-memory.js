@@ -1,7 +1,7 @@
 /** Offline demonstration using the real native planner, with a synthetic world. */
 import assert from 'node:assert/strict';
-import {createActionEvidenceMemory} from '../mckudo_core.js';
-import {planRoute,blockEvidenceValue} from '../kudoconnect/index.js';
+import {createActionEvidenceMemory} from '../overmindmc.js';
+import {planRoute,blockEvidenceValue} from '../omconnect/index.js';
 
 const memory=createActionEvidenceMemory({worldId:'evidence-demo'});
 const names=Array.from({length:20},(_,i)=>'Agent'+(i+1));

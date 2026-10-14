@@ -1,19 +1,19 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
-import {createKudoConnect} from '../packages/kudoconnect/index.js';
+import {createOMConnect} from '../packages/omconnect/index.js';
 import {parseSchematic,findSchematicSite,buildSchematicPhysical} from '../src/schematics.js';
 
 const filename=process.argv[2]||process.env.MC_SCHEMATIC;
-if(!filename)throw new Error('Запуск: node examples/creative-schematic-crew.js <путь к .schem>');
+if(!filename)throw new Error("Starting: node examples/creative-schematic-crew.js <path to .schem>");
 const source=await readFile(filename),sha256=createHash('sha256').update(source).digest('hex');
 const schematic=parseSchematic(source,{filename});
 const server=`${process.env.MC_HOST||'127.0.0.1'}:${Number(process.env.MC_PORT||25565)}`;
-const names=['KudoMason01','KudoMason02','KudoMason03','KudoMason04','KudoMason05'];
-const clients=names.map(username=>createKudoConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1',auth:'offline',username,viewDistance:24}));
+const names=['OMMason01','OMMason02','OMMason03','OMMason04','OMMason05'];
+const clients=names.map(username=>createOMConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1',auth:'offline',username,viewDistance:24}));
 const checkpoint='data/creative-schematic-video5-site.json';
 let stopped=false;
-process.once('SIGINT',()=>{stopped=true;console.log('Команда остановится после текущих действий.');});
+process.once('SIGINT',()=>{stopped=true;console.log("The team will stop after the current action.");});
 
 function zones(){
   const counts=Array.from({length:schematic.size.x},()=>0);
@@ -32,12 +32,12 @@ function zones(){
 
 try{
   await clients[0].connect();
-  if(clients[0].state.gameMode!=='creative')throw new Error('Командная стройка требует Creative.');
+  if(clients[0].state.gameMode!=='creative')throw new Error("Command building requires Creative.");
   await delay(4000);
   let saved;try{saved=JSON.parse(await readFile(checkpoint,'utf8'));}catch{}
   if(process.env.MC_CREW_NEW==='1'||saved?.sha256!==sha256||saved?.server!==server){
     const found=findSchematicSite(clients[0],schematic,{minDistance:96,maxDistance:256});
-    if(!found)throw new Error('Новая ровная и пустая площадка для пяти агентов не найдена в прогруженных чанках.');
+    if(!found)throw new Error("New flat and empty area for five agents not found in loaded cups.");
     saved={sha256,server,filename,site:found.site,origin:found.origin,size:schematic.size,blockCount:schematic.blockCount};
     await mkdir('data',{recursive:true});
     await writeFile(checkpoint,JSON.stringify(saved,null,2));
@@ -46,13 +46,13 @@ try{
   console.log(JSON.stringify({phase:'team-site',site:saved.site,origin:saved.origin,size:schematic.size,blocks:schematic.blockCount,workers:work}));
   for(let i=1;i<clients.length;i++){
     await clients[i].connect();
-    if(clients[i].state.gameMode!=='creative')throw new Error(`${names[i]} не получил Creative.`);
+    if(clients[i].state.gameMode!=='creative')throw new Error(`${names[i]} I didn't get it Creative.`);
     await delay(250);
   }
   for(const client of clients){
     const until=Date.now()+12000;
     while(Date.now()<until&&(!client.world.blockAt({...saved.site,y:saved.site.y-1})||!client.world.blockAt({x:saved.site.x+schematic.size.x-1,y:saved.site.y-1,z:saved.site.z+schematic.size.z-1})))await delay(250);
-    if(!client.world.blockAt({...saved.site,y:saved.site.y-1}))throw new Error(`${client.options.username}: чанки строительной площадки не загрузились.`);
+    if(!client.world.blockAt({...saved.site,y:saved.site.y-1}))throw new Error(`${client.options.username}: The building site's cups have not been loaded.`);
   }
   const results=await Promise.all(work.map(async(zone,i)=>{
     const client=clients[i],filter=c=>c.x>=zone.from&&c.x<zone.to;

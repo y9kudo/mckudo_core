@@ -10,7 +10,7 @@
     {
       "id": "prepare-workshop",
       "priority": 20,
-      "description": "Подготовить материалы, верстак и палки.",
+      "description": "Prepare materials, And the sticks.",
       "steps": [
         { "id": "logs", "action": { "skill": "gather", "args": { "block": "minecraft:oak_log", "count": 1 } }, "until": { "fact": "/inventory/minecraft:oak_log", "gte": 2 } },
         { "id": "boards", "action": { "skill": "craft", "args": { "item": "minecraft:oak_planks", "times": 2 } }, "until": { "fact": "/inventory/minecraft:oak_planks", "gte": 8 } },

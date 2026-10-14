@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { createCore, validateConfig, definePlugin, MckudoRuntime } from '../mckudo_core.js';
+import { createCore, validateConfig, definePlugin, OvermindRuntime } from '../overmindmc.js';
 import { createSimulator } from '../adapters/simulator.js';
 const workshop = JSON.parse(await readFile(new URL('../examples/workshop.json', import.meta.url), 'utf8'));
 const config = (steps, extra = {}) => ({ schemaVersion: 2, name: 'Test', worldId: 'test', workflows: [{ id: 'mission', steps }], ...extra });
@@ -17,7 +17,7 @@ const deferred = () => { let resolve; const promise = new Promise(r => { resolve
 test('schema 1 remains valid after normalization; schema 2 needs actual work', () => {
   const old = { schemaVersion: 1, name: 'Old', worldId: 'test', rules: [{ id: 'r', action: { skill: 'work' } }] };
   assert.deepEqual(validateConfig(validateConfig(old)), validateConfig(old));
-  assert.throws(() => validateConfig({ schemaVersion: 2, name: 'Empty', worldId: 'test' }), /хотя бы/);
+  assert.throws(() => validateConfig({ schemaVersion: 2, name: 'Empty', worldId: 'test' }), /at least/i);
   assert.throws(() => validateConfig({ ...config([step('a')]), schemaVersion: 1, rules: old.rules }), /schemaVersion/);
 });
 test('workflow validator catches cycles, dangling dependencies, duplicate IDs and retry bounds', () => {
@@ -86,9 +86,9 @@ test('an in-flight checkpoint becomes interrupted and requires an explicit decis
 test('changed workflow definitions and malformed step memory are rejected', async () => {
   const cfg = config([step('a')]), c = createCore({ config: cfg, adapter: adapter() }); await c.tick();
   const m = c.exportMemory();
-  assert.throws(() => createCore({ config: config([step('a'), step('b')]), adapter: adapter(), memory: m }), /Изменилась/);
+  assert.throws(() => createCore({ config: config([step('a'), step('b')]), adapter: adapter(), memory: m }), /Changed/);
   m.workflows.mission.steps.a.attempts = -1;
-  assert.throws(() => createCore({ config: cfg, adapter: adapter(), memory: m }), /Повреждён/);
+  assert.throws(() => createCore({ config: cfg, adapter: adapter(), memory: m }), /damaged/i);
 });
 test('reordering JSON object keys preserves saved workflow compatibility', async () => {
   const cfg = config([step('a')]), first = createCore({ config: cfg, adapter: adapter() }); await first.tick();
@@ -102,7 +102,7 @@ test('workflow cancellation does not use up retry budget; reset is explicit', as
     calls++; entered.resolve(); if (cancel) await new Promise(r => signal.addEventListener('abort', r, { once: true }));
   } }) });
   const job = c.tick(); await entered.promise;
-  assert.throws(() => c.resetWorkflow('mission'), /дождись/);
+  assert.throws(() => c.resetWorkflow('mission'), /Wait/);
   await c.pause(); await job; assert.equal(c.snapshot().workflows[0].steps.a.attempts, 0);
   cancel = false; c.resume(); await c.tick(); c.resetWorkflow('mission'); await c.tick(); assert.equal(calls, 3);
 });
@@ -110,9 +110,9 @@ test('plugins register atomically, enforce dependencies and prevent unsafe remov
   const c = createCore({ config: config([step('a')]), adapter: adapter() });
   const dependency = definePlugin({ id: 'base', apiVersion: 1, skills: { helper: async () => {} } });
   const dependent = { id: 'tools', apiVersion: 1, requires: ['base'], skills: { drill: async () => {} } };
-  assert.throws(() => c.use(dependent), /Сначала/); c.use(dependency).use(dependent);
-  assert.throws(() => c.removePlugin('base'), /зависят/);
-  assert.throws(() => c.use({ id: 'bad', apiVersion: 1, skills: { fresh: async () => {}, work: async () => {} } }), /уже/);
+  assert.throws(() => c.use(dependent), /First/); c.use(dependency).use(dependent);
+  assert.throws(() => c.removePlugin('base'), /Dependent/);
+  assert.throws(() => c.use({ id: 'bad', apiVersion: 1, skills: { fresh: async () => {}, work: async () => {} } }), /already/);
   c.registerSkill('fresh', async () => {});
   c.removePlugin('tools').removePlugin('base'); assert.deepEqual(c.snapshot().plugins, []);
 });
@@ -120,7 +120,7 @@ test('plugin argument validation prevents execution and declared capability enab
   let called = 0;
   const c = createCore({ config: config([{ id: 'custom', action: { skill: 'tools:press', args: { count: 0 } }, maxAttempts: 1 }]), adapter: adapter() });
   assert.equal((await c.tick()).status, 'blocked');
-  c.use({ id: 'tools', apiVersion: 1, skills: { 'tools:press': { validate: args => args.count > 0 || 'count должен быть больше нуля.', execute: async () => { called++; } } } });
+  c.use({ id: 'tools', apiVersion: 1, skills: { 'tools:press': { validate: args => args.count > 0 || "count must be more than zero.", execute: async () => { called++; } } } });
   await c.tick(); assert.equal(called, 0); assert.equal(c.snapshot().workflows[0].status, 'failed');
 });
 test('throwing and async event subscribers cannot duplicate successful game actions', async () => {
@@ -133,7 +133,7 @@ test('throwing and async event subscribers cannot duplicate successful game acti
   assert.ok(c.snapshot().listenerErrors.some(e => e.message === 'UI failed'));
 });
 test('runtime limits concurrent agents and preserves isolated workflow state', async () => {
-  let active = 0, peak = 0; const batch = new MckudoRuntime({ concurrency: 2 });
+  let active = 0, peak = 0; const batch = new OvermindRuntime({ concurrency: 2 });
   for (let n = 0; n < 5; n++) batch.add('a' + n, createCore({ config: config([step('a')], { worldId: 'world-' + n }), adapter: adapter({ execute: async () => {
     active++; peak = Math.max(peak, active); await new Promise(r => setTimeout(r, 5)); active--;
   } }) }), { resourceKey: 'player:' + n });
@@ -145,10 +145,10 @@ test('runtime limits concurrent agents and preserves isolated workflow state', a
 test('runtime rejects duplicate physical resources and does not start queued agents after pause', async () => {
   const entered = deferred(); let calls = 0;
   const make = () => createCore({ config: config([step('a')]), adapter: adapter({ execute: async (_, { signal }) => { calls++; entered.resolve(); await new Promise(r => signal.addEventListener('abort', r, { once: true })); } }) });
-  const runtime = new MckudoRuntime({ concurrency: 1 }), first = make();
+  const runtime = new OvermindRuntime({ concurrency: 1 }), first = make();
   runtime.add('first', first, { resourceKey: 'connection:1' });
-  assert.throws(() => runtime.add('copy', make(), { resourceKey: 'connection:1' }), /занят/);
-  assert.throws(() => runtime.add('same-core', first), /занят/);
+  assert.throws(() => runtime.add('copy', make(), { resourceKey: 'connection:1' }), /busy/);
+  assert.throws(() => runtime.add('same-core', first), /busy/);
   runtime.add('second', make()); const task = runtime.tick(); await entered.promise;
   await runtime.pause(); await task; assert.equal(calls, 1); assert.equal(runtime.snapshot().paused, true);
 });
@@ -157,7 +157,7 @@ test('CLI initializes a standalone workspace, validates workflows and never over
   const cli = fileURLToPath(new URL('../src/cli.js', import.meta.url)), destination = join(dir, 'new-project');
   execFileSync(process.execPath, [cli, 'init', destination]);
   const text = await readFile(join(destination, 'agent.json'), 'utf8'); assert.equal(JSON.parse(text).schemaVersion, 2);
-  assert.match(execFileSync(process.execPath, [cli, 'validate', join(destination, 'agent.json')], { encoding: 'utf8' }), /корректен/);
+  assert.match(execFileSync(process.execPath, [cli, 'validate', join(destination, 'agent.json')], { encoding: 'utf8' }), /valid/);
   assert.equal(spawnSync(process.execPath, [cli, 'init', destination]).status, 1);
   assert.equal(await readFile(join(destination, 'agent.json'), 'utf8'), text);
   const demo = spawnSync(process.execPath, [cli, 'simulate', join(destination, 'agent.json'), '--steps', '10'], { encoding: 'utf8' });

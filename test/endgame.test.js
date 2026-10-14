@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { Vec3 } from 'vec3';
-import { createNetherPortalBlueprint, planNetherPortal, billOfMaterials, blockKey, triangulateEyes, aimBow, dragonDecision, fortressEvidence, validateScenario, createScenario } from '../mckudo_core.js';
+import { createNetherPortalBlueprint, planNetherPortal, billOfMaterials, blockKey, triangulateEyes, aimBow, dragonDecision, fortressEvidence, validateScenario, createScenario } from '../overmindmc.js';
 import { createEndgameExecutor } from '../adapters/mineflayer-endgame.js';
 import { sampleCatalog } from '../examples/sample-catalog.js';
 const p = (x, z, y = 64) => ({ x, y, z });
@@ -60,8 +60,8 @@ test('endgame ledger requires correlated explosion plus disappearance and a real
 test('scenario validation catches typos before connecting and isolates caller data', () => {
   const input = { schemaVersion: 1, name: 'Example', steps: [{ id: 'wood', type: 'resources', targets: { '#logs': 2 } }] };
   const copy = validateScenario(input); input.steps[0].targets['#logs'] = 100; assert.equal(copy.steps[0].targets['#logs'], 2);
-  assert.throws(() => validateScenario({ ...copy, steps: [{ id: 'x', type: 'eyes', cout: 12 }] }), /неизвестное поле/);
-  assert.throws(() => validateScenario({ ...copy, steps: [copy.steps[0], copy.steps[0]] }), /уникальные/);
+  assert.throws(() => validateScenario({ ...copy, steps: [{ id: 'x', type: 'eyes', cout: 12 }] }), /unknown field/);
+  assert.throws(() => validateScenario({ ...copy, steps: [copy.steps[0], copy.steps[0]] }), /unique/i);
 });
 test('scenario advances only from observed resources and completed dragon death, not action requests', () => {
   const controller = createScenario({ catalog: sampleCatalog(), scenario: { schemaVersion: 1, name: 'Test', steps: [{ id: 'wood', type: 'collect', item: 'minecraft:oak_log', count: 1 }, { id: 'dragon', type: 'dragon' }] } });

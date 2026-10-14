@@ -9,7 +9,7 @@ import {createAgentMemory} from '../src/agent-memory.js';
 import {createNeuralNavigator} from '../src/neural-navigation.js';
 import {createAgentManager} from '../src/agent-manager.js';
 import {createSpatialMemory} from '../src/spatial-memory.js';
-import {KudoConnect} from '../kudoconnect/index.js';
+import {OMConnect} from '../omconnect/index.js';
 const tasks=[{id:'one',title:'Wait',type:'action',action:{skill:'wait',args:{durationMs:1}}},{id:'two',title:'Wait again',type:'action',action:{skill:'wait',args:{durationMs:2}}}];
 test('task queue attributes result to started task, ignores unrelated actions and persists completion',()=>{
   const q=createTaskQueue({tasks,skills:['wait']}),brain=new EventEmitter();q.attach(brain);
@@ -19,7 +19,7 @@ test('task queue attributes result to started task, ignores unrelated actions an
   const next=q.reactor.react({});brain.emit('action:start',{id:q.reactor.id,action:next.action});brain.emit('action:finish',{rule:q.reactor.id,outcome:'failure',detail:'blocked'});
   assert.equal(q.reactor.react({}).action,null);q.retry('two');assert.equal(q.reactor.react({}).action.args.durationMs,2);
   assert.equal(createTaskQueue({tasks,skills:['wait'],resume:q.snapshot()}).reactor.react({}).action.args.durationMs,2);
-  assert.throws(()=>validateTasks([null],{skills:['wait']}));assert.throws(()=>validateTasks([tasks[0],tasks[0]],{skills:['wait']}),/уникальный/);
+  assert.throws(()=>validateTasks([null],{skills:['wait']}));assert.throws(()=>validateTasks([tasks[0],tasks[0]],{skills:['wait']}),/unique/);
 });
 test('scenario retries are bounded and a successful alternative resets the failure streak',()=>{
   let attempts=0,recorded=0;
@@ -51,7 +51,7 @@ test('manager restores spatial memory into the brain and persists later observat
   const atlas=createSpatialMemory({worldId:'atlas-world'}), observed=x=>({dimension:'minecraft:overworld',world:{sampledBlocks:[{name:'minecraft:birch_log',position:{x,y:64,z:0}}]}});
   atlas.observe(observed(2)); await storage.save('Atlas',{spatial:atlas.export()});
   const manager=createAgentManager({count:1,names:['Atlas'],worldId:'atlas-world',memoryDirectory:directory,
-    createClient:options=>{const c=new KudoConnect(options);c.state.status='ready';return c;},
+    createClient:options=>{const c=new OMConnect(options);c.state.status='ready';return c;},
     createBrain:options=>({spatial:createSpatialMemory({worldId:options.worldId,memory:options.spatial.memory}),start(){},async stop(){},snapshot:()=>({})})});
   try {
     await manager.execute('Atlas','start');

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "name": "Первые инструменты",
+  "name": "First tools",
   "steps": [
     { "id": "wooden-tool", "type": "resources", "targets": { "minecraft:wooden_pickaxe": 1 } },
     { "id": "stone-tool", "type": "resources", "targets": { "minecraft:stone_pickaxe": 1 } }

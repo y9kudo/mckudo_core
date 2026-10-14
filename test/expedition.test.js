@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createScenario,createCatalog,endExpeditionScenario,validateScenario,createEndExpedition,createGroundShelterBlueprint,findGroundShelterSite,planConstruction,blockKey,billOfMaterials} from '../mckudo_core.js';
-import {createKudoConnect} from '../kudoconnect/index.js';
+import {createScenario,createCatalog,endExpeditionScenario,validateScenario,createEndExpedition,createGroundShelterBlueprint,findGroundShelterSite,planConstruction,blockKey,billOfMaterials} from '../overmindmc.js';
+import {createOMConnect} from '../omconnect/index.js';
 
 test('End expedition is a reusable native objective and only finishes on observed End travel',()=>{
   const definition=validateScenario(endExpeditionScenario());assert.equal(definition.steps.at(-1).dimension,'minecraft:the_end');
@@ -37,21 +37,21 @@ test('scenario uses equipped inventory and forwards failures to its resource pol
   c.reactor.react({inventory:{},equipment:{chest:{item:'minecraft:iron_chestplate',count:1}}});assert.equal(c.snapshot().status,'completed');
 });
 test('native expedition constructs with portal skills and hunting policy without a server',async()=>{
-  const client=createKudoConnect();const expedition=createEndExpedition({client,worldId:'unit-expedition'});
+  const client=createOMConnect();const expedition=createEndExpedition({client,worldId:'unit-expedition'});
   const o={dimension:'minecraft:overworld',self:{position:{x:0,y:64,z:0},health:20,food:20,freeInventorySlots:36},inventory:{},drops:[{id:'1',item:'minecraft:dirt',count:1,position:{x:2,y:64,z:0}},{id:'2',item:'minecraft:oak_log',count:1,position:{x:10,y:64,z:0}}]};
   assert.equal(expedition.brain.loot.react(o).action,null,'distant or disposable drops should not interrupt a campaign');
   o.drops[1].position.x=3;assert.equal(expedition.brain.loot.react(o).action.args.item,'minecraft:oak_log');
   assert.equal(expedition.snapshot().scenario.current,'stone-tools');await expedition.brain.stop();await client.close();
 });
 test('expedition restores learned planning and navigation across a resumed segment',async()=>{
-  const worldId='unit-expedition-memory',client=createKudoConnect();
+  const worldId='unit-expedition-memory',client=createOMConnect();
   const first=createEndExpedition({client,worldId});
   client.emit('navigationStep',{from:{x:0,y:64,z:0},to:{x:1,y:64,z:0},dimension:'minecraft:overworld',kind:'walk',outcome:'failure'});
   const before={self:{position:{x:0,y:64,z:0},health:20},inventory:{},dimension:'minecraft:overworld',entities:[]};
   first.brain.cognition.record({before,after:before,action:{skill:'navigate',args:{x:1,y:64,z:0}},outcome:'failure'});
   const cognitionMemory=first.brain.cognition.export(),neuralMemory=first.brain.neural.export();
   await first.brain.stop();await client.close();
-  const resumedClient=createKudoConnect();const resumed=createEndExpedition({client:resumedClient,worldId,cognitionMemory,neuralMemory});
+  const resumedClient=createOMConnect();const resumed=createEndExpedition({client:resumedClient,worldId,cognitionMemory,neuralMemory});
   assert.equal(resumed.brain.cognition.snapshot().samples,1);
   assert.equal(resumed.brain.neural.snapshot().samples,1);
   await resumed.brain.stop();await resumedClient.close();

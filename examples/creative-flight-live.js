@@ -1,5 +1,5 @@
-import {createKudoConnect} from '../packages/kudoconnect/index.js';
-const c=createKudoConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1',username:process.env.MC_NAME||'KudoCreative07',auth:'offline',viewDistance:24});
+import {createOMConnect} from '../packages/omconnect/index.js';
+const c=createOMConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1',username:process.env.MC_NAME||'OMCreative07',auth:'offline',viewDistance:24});
 let peak=-Infinity;
 try{
   await c.connect();

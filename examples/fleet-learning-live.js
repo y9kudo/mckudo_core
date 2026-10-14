@@ -1,12 +1,12 @@
 /** A team of real clients. The test assigns a goal and records evidence; decisions live in the libraries. */
 import {mkdir,writeFile,rename} from 'node:fs/promises';
 import {setTimeout as delay} from 'node:timers/promises';
-import {createAgentManager,createMinecraftBrain,startDashboard} from '../mckudo_core.js';
-import {DEFAULT_AGENT_NAMES} from '../kudoconnect/index.js';
+import {createAgentManager,createMinecraftBrain,startDashboard} from '../overmindmc.js';
+import {DEFAULT_AGENT_NAMES} from '../omconnect/index.js';
 
 const count=Number(process.env.MC_COUNT||20),names=process.env.MC_NAMES?process.env.MC_NAMES.split(','):DEFAULT_AGENT_NAMES.slice(0,count);
 const minutes=Number(process.env.MC_TEST_MINUTES||8),worldId=process.env.MC_WORLD;
-if(!Number.isInteger(count)||count<2||count>20||names.length!==count||!worldId||!Number.isFinite(minutes)||minutes<1||minutes>30)throw new Error('Нужны MC_WORLD, MC_COUNT 2–20, соответствующее число имён и MC_TEST_MINUTES 1–30.');
+if(!Number.isInteger(count)||count<2||count>20||names.length!==count||!worldId||!Number.isFinite(minutes)||minutes<1||minutes>30)throw new Error("Requires MC_WORLD, MC_COUNT 2–20, corresponding number of names and MC_TEST_MINUTES 1–30.");
 const manager=createAgentManager({count,names,worldId,memoryDirectory:'data/fleet-learning-memory',connection:{host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1'},
   createBrain:options=>createMinecraftBrain({...options,config:{tickIntervalMs:200,actionTimeoutMs:30000},storage:false,night:false,hunting:false,needs:false,defense:{attackPlayers:false},survival:{...options.survival,targets:{'minecraft:wooden_pickaxe':1}}})});
 const report={version:'0.6.0',worldId,count,startedAt:new Date().toISOString(),status:'running',goal:'Each agent crafts or receives a wooden pickaxe',phase:'connect',agents:{},coordination:{messages:0,claims:0,bidders:[],topics:{}},transfers:[]};

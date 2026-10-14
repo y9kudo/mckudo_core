@@ -1,6 +1,6 @@
-import {createKudoConnect,planRoute} from '../kudoconnect/index.js';
+import {createOMConnect,planRoute} from '../omconnect/index.js';
 import {mkdir,writeFile} from 'node:fs/promises';
-const client=createKudoConnect({username:process.env.MC_USERNAME||'Owen'});
+const client=createOMConnect({username:process.env.MC_USERNAME||'Owen'});
 const report={startedAt:new Date().toISOString(),status:'running',server:'127.0.0.1:25565'};
 const floor=p=>Object.fromEntries(['x','y','z'].map(k=>[k,Math.floor(p[k])]));
 try{
@@ -15,10 +15,10 @@ try{
     const route=planRoute({start,goal,getBlock:p=>client.world.blockAt(p),maxDrop:16,fallPolicy:{health:client.state.health,minHealthAfter:6},maxNodes:2000});
     if(route.status==='planned'&&route.steps.some(s=>s.kind==='drop')){selected={goal,route};break;}
   }
-  if(!selected)throw new Error('Рядом нет достижимого наблюдаемого спуска для проверки.');
+  if(!selected)throw new Error("No achievable observed descent for verification.");
   report.route=selected.route;report.result=await client.execute({skill:'navigate',args:{...selected.goal,range:0,bridge:false}},{signal:AbortSignal.timeout(30000)});
   report.after=client.snapshot();report.healthDelta=report.before.health-report.after.health;
-  if(!client.state.onGround||Math.abs(client.state.position.y-selected.goal.y)>.12)throw new Error('Приземление на целевой высоте не подтверждено.');
+  if(!client.state.onGround||Math.abs(client.state.position.y-selected.goal.y)>.12)throw new Error("Target altitude not confirmed.");
   report.status='passed';
 }catch(error){report.status='failed';report.reason=error.message;report.after=client.snapshot();}
 finally{await client.close();await mkdir('data',{recursive:true});report.finishedAt=new Date().toISOString();await writeFile('data/fall-live.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));process.exitCode=report.status==='passed'?0:1;}

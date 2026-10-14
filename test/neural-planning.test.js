@@ -18,14 +18,14 @@ test('actual backprop changes resource choice, while recipe dependencies remain 
   craft.react({...before,inventory:{'minecraft:birch_log':3}});
   const trace=craft.snapshot().plan;assert.equal(trace[0].item,'minecraft:wooden_pickaxe');assert.ok(trace[0].ingredients.length);assert.ok(trace.some(t=>t.item==='minecraft:birch_planks'));
   const restored=createNeuralPlanner({worldId:'new-world',memory:model.export()});assert.equal(restored.assess(before,oak).failureProbability,model.assess(before,oak).failureProbability);
-  assert.throws(()=>createNeuralPlanner({worldId:'other-world',memory:model.export()}),/другого мира/);
+  assert.throws(()=>createNeuralPlanner({worldId:'other-world',memory:model.export()}),/another world/);
 });
 test('cancelled actions and unconfirmed combat dispatches do not train the planner',()=>{
   const model=createNeuralPlanner({worldId:'w'});
   assert.equal(model.record({before,action:oak,outcome:'cancelled'}),false);
   assert.equal(model.record({before,action:{skill:'combat',args:{}},outcome:'success'}),false);
   assert.equal(model.snapshot().samples,0);
-  assert.throws(()=>model.assess(before,{skill:'craft',args:{count:NaN}}),/признаки/);
+  assert.throws(()=>model.assess(before,{skill:'craft',args:{count:NaN}}),/action features/i);
   const m=model.export();m.weights.v[0]=Infinity;assert.throws(()=>createNeuralPlanner({worldId:'w',memory:m}));
 });
 test('exploration avoids familiar areas and learned risks but never invents unknown support',()=>{

@@ -1,12 +1,12 @@
 import {readFile} from 'node:fs/promises';
-import {createKudoConnect} from '../packages/kudoconnect/index.js';
+import {createOMConnect} from '../packages/omconnect/index.js';
 import {parseSchematic} from '../src/schematics.js';
 
 const filename=process.argv[2]||process.env.MC_SCHEMATIC;
-if(!filename)throw new Error('Запуск: node examples/creative-schematic-audit.js <путь к .schem>');
+if(!filename)throw new Error("Starting: node examples/creative-schematic-audit.js <path to .schem>");
 const schematic=parseSchematic(await readFile(filename),{filename});
 const saved=JSON.parse(await readFile('data/creative-schematic-run.json','utf8'));
-const client=createKudoConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1',auth:'offline',username:process.env.MC_NAME||'KudoAudit07',viewDistance:24});
+const client=createOMConnect({host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:'1.21.1',auth:'offline',username:process.env.MC_NAME||'OMAudit07',viewDistance:24});
 try{
   await client.connect();
   await new Promise(resolve=>setTimeout(resolve,3000));

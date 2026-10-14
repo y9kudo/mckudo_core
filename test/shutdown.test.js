@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAgentManager, startDashboard } from '../mckudo_core.js';
+import { createAgentManager, startDashboard } from '../overmindmc.js';
 
 function fixture(memoryDirectory, names = ['Atlas']) {
   let stops = 0, closes = 0;
@@ -31,8 +31,8 @@ test('a memory write failure cannot leave a Minecraft connection open', async ()
     assert.equal(manager.close(), closing);
     await assert.rejects(closing, error => error instanceof AggregateError && error.errors.length > 0);
     assert.deepEqual(counts(), { stops: 1, closes: 1 });
-    await assert.rejects(manager.execute('Atlas', 'start'), /закрыт/);
-    await assert.rejects(manager.execute('Atlas', 'pause'), /закрыт/);
+    await assert.rejects(manager.execute('Atlas', 'start'), /closed/);
+    await assert.rejects(manager.execute('Atlas', 'pause'), /closed/);
   } finally { await manager.close().catch(() => {}); await rm(directory, { recursive: true, force: true }); }
 });
 
