@@ -4,9 +4,9 @@ import {unequippedTargets} from './equipment-policy.js';
 const busy=new WeakSet();
 /** Two confirmed physical deliveries. A partial exchange is recorded, never replayed automatically. */
 export async function runTrade({from,to,fromTargets={},toTargets={},allowGift=true,signal,peers,timeoutMs=30000,deliver=runInteraction}={}){
-  if(!from||!to||from===to||busy.has(from)||busy.has(to))throw new Error('Участники обмена отсутствуют или заняты.');
+  if(!from||!to||from===to||busy.has(from)||busy.has(to))throw new Error("No or employed.");
   const plan=proposeTrade({from:from.inventory.snapshot(),to:to.inventory.snapshot(),fromTargets:unequippedTargets(from,fromTargets),toTargets:unequippedTargets(to,toTargets),fromFood:from.state.food,toFood:to.state.food,allowGift});
-  if(!plan)return {status:'unnecessary',plan:null,deliveries:[],reason:'Нет взаимной выгоды или нужного подарка.'};
+  if(!plan)return {status:'unnecessary',plan:null,deliveries:[],reason:"No mutual benefit or gift."};
   busy.add(from);busy.add(to);const deliveries=[];
   try{
     for(const [sender,receiver,offers]of [[from,to,plan.give],[to,from,plan.receive]])for(const offer of offers){

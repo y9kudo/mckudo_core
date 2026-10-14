@@ -23,23 +23,23 @@ export function brewingRecipes(registry){
   return rows;
 }
 export function planBrewing({registry,potion,from='water',bottles=3,form='potion'}={}){
-  if(typeof potion!=='string'||!Number.isInteger(bottles)||bottles<1||bottles>3||!['potion','splash_potion','lingering_potion'].includes(form))throw new Error('План зелья: potion, bottles 1–3, form.');
+  if(typeof potion!=='string'||!Number.isInteger(bottles)||bottles<1||bottles>3||!['potion','splash_potion','lingering_potion'].includes(form))throw new Error("The plan for the potion: potion, bottles 1–3, form.");
   const recipes=brewingRecipes(registry),known=new Set(['water',...recipes.flatMap(r=>[r.from,r.to])]);
-  if(!known.has(from)||!known.has(potion)||!registry.itemsByName[form])return {status:'blocked',reason:'Зелье или форма отсутствуют в этой версии.',steps:[]};
+  if(!known.has(from)||!known.has(potion)||!registry.itemsByName[form])return {status:'blocked',reason:"No potion or shape in this version.",steps:[]};
   const queue=[{p:from,steps:[]}],seen=new Set([from]);let selected;
   while(queue.length){const current=queue.shift();if(current.p===potion){selected=current.steps;break;}for(const r of recipes.filter(r=>r.from===current.p)){if(seen.has(r.to))continue;seen.add(r.to);queue.push({p:r.to,steps:[...current.steps,r]});}}
-  if(!selected)return {status:'blocked',reason:'Нет цепочки зелья в данных этой версии.',steps:[]};
+  if(!selected)return {status:'blocked',reason:"No chain of potion in this version.",steps:[]};
   const steps=selected.map(r=>({...r,bottles}));
   if(form!=='potion')steps.push({from:potion,to:potion,ingredient:'minecraft:gunpowder',container:'splash_potion',bottles});
-  if(form==='lingering_potion'){if(!registry.itemsByName.dragon_breath)return {status:'blocked',reason:'В этой версии нет dragon_breath.',steps:[]};steps.push({from:potion,to:potion,ingredient:'minecraft:dragon_breath',container:'lingering_potion',bottles});}
+  if(form==='lingering_potion'){if(!registry.itemsByName.dragon_breath)return {status:'blocked',reason:"Not in this version dragon_breath.",steps:[]};steps.push({from:potion,to:potion,ingredient:'minecraft:dragon_breath',container:'lingering_potion',bottles});}
   const ingredients={};for(const s of steps)ingredients[s.ingredient]=(ingredients[s.ingredient]||0)+1;
   const version=registry.version?.minecraftVersion||'1.21.1',minor=Number(version.split('.')[1]);
   return {status:'planned',potion,form,bottles,steps,ingredients,fuel:{item:'minecraft:blaze_powder',count:version.startsWith('1.')&&minor<9?0:Math.ceil(steps.length/20)},station:'minecraft:brewing_stand',requiresExecutor:'brew'};
 }
 export function planNetheriteUpgrade({registry,item,inventory={}}={}){
   item=resourceId(item);const short=item.slice(10);
-  if(!/^diamond_(helmet|chestplate|leggings|boots|sword|pickaxe|axe|shovel|hoe)$/.test(short))throw new Error('Улучшению подлежит алмазное снаряжение.');
-  const output=short.replace('diamond_','netherite_');if(!registry.itemsByName[output])return {status:'unsupported',reason:'В этой версии нет незеритового снаряжения.'};
+  if(!/^diamond_(helmet|chestplate|leggings|boots|sword|pickaxe|axe|shovel|hoe)$/.test(short))throw new Error("Diamond equipment is subject to improvement.");
+  const output=short.replace('diamond_','netherite_');if(!registry.itemsByName[output])return {status:'unsupported',reason:"There is no non-zerite equipment in this version."};
   const required={[item]:1,'minecraft:netherite_ingot':1};if(atLeast(registry,20)&&registry.itemsByName.netherite_upgrade_smithing_template)required['minecraft:netherite_upgrade_smithing_template']=1;
   const missing=Object.fromEntries(Object.entries(required).map(([id,n])=>[id,Math.max(0,n-(inventory[id]||0))]).filter(([,n])=>n));
   return {status:Object.keys(missing).length?'needs-materials':'ready',station:'minecraft:smithing_table',input:item,output:resourceId(output),required,missing,preserveComponents:true,requiresExecutor:'smith'};
@@ -49,5 +49,5 @@ export function dimensionTravelPolicy(dimension){
     'minecraft:overworld':{coordinateScale:1,waterUsable:true,bedsUsable:true,maxDrop:16,avoid:['lava','powder_snow']},
     'minecraft:the_nether':{coordinateScale:8,waterUsable:false,bedsUsable:false,maxDrop:3,avoid:['lava','fire','magma_block'],ceilingSearch:true},
     'minecraft:the_end':{coordinateScale:1,waterUsable:true,bedsUsable:false,maxDrop:3,avoid:['void','dragon_breath'],bridgeNeedsKnownSupport:true}
-  };if(!policies[dimension])throw new Error('Неизвестное измерение.');return structuredClone(policies[dimension]);
+  };if(!policies[dimension])throw new Error("Unknown dimension.");return structuredClone(policies[dimension]);
 }

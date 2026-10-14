@@ -1,6 +1,6 @@
-import { planRouteAsync, readRouteWorld } from '../packages/kudoconnect/src/navigation.js';
-import { bridgeMaterials, routeCanDig } from '../packages/kudoconnect/src/movement.js';
-import { editDecision } from '../packages/kudoconnect/src/protection.js';
+import { planRouteAsync, readRouteWorld } from '../packages/omconnect/src/navigation.js';
+import { bridgeMaterials, routeCanDig } from '../packages/omconnect/src/movement.js';
+import { editDecision } from '../packages/omconnect/src/protection.js';
 import { createBlockTaxonomy } from './taxonomy.js';
 
 const floor=p=>Object.fromEntries(['x','y','z'].map(k=>[k,Math.floor(p[k])]));
@@ -10,26 +10,26 @@ const key=p=>`${p.x},${p.y},${p.z}`;
  * and temporary avoidance of failed waypoints. The client executes real physics. */
 export function createNavigationGoal({ client, position, range=1, bridge=true, excavate=false, catalog, resourceFactory, planner=planRouteAsync, clock=Date.now }) {
   const goal=floor(position), taxonomy=createBlockTaxonomy(catalog), failed=new Map(), suppliers=new Map();
-  let dimension, pending, ready, activeResource, issued, lastReason='Ожидание позиции.';
+  let dimension, pending, ready, activeResource, issued, lastReason="Waiting for position.";
   const idle=reason=>{lastReason=reason;return {action:null,reason};};
   const materials=()=>bridgeMaterials(client.registry,client.inventory.items(),{blockAtState:id=>client.world.Block?.fromStateId(id,0),itemValue:client.options?.bridgeItemValue,reserve:client.options?.bridgeReserve??0});
   const signature=(o,available)=>[o.dimension,key(floor(o.self.position)),client.protection?.revision,available,...failed.keys()].join('/');
   return {
     react(o) {
       activeResource=null;
-      if(!o.self?.position)return idle('Для навигации нужна наблюдаемая позиция.');
+      if(!o.self?.position)return idle("Navigation requires a observed position.");
       dimension??=o.dimension;
-      if(o.dimension!==dimension)return idle('Измерение изменилось. Задай новую цель в текущем измерении.');
+      if(o.dimension!==dimension)return idle("Measurement changed. Set a new target in the current measurement.");
       const start=floor(o.self.position);
       if(client.state.onGround && ['x','y','z'].every(k=>Math.abs(start[k]-goal[k])<=range))return null;
-      if(!client.state.onGround)return idle('Перед планированием дождаться устойчивой опоры.');
+      if(!client.state.onGround)return idle("Before planning, wait for a steady support.");
       for(const [k,v] of failed)if(v.until<=clock())failed.delete(k);
       const available=bridge?Math.min(256,materials().reduce((n,b)=>n+b.count,0)):0;
       const token=signature(o,available);
       if(ready?.token!==token || ready?.isCurrent && !ready.isCurrent())ready=null;
       if(ready?.error){if(clock()<ready.retryAt)return idle(ready.error);ready=null;}
       if(!ready) {
-        if(pending)return idle('Ядро рассчитывает безопасный участок пути.');
+        if(pending)return idle("Core is counting a safe path.");
         const view=readRouteWorld(client.world), revision=view.getRevision(), isCurrent=()=>view.getRevision()===revision;
         const signal=AbortSignal.any([client.connectionAbort.signal,AbortSignal.timeout(2500)]);
         const job={token};pending=job;
@@ -40,25 +40,25 @@ export function createNavigationGoal({ client, position, range=1, bridge=true, e
           canDig:excavate?routeCanDig(client):()=>false,edgeCost:client.navigationPolicy?.cost,allowPartial:true,signal}, {getRevision:view.getRevision}))
           .then(plan=>{ready={token,plan,isCurrent};},error=>{ready={token,error:String(error.message),retryAt:clock()+1000,isCurrent};})
           .finally(()=>{if(pending===job)pending=null;client.emit('planningReady');});
-        return idle('Ядро рассчитывает безопасный участок пути.');
+        return idle("Core is counting a safe path.");
       }
       const plan=ready.plan;
       if(plan.status!=='planned') { const reason=plan.reason;ready={...ready,error:reason,retryAt:clock()+1000};return idle(reason); }
       const missing=Math.max(0,(plan.bridgeUsed||0)-available);
       if(missing) {
-        if(!resourceFactory)return idle(`Для моста не хватает ${missing} строительных блоков. Подключи resourceFactory.`);
+        if(!resourceFactory)return idle(`There's not enough for a bridge ${missing} Construction blocks. Connect resourceFactory.`);
         // Obtain interchangeable natural stone, using the normal tool/recipe
         // planner. Existing expendable wood/dirt also counts toward the span.
         const current=taxonomy.members('stone').reduce((n,id)=>n+(o.inventory?.[id]||0),0), needed=current+missing;
         if(!suppliers.has(needed)){if(suppliers.size>=8)suppliers.delete(suppliers.keys().next().value);suppliers.set(needed,resourceFactory({'#stone':needed}));}
         activeResource=suppliers.get(needed);
         const decision=activeResource.react(o);
-        return {...decision,reason:`Подготовить ${missing} блоков для моста. ${decision.reason||''}`};
+        return {...decision,reason:`Prepare ${missing} Bridge blocks. ${decision.reason||''}`};
       }
       const target=plan.target||plan.steps.at(-1)?.position;
-      if(!target)return idle('Маршрут не содержит подтверждённого участка движения.');
+      if(!target)return idle("The route does not contain a confirmed section of traffic.");
       issued={position:{...target},dimension:o.dimension};
-      lastReason=plan.partial?'Пройти известный участок и пересчитать путь после новых наблюдений.':'Дойти до цели по проверенному маршруту.';
+      lastReason=plan.partial?"Go through a known area and count the path after new observations.":"To reach target on a proven route.";
       return {priority:20,action:{skill:'navigate',args:{...target,range:0,bridge,excavate,maxDrop:3}},reason:lastReason};
     },
     recordResult(event,action) {

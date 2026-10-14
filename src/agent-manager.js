@@ -1,4 +1,4 @@
-import { createFleet, createKudoConnect } from '../kudoconnect/index.js';
+import { createFleet, createOMConnect } from '../omconnect/index.js';
 import { createMinecraftBrain } from './minecraft-brain.js';
 import {createTaskQueue,validateTasks} from './task-queue.js';
 import {createAgentMemory} from './agent-memory.js';
@@ -17,13 +17,14 @@ import {proposeTeamTransfer,teamSupplyTargets} from './cooperation.js';
 import {createVisionSnapshot} from './vision.js';
 import {parseSchematic,buildSchematic,findSchematicSite,buildSchematicPhysical} from './schematics.js';
 import {createActionEvidenceMemory} from './action-evidence.js';
+import {createNetherReactor} from './nether.js';
 
 /** Application-level lifecycle, independent of the HTTP presentation layer. */
-export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','Mason','Lucas','Ethan','James','Oliver','Henry','Logan','Alice','Blake','Charlie','Dylan','Ella','Finn','Grace','Ivy','Jack','Kai'].slice(0,count), connection = {}, worldId = 'local-survival', createClient = createKudoConnect, createBrain = createMinecraftBrain, memoryDirectory, brainOptions = {},supplyTargets={} } = {}) {
-  if (!brainOptions || typeof brainOptions !== 'object' || Array.isArray(brainOptions)) throw new Error('brainOptions: объект параметров мозга.');
+export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','Mason','Lucas','Ethan','James','Oliver','Henry','Logan','Alice','Blake','Charlie','Dylan','Ella','Finn','Grace','Ivy','Jack','Kai'].slice(0,count), connection = {}, worldId = 'local-survival', createClient = createOMConnect, createBrain = createMinecraftBrain, memoryDirectory, brainOptions = {},supplyTargets={} } = {}) {
+  if (!brainOptions || typeof brainOptions !== 'object' || Array.isArray(brainOptions)) throw new Error("brainOptions: brain object.");
   const actionEvidence=brainOptions.actionEvidence||createActionEvidenceMemory({worldId});
-  if(actionEvidence.worldId!==worldId)throw new Error('Память отказов принадлежит другому миру.');
-  if(!supplyTargets||typeof supplyTargets!=='object'||Array.isArray(supplyTargets)||Object.entries(supplyTargets).some(([item,n])=>!/^minecraft:[a-z0-9_]+$/.test(item)||!Number.isInteger(n)||n<0||n>4096))throw new Error('supplyTargets: карта minecraft:предмет и запас 0–4096.');
+  if(actionEvidence.worldId!==worldId)throw new Error("Failure memory belongs to another world.");
+  if(!supplyTargets||typeof supplyTargets!=='object'||Array.isArray(supplyTargets)||Object.entries(supplyTargets).some(([item,n])=>!/^minecraft:[a-z0-9_]+$/.test(item)||!Number.isInteger(n)||n<0||n>4096))throw new Error("supplyTargets: map minecraft:item and stock 0–4096.");
   const fleet = createFleet({count,names,connection,createClient}), entries = new Map(), log = [], blockedTrades=new Map();
   let closed=false, closing;const memory=memoryDirectory?createAgentMemory(memoryDirectory,worldId):null;
   const retain=e=>{e.spatialMemory=e.brain?.spatial?.export()||e.spatialMemory;e.neuralMemory=e.brain?.neural?.export()||e.neuralMemory;e.cognitionMemory=e.brain?.cognition?.export()||e.cognitionMemory;e.taskState=e.queue?.snapshot()||e.taskState;};
@@ -43,15 +44,15 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
   };
   for(const [name,client]of fleet.agents)wire(name,client);
   const snapshot = () => ({worldId,agents:[...entries].map(([name,e])=>({name,busy:e.busy,error:e.error,goal:e.goal,settings:{...e.settings},attention:e.client.humanize?.last||null,schematic:e.schematic?{format:e.schematic.format,blockCount:e.schematic.blockCount,size:e.schematic.size,unsupportedStates:e.schematic.unsupportedStates,origin:e.schematicOrigin}:null,state:e.client.snapshot(),inventory:(e.client.dataLoaded===false?[]:e.client.inventory.items()).map(i=>({item:i.item,name:i.name,count:i.count,slot:i.slot})),brain:e.brain?.snapshot() || null,survival:e.brain?.survival?.snapshot() || null,skills:e.client.describe().skills,tasks:e.tasks,taskState:e.queue?.snapshot()||e.taskState,learning:e.brain?.neural?.snapshot()||null,cognition:e.brain?.cognition?.snapshot()||null,spatial:e.brain?.spatial?.snapshot()||null,recipes:e.client.dataLoaded===false?null:e.client.recipeBook?.snapshot()||null})),log:[...log]});
-  const importSchematic=(name,buffer,filename)=>{const e=entries.get(name);if(!e)throw new Error('Неизвестный агент.');const schematic=parseSchematic(buffer,{filename});e.schematic=schematic;e.schematicOrigin=null;note(name,'schematic',`${schematic.format}: ${schematic.blockCount} блоков`);return {format:schematic.format,blockCount:schematic.blockCount,size:schematic.size,unsupportedStates:schematic.unsupportedStates};};
+  const importSchematic=(name,buffer,filename)=>{const e=entries.get(name);if(!e)throw new Error("Unknown agent.");const schematic=parseSchematic(buffer,{filename});e.schematic=schematic;e.schematicOrigin=null;note(name,'schematic',`${schematic.format}: ${schematic.blockCount} blocks`);return {format:schematic.format,blockCount:schematic.blockCount,size:schematic.size,unsupportedStates:schematic.unsupportedStates};};
   const execute = async(name,command,args={}) => {
-    if(closed)throw new Error('Менеджер закрыт. Создай новый экземпляр.');
-    let e=entries.get(name);if(!e)throw new Error('Неизвестный агент.');
-    if(command==='pause'){await e.brain?.pause();e.client.pending?.abort.abort(new Error('Остановлено в панели.'));await e.client.pending?.promise.catch(()=>{});return snapshot();}
-    if(e.busy)throw new Error('Предыдущее управление ещё выполняется.');e.busy=true;e.error='';
+    if(closed)throw new Error("Manager closed. Create a new instance.");
+    let e=entries.get(name);if(!e)throw new Error("Unknown agent.");
+    if(command==='pause'){await e.brain?.pause();e.client.pending?.abort.abort(new Error("Stopped in the panel."));await e.client.pending?.promise.catch(()=>{});return snapshot();}
+    if(e.busy)throw new Error("Previous management still in place.");e.busy=true;e.error='';
     try {
       await ready;
-      if(closed)throw new Error('Менеджер закрывается.');
+      if(closed)throw new Error("Manager closes.");
       await restore(name,e);
       if(command==='connect') {
         if(e.client.state.status==='disconnected') {
@@ -61,56 +62,57 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
       } else if(command==='disconnect'){await e.brain?.stop();await e.client.close();}
       else if(command==='respawn'){await e.brain?.stop();await e.client.respawn();note(name,'respawn');}
       else if(command==='start'){
-        if(e.client.state.status!=='ready')throw new Error('Сначала подключи или возроди агента.');
+        if(e.client.state.status!=='ready')throw new Error("First, connect or re-enact the agent.");
         if(!e.brain){
           const catalog=e.tasks.length?catalogFromMinecraftData(e.client.registry,{recipeBook:e.client.recipeBook}):null;
           const resourceFactory=targets=>createSurvivalReactor({client:e.client,catalog,targets,priority:20,actionEvidence,spatial:e.brain?.spatial,explorationPlanner:e.brain?.computation});
           e.queue=e.tasks.length?createTaskQueue({tasks:e.tasks,skills:e.client.describe().skills,resume:e.taskState,scenarioFactory:scenario=>createScenario({scenario,catalog,getBlock:p=>e.client.world.blockAt(p),explorationPlanner:e.brain?.computation,resourceFactory,
+            netherFactory:step=>createNetherReactor({client:e.client,catalog,targets:step.targets,resourceFactory,explorationPlanner:e.brain?.computation}),
             navigationFactory:step=>createNavigationGoal({client:e.client,catalog,...step,resourceFactory}),dragonCombat:createDragonPolicy({client:e.client})})}):null;
           const modelOptions=(key,saved)=>brainOptions[key]===false?false:{...brainOptions[key],...(saved?{memory:saved}:{})};
           e.brain=createBrain({...brainOptions,actionEvidence,client:e.client,worldId,spatial:modelOptions('spatial',e.spatialMemory),neural:modelOptions('neural',e.neuralMemory),cognition:modelOptions('cognition',e.cognitionMemory),survival:e.queue?false:brainOptions.survival===false?false:{...brainOptions.survival,target:e.goal,peer:fleet.peers.get(name)},reactors:[...(e.queue?[e.queue.reactor]:[]),...(brainOptions.reactors||[])]});e.queue?.attach(e.brain);
         }
         e.brain.start();
       } else if(command==='settings'){
-        if(typeof args.humanizeMode!=='boolean'||!Number.isInteger(args.viewDistance)||args.viewDistance<2||args.viewDistance>32)throw new Error('Настройки: Humanize boolean и обзор 2–32 чанка.');
+        if(typeof args.humanizeMode!=='boolean'||!Number.isInteger(args.viewDistance)||args.viewDistance<2||args.viewDistance>32)throw new Error("Settings: Humanize boolean and review 2–32 The cup.");
         e.settings={humanizeMode:args.humanizeMode,viewDistance:args.viewDistance};
         e.client.options.humanizeMode=args.humanizeMode;e.client.options.viewDistance=args.viewDistance;
         if(e.client.state.status==='ready'){
           e.client.world.maxChunks=args.viewDistance>16?2048:1024;
           e.client.write('settings',{locale:'ru_ru',viewDistance:args.viewDistance,chatFlags:0,chatColors:true,skinParts:127,mainHand:1,enableTextFiltering:false,enableServerListing:true});
         }
-        await save(name,e);note(name,'settings',`Humanize ${args.humanizeMode?'on':'off'}, обзор ${args.viewDistance} чанков`);
+        await save(name,e);note(name,'settings',`Humanize ${args.humanizeMode?'on':'off'}, Overview ${args.viewDistance} chunks`);
       } else if(command==='buildSchematic'){
-        if(!e.schematic)throw new Error('Сначала загрузи схему через панель.');
-        if(e.client.state.status!=='ready')throw new Error('Агент должен быть в мире.');
+        if(!e.schematic)throw new Error("First, load the circuit over the panel.");
+        if(e.client.state.status!=='ready')throw new Error("The agent should be in the world.");
         await e.brain?.pause();
         const selected=args.origin||e.schematicOrigin||findSchematicSite(e.client,e.schematic,{minDistance:16,maxDistance:128})?.origin;
-        if(!selected)throw new Error('Свободная ровная площадка не найдена в полученных чанках.');
+        if(!selected)throw new Error("Free flat area not found in the cups received.");
         const origin={...selected};
         e.schematicOrigin=origin;
         const build=e.client.state.gameMode==='creative'?buildSchematicPhysical:buildSchematic;
         const result=await build(e.client,e.schematic,origin,{signal:AbortSignal.timeout(180000),maxActions:Math.min(32,Math.max(1,Number(args.maxActions)||16))});
-        note(name,'buildSchematic',`${result.status}: ${result.actions} действий`);return {...result,origin};
+        note(name,'buildSchematic',`${result.status}: ${result.actions} actions`);return {...result,origin};
       } else if(command==='tasks'){
         const tasks=validateTasks(args.tasks,{skills:e.client.describe().skills});
-        await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.tasks=tasks;e.taskState=[];await save(name,e);note(name,'tasks',`Назначено задач: ${tasks.length}`);
+        await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.tasks=tasks;e.taskState=[];await save(name,e);note(name,'tasks',`Objectives: ${tasks.length}`);
       } else if(command==='taskRetry'){
-        await e.brain?.pause();if(!e.queue)throw new Error('Сначала запусти очередь.');e.queue.retry(args.id);await save(name,e);
+        await e.brain?.pause();if(!e.queue)throw new Error("Start the line first.");e.queue.retry(args.id);await save(name,e);
       } else if(command==='goal') {
-        if(!['wood','stone_tools','iron_pickaxe','diamond_set'].includes(args.target))throw new Error('Цель: wood, stone_tools, iron_pickaxe, diamond_set.');
+        if(!['wood','stone_tools','iron_pickaxe','diamond_set'].includes(args.target))throw new Error("Goal: wood, stone_tools, iron_pickaxe, diamond_set.");
         await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.tasks=[];e.taskState=[];e.goal=args.target;await save(name,e);
       } else if(command==='action') {
         await e.brain?.pause();
         return await e.client.execute(args,{priority:500,signal:AbortSignal.timeout(60000)});
       } else if(command==='give'||command==='trade') {
-        const other=entries.get(args.to);if(!other||other===e)throw new Error('Выбери другого получателя.');
-        if(other.busy)throw new Error('Получатель занят.');other.busy=true;
+        const other=entries.get(args.to);if(!other||other===e)throw new Error("Choose another recipient.");
+        if(other.busy)throw new Error("The recipient is busy.");other.busy=true;
         try{
           await e.brain?.pause();await other.brain?.pause();
           const clients=[...entries.values()].map(e=>e.client);
           return command==='give'?await runInteraction({from:e.client,to:other.client,kind:'give',item:args.item,count:args.count??1,peers:fleet.peers}):await runTrade({from:e.client,to:other.client,fromTargets:teamSupplyTargets(e.client,clients,targets(e)),toTargets:teamSupplyTargets(other.client,clients,targets(other)),peers:fleet.peers});
         }finally{other.busy=false;}
-      } else throw new Error('Неизвестная команда управления.');
+      } else throw new Error("Unknown command command.");
       return snapshot();
     } catch(error){e.error=String(error.message);note(name,'error',e.error);throw error;}
     finally{e.busy=false;}
@@ -133,7 +135,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
   },4000);timer.unref();
   const persistence=setInterval(()=>{if(!closed&&memory)for(const [name,e]of entries)if(e.loaded)void save(name,e).catch(error=>note(name,'memory-error',error.message));},15000);persistence.unref();
   const ready=Promise.all([...entries].map(async([name,e])=>{try{await restore(name,e);}catch(error){e.error=String(error.message);note(name,'memory-error',e.error);}}));
-  return {fleet,entries,snapshot,importSchematic,vision(name,options){const e=entries.get(name);if(!e)throw new Error('Неизвестный агент.');return createVisionSnapshot(e.client,options);},execute,ready,close(){
+  return {fleet,entries,snapshot,importSchematic,vision(name,options){const e=entries.get(name);if(!e)throw new Error("Unknown agent.");return createVisionSnapshot(e.client,options);},execute,ready,close(){
     if(!closing){
       closed=true;clearInterval(timer);clearInterval(persistence);
       closing=(async()=>{
@@ -145,7 +147,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
         }
         try{await fleet.close();}catch(error){errors.push(error);}
         try{await memory?.flush();}catch(error){if(!errors.includes(error))errors.push(error);}
-        if(errors.length)throw new AggregateError(errors,'Клиенты закрыты, но завершение работы содержит ошибки.');
+        if(errors.length)throw new AggregateError(errors,"Clients closed, but the work's work is wrong.");
       })();
     }
     return closing;

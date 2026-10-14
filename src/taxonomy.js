@@ -7,7 +7,7 @@ const parents = { logs: ['tree', 'wood'], leaves: ['tree', 'vegetation'], saplin
   workstations: ['interactive'], containers: ['interactive'], liquids: ['hazards'], falling: ['terrain'], rails: ['transport'], redstone: ['interactive'] };
 const rules = [
   ['beds', /_bed$/],
-  ['logs', /(?:_log|_wood|_hyphae)$|^(?:stripped_)?(?:crimson_stem|warped_stem|bamboo_block)$/], ['leaves', /_leaves$/], ['saplings', /(?:_sapling|propagule)$/], ['planks', /_planks$/],
+  ['logs', /(?:_log|_wood|_hyphae)$|^(?:log2?|(?:stripped_)?(?:crimson_stem|warped_stem|bamboo_block))$/], ['leaves', /_leaves$|^leaves2?$/], ['saplings', /(?:_sapling|propagule)$|^sapling$/], ['planks', /_planks$|^planks$/],
   ['ores', /(?:_ore|ancient_debris)$/], ['deepslate_ores', /^deepslate_.*_ore$/], ['stairs', /_stairs$/], ['slabs', /_slab$/],
   ['fences', /_fence(?:_gate)?$/], ['doors', /(?:_door|_trapdoor)$/], ['glass', /glass(?:_pane)?$/], ['wool', /_wool$/],
   ['stone', /^(?:stone|cobblestone|cobbled_deepslate|deepslate|granite|diorite|andesite|tuff|blackstone|basalt|end_stone|netherrack)$/],
@@ -16,6 +16,7 @@ const rules = [
   ['workstations', /^(?:crafting_table|furnace|smoker|blast_furnace|stonecutter|smithing_table|loom|grindstone|brewing_stand|anvil|enchanting_table)$/],
   ['containers', /(?:chest|barrel|shulker_box|hopper)$/], ['liquids', /^(?:water|lava)$/], ['falling', /^(?:sand|red_sand|gravel|.*concrete_powder)$/],
   ['hazards', /^(?:lava|fire|soul_fire|cactus|magma_block|powder_snow|sweet_berry_bush|wither_rose)$/],
+  ['nether_materials',/^(?:soul_sand|soul_soil|glowstone|shroomlight|nether_wart|crimson_fungus|warped_fungus|brown_mushroom|red_mushroom)$/],
   ['rails', /rail$/], ['redstone', /(?:redstone|piston|repeater|comparator|observer|lever|_button|_pressure_plate)/]
 ];
 
@@ -24,17 +25,17 @@ export function createBlockTaxonomy(catalog, { classes = {}, tags = {} } = {}) {
   const definitions = jsonCopy(classes), tagData = jsonCopy(tags), byBlock = new Map(), byClass = new Map();
   const ancestry = { ...parents, ...Object.fromEntries(Object.entries(definitions).map(([k, v]) => [k, v.parents || []])) };
   for (const [name, def] of Object.entries(definitions)) {
-    if (!/^[a-z0-9_:./-]+$/.test(name) || !Array.isArray(def.members || []) || !Array.isArray(def.parents || [])) throw new Error('Класс: нужны имя, members и parents.');
+    if (!/^[a-z0-9_:./-]+$/.test(name) || !Array.isArray(def.members || []) || !Array.isArray(def.parents || [])) throw new Error("Class: Need a name, members and parents.");
   }
   const expand = (name, stack = []) => {
-    if (stack.includes(name) || stack.length > 32) throw new Error(`Цикл классов: ${name}`);
+    if (stack.includes(name) || stack.length > 32) throw new Error(`Class cycle: ${name}`);
     return [name, ...(ancestry[name] || []).flatMap(p => expand(p, [...stack, name]))];
   };
   Object.keys(ancestry).forEach(n => expand(n));
   const resolveTag = (name, stack = []) => {
-    if (stack.includes(name) || stack.length > 32) throw new Error(`Цикл тегов блоков: ${name}`);
+    if (stack.includes(name) || stack.length > 32) throw new Error(`Block tag cycle: ${name}`);
     const values = tagData[name]?.values || tagData[name];
-    if (!Array.isArray(values)) throw new Error(`Неизвестный тег блоков: ${name}`);
+    if (!Array.isArray(values)) throw new Error(`Unknown tag blocks: ${name}`);
     return values.flatMap(v => {
       const id = typeof v === 'string' ? v : v.id;
       if (id.startsWith('#')) {
@@ -46,7 +47,7 @@ export function createBlockTaxonomy(catalog, { classes = {}, tags = {} } = {}) {
     });
   };
   const extra = new Map();
-  const add = (block, name) => { const id = resourceId(block); if (!catalog.block(id)) throw new Error(`Класс ссылается на неизвестный блок ${id}.`); if (!extra.has(id)) extra.set(id, []); extra.get(id).push(name); };
+  const add = (block, name) => { const id = resourceId(block); if (!catalog.block(id)) throw new Error(`Class refers to unknown block ${id}.`); if (!extra.has(id)) extra.set(id, []); extra.get(id).push(name); };
   for (const [name, def] of Object.entries(definitions)) for (const b of def.members || []) add(b, name);
   for (const name of Object.keys(tagData)) for (const b of resolveTag(name)) if (catalog.block(b)) add(b, `tag:${name}`);
   for (const block of catalog.blocks()) {
@@ -63,13 +64,13 @@ export function createBlockTaxonomy(catalog, { classes = {}, tags = {} } = {}) {
 
 /** Conservative base drops for resource planning. Probabilistic leaves/crop drops need dedicated skills. */
 export function resourceSources(catalog, { availableBlocks, taxonomy = createBlockTaxonomy(catalog) } = {}) {
-  if (!Array.isArray(availableBlocks)) throw new Error('Передай наблюдаемые availableBlocks.');
+  if (!Array.isArray(availableBlocks)) throw new Error("Pass the observations availableBlocks.");
   return [...new Set(availableBlocks.map(resourceId))].flatMap(id => {
     const b = catalog.block(id); if (!b || b.diggable === false) return [];
-    if (id !== 'minecraft:obsidian' && !['logs', 'ores', 'stone', 'planks'].some(c => taxonomy.has(id, c))) return [];
+    if (id !== 'minecraft:obsidian' && !['logs', 'ores', 'stone', 'planks','nether_materials'].some(c => taxonomy.has(id, c))) return [];
     // These names have deterministic minimum drops without Silk Touch or Fortune.
     const n = id.split(':')[1], ore = n.replace(/^deepslate_/, '');
-    const outputs = { iron_ore: 'raw_iron', gold_ore: 'raw_gold', copper_ore: 'raw_copper', coal_ore: 'coal', diamond_ore: 'diamond', emerald_ore: 'emerald', redstone_ore: 'redstone', lapis_ore: 'lapis_lazuli', nether_quartz_ore: 'quartz', nether_gold_ore: 'gold_nugget', stone: 'cobblestone', deepslate: 'cobbled_deepslate' };
+    const outputs = { iron_ore: 'raw_iron', gold_ore: 'raw_gold', copper_ore: 'raw_copper', coal_ore: 'coal', diamond_ore: 'diamond', emerald_ore: 'emerald', redstone_ore: 'redstone', lapis_ore: 'lapis_lazuli', nether_quartz_ore: 'quartz', nether_gold_ore: 'gold_nugget',glowstone:'glowstone_dust', stone: 'cobblestone', deepslate: 'cobbled_deepslate' };
     const item = id.startsWith('minecraft:') ? resourceId(outputs[ore] || n) : b.drops?.length === 1 ? b.drops[0] : null;
     return item && catalog.item(item) ? [{ item, block: id, tools: [...(b.harvestTools || [])] }] : [];
   });

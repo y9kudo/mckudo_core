@@ -7,116 +7,116 @@ const fail = (path, text) => { throw new ConfigError(path, text); };
 export function jsonCopy(value, path = '$', maxBytes = 262144) {
   const seen = new Set();
   function check(v, p, depth) {
-    if (depth > 20) fail(p, 'слишком большая вложенность JSON');
+    if (depth > 20) fail(p, "JSON nesting exceeds the allowed depth");
     if (v === null || typeof v === 'string' || typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))) return;
-    if (!Array.isArray(v) && !object(v)) fail(p, 'нужно обычное JSON-значение, без функций и объектов классов');
-    if (seen.has(v)) fail(p, 'циклический JSON');
+    if (!Array.isArray(v) && !object(v)) fail(p, "You need the usual JSON-value, without function or class objects");
+    if (seen.has(v)) fail(p, "cyclic JSON");
     seen.add(v);
     for (const [k, child] of Object.entries(v)) {
-      if (['__proto__', 'prototype', 'constructor'].includes(k)) fail(p + '.' + k, 'зарезервированное имя');
+      if (['__proto__', 'prototype', 'constructor'].includes(k)) fail(p + '.' + k, "reserved name");
       check(child, p + '.' + k, depth + 1);
     }
     seen.delete(v);
   }
   check(value, path, 0);
   const text = JSON.stringify(value);
-  if (Buffer.byteLength(text) > maxBytes) fail(path, 'JSON превышает допустимый размер');
+  if (Buffer.byteLength(text) > maxBytes) fail(path, "JSON exceeds permissible size");
   return JSON.parse(text);
 }
 function keys(value, allowed, path) {
-  if (!object(value)) fail(path, 'нужен объект {...}');
-  for (const k of Object.keys(value)) if (!allowed.includes(k)) fail(`${path}.${k}`, 'неизвестное поле; проверь написание');
+  if (!object(value)) fail(path, "an object is required {...}");
+  for (const k of Object.keys(value)) if (!allowed.includes(k)) fail(`${path}.${k}`, "unknown field; Check the writing");
 }
-function integer(n, min, max, path) { if (!Number.isInteger(n) || n < min || n > max) fail(path, `нужно целое число ${min}–${max}`); }
+function integer(n, min, max, path) { if (!Number.isInteger(n) || n < min || n > max) fail(path, `I need a whole number ${min}–${max}`); }
 export function validateCondition(c, path, depth = 0) {
-  if (depth > 8) fail(path, 'условие вложено глубже 8 уровней');
-  if (!object(c)) fail(path, 'нужно условие {...}');
+  if (depth > 8) fail(path, "condition nesting exceeds 8 levels");
+  if (!object(c)) fail(path, "I need a condition {...}");
   if ('all' in c || 'any' in c) {
     const op = 'all' in c ? 'all' : 'any'; keys(c, [op], path);
-    if (!Array.isArray(c[op]) || c[op].length < 1 || c[op].length > 16) fail(path + '.' + op, 'нужно 1–16 условий');
+    if (!Array.isArray(c[op]) || c[op].length < 1 || c[op].length > 16) fail(path + '.' + op, "requires 1–16 conditions");
     c[op].forEach((v, i) => validateCondition(v, `${path}.${op}[${i}]`, depth + 1)); return;
   }
   if ('not' in c) { keys(c, ['not'], path); validateCondition(c.not, path + '.not', depth + 1); return; }
   const operators = ['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'exists'];
   keys(c, ['fact', ...operators], path);
-  if (typeof c.fact !== 'string' || !/^\/(?:[^~]|~[01])*$/.test(c.fact) || c.fact.length > 200) fail(path + '.fact', 'нужен путь JSON Pointer, например /self/food');
+  if (typeof c.fact !== 'string' || !/^\/(?:[^~]|~[01])*$/.test(c.fact) || c.fact.length > 200) fail(path + '.fact', "I need a way JSON Pointer, for example /self/food");
   const op = operators.filter(k => Object.hasOwn(c, k));
-  if (op.length !== 1) fail(path, 'укажи ровно одно сравнение: eq, ne, lt, lte, gt, gte или exists');
-  if (op[0] === 'exists') { if (typeof c.exists !== 'boolean') fail(path + '.exists', 'нужно true или false'); }
-  else if (['lt', 'lte', 'gt', 'gte'].includes(op[0])) { if (typeof c[op[0]] !== 'number' || !Number.isFinite(c[op[0]])) fail(path + '.' + op[0], 'нужно число'); }
-  else if (c[op[0]] !== null && !['string', 'boolean', 'number'].includes(typeof c[op[0]])) fail(path, 'eq/ne сравнивают строку, число, boolean или null');
+  if (op.length !== 1) fail(path, "Give me one exact comparison: eq, ne, lt, lte, gt, gte or exists");
+  if (op[0] === 'exists') { if (typeof c.exists !== 'boolean') fail(path + '.exists', "requires true or false"); }
+  else if (['lt', 'lte', 'gt', 'gte'].includes(op[0])) { if (typeof c[op[0]] !== 'number' || !Number.isFinite(c[op[0]])) fail(path + '.' + op[0], "I need a number"); }
+  else if (c[op[0]] !== null && !['string', 'boolean', 'number'].includes(typeof c[op[0]])) fail(path, "eq/ne comparing the row, number, boolean or null");
 }
 export function validateConfig(input) {
   const c = jsonCopy(input);
   keys(c, ['$schema', 'schemaVersion', 'name', 'worldId', 'tickIntervalMs', 'actionTimeoutMs', 'failureBackoffMs', 'maxHistory', 'rules', 'workflows', 'goals'], '$');
-  if (c.$schema !== undefined && typeof c.$schema !== 'string') fail('$.$schema', 'нужна строка с адресом схемы');
-  if (![1, 2, 3, 4].includes(c.schemaVersion)) fail('$.schemaVersion', 'поддерживаются версии 1–4');
-  if (c.schemaVersion < 3 && c.goals !== undefined && (!Array.isArray(c.goals) || c.goals.length)) fail('$.goals', 'для целей нужен schemaVersion: 3');
-  if (c.schemaVersion === 1 && c.workflows !== undefined && (!Array.isArray(c.workflows) || c.workflows.length)) fail('$.workflows', 'для многошаговых задач укажи schemaVersion: 2');
-  if (typeof c.name !== 'string' || !c.name.trim() || c.name.length > 64) fail('$.name', 'нужно имя, 1–64 символа');
-  if (typeof c.worldId !== 'string' || !c.worldId.trim() || c.worldId.length > 128) fail('$.worldId', 'назови мир, например local-test');
+  if (c.$schema !== undefined && typeof c.$schema !== 'string') fail('$.$schema', "You need a line with the diagram address");
+  if (![1, 2, 3, 4].includes(c.schemaVersion)) fail('$.schemaVersion', "Supported by version 1–4");
+  if (c.schemaVersion < 3 && c.goals !== undefined && (!Array.isArray(c.goals) || c.goals.length)) fail('$.goals', "for purposes schemaVersion: 3");
+  if (c.schemaVersion === 1 && c.workflows !== undefined && (!Array.isArray(c.workflows) || c.workflows.length)) fail('$.workflows', "for multiple-step tasks, point schemaVersion: 2");
+  if (typeof c.name !== 'string' || !c.name.trim() || c.name.length > 64) fail('$.name', "I need a name, 1–64 Symbol");
+  if (typeof c.worldId !== 'string' || !c.worldId.trim() || c.worldId.length > 128) fail('$.worldId', "Name the world, for example local-test");
   c.tickIntervalMs ??= 1000; c.actionTimeoutMs ??= 15000; c.failureBackoffMs ??= 5000; c.maxHistory ??= 50;
   integer(c.tickIntervalMs, 50, 60000, '$.tickIntervalMs'); integer(c.actionTimeoutMs, 100, 300000, '$.actionTimeoutMs');
   integer(c.failureBackoffMs, 100, 300000, '$.failureBackoffMs'); integer(c.maxHistory, 1, 200, '$.maxHistory');
   if (c.schemaVersion >= 2) c.rules ??= [];
-  if (!Array.isArray(c.rules) || c.rules.length < (c.schemaVersion === 1 ? 1 : 0) || c.rules.length > 64) fail('$.rules', 'нужен список, максимум 64 правила');
+  if (!Array.isArray(c.rules) || c.rules.length < (c.schemaVersion === 1 ? 1 : 0) || c.rules.length > 64) fail('$.rules', "a list is required, maximum 64 Rules");
   const names = new Set();
   c.rules.forEach((r, i) => {
     const p = `$.rules[${i}]`; keys(r, ['id', 'priority', 'description', 'when', 'action'], p);
-    if (!id(r.id) || names.has(r.id)) fail(p + '.id', 'нужен уникальный идентификатор правила'); names.add(r.id);
+    if (!id(r.id) || names.has(r.id)) fail(p + '.id', "Need a unique rule identifier"); names.add(r.id);
     r.priority ??= 0; integer(r.priority, -1000, 1000, p + '.priority');
-    if (r.description !== undefined && (typeof r.description !== 'string' || r.description.length > 300)) fail(p + '.description', 'максимум 300 символов');
+    if (r.description !== undefined && (typeof r.description !== 'string' || r.description.length > 300)) fail(p + '.description', "maximum 300 characters");
     if (r.when !== undefined) validateCondition(r.when, p + '.when');
     keys(r.action, ['skill', 'args'], p + '.action');
-    if (!id(r.action.skill)) fail(p + '.action.skill', 'нужно имя навыка');
-    r.action.args ??= {}; if (!object(r.action.args)) fail(p + '.action.args', 'нужен объект аргументов');
+    if (!id(r.action.skill)) fail(p + '.action.skill', "a skill name is required");
+    r.action.args ??= {}; if (!object(r.action.args)) fail(p + '.action.args', "I need a point of argument");
   });
   c.workflows ??= [];
-  if (!Array.isArray(c.workflows) || c.workflows.length > 16) fail('$.workflows', 'нужен список, максимум 16 задач');
+  if (!Array.isArray(c.workflows) || c.workflows.length > 16) fail('$.workflows', "a list is required, maximum 16 tasks");
   if (c.goals === undefined) c.goals = [];
-  if (!Array.isArray(c.goals) || c.goals.length > 16) fail('$.goals', 'нужно до 16 целей');
+  if (!Array.isArray(c.goals) || c.goals.length > 16) fail('$.goals', "I'll have to go to 16 goals");
   const goalNames = new Set();
   c.goals.forEach((g, i) => {
     const p = `$.goals[${i}]`; keys(g, ['id', 'priority', 'description', 'desired', 'maxActions'], p);
-    if (!id(g.id) || goalNames.has(g.id)) fail(p + '.id', 'нужен уникальный id цели'); goalNames.add(g.id);
+    if (!id(g.id) || goalNames.has(g.id)) fail(p + '.id', "You need a unique one id objectives"); goalNames.add(g.id);
     if (g.priority === undefined) g.priority = 0;
     if (g.maxActions === undefined) g.maxActions = 64;
     integer(g.priority, -1000, 1000, p + '.priority'); integer(g.maxActions, 1, 256, p + '.maxActions');
-    if (g.description !== undefined && (typeof g.description !== 'string' || g.description.length > 300)) fail(p + '.description', 'максимум 300 символов');
+    if (g.description !== undefined && (typeof g.description !== 'string' || g.description.length > 300)) fail(p + '.description', "maximum 300 characters");
     validateCondition(g.desired, p + '.desired');
   });
-  if (c.schemaVersion < 4 && !c.rules.length && !c.workflows.length && !c.goals.length) fail('$', 'добавь хотя бы одно правило, задачу или цель');
+  if (c.schemaVersion < 4 && !c.rules.length && !c.workflows.length && !c.goals.length) fail('$', "add at least one rule, Objective or purpose");
   const workflowNames = new Set(); let totalSteps = 0;
   c.workflows.forEach((w, wi) => {
     const p = `$.workflows[${wi}]`; keys(w, ['id', 'priority', 'description', 'when', 'steps'], p);
-    if (!id(w.id) || workflowNames.has(w.id)) fail(p + '.id', 'нужен уникальный идентификатор задачи'); workflowNames.add(w.id);
+    if (!id(w.id) || workflowNames.has(w.id)) fail(p + '.id', "Need a unique task identifier"); workflowNames.add(w.id);
     w.priority ??= 0; integer(w.priority, -1000, 1000, p + '.priority');
-    if (w.description !== undefined && (typeof w.description !== 'string' || w.description.length > 300)) fail(p + '.description', 'максимум 300 символов');
+    if (w.description !== undefined && (typeof w.description !== 'string' || w.description.length > 300)) fail(p + '.description', "maximum 300 characters");
     if (w.when !== undefined) validateCondition(w.when, p + '.when');
-    if (!Array.isArray(w.steps) || w.steps.length < 1 || w.steps.length > 64) fail(p + '.steps', 'нужно 1–64 шага');
+    if (!Array.isArray(w.steps) || w.steps.length < 1 || w.steps.length > 64) fail(p + '.steps', "requires 1–64 steps");
     totalSteps += w.steps.length;
     const stepNames = new Set();
     w.steps.forEach((s, si) => {
       const sp = `${p}.steps[${si}]`; keys(s, ['id', 'dependsOn', 'action', 'until', 'maxAttempts', 'retryDelayMs'], sp);
-      if (!id(s.id) || stepNames.has(s.id)) fail(sp + '.id', 'нужен уникальный идентификатор шага'); stepNames.add(s.id);
+      if (!id(s.id) || stepNames.has(s.id)) fail(sp + '.id', "Need a unique step identifier"); stepNames.add(s.id);
       s.dependsOn ??= si ? [w.steps[si - 1].id] : [];
-      if (!Array.isArray(s.dependsOn) || !s.dependsOn.every(id) || new Set(s.dependsOn).size !== s.dependsOn.length) fail(sp + '.dependsOn', 'нужен список уникальных ID шагов');
+      if (!Array.isArray(s.dependsOn) || !s.dependsOn.every(id) || new Set(s.dependsOn).size !== s.dependsOn.length) fail(sp + '.dependsOn', "I need a list of unique things ID Steps");
       keys(s.action, ['skill', 'args'], sp + '.action');
-      if (!id(s.action.skill)) fail(sp + '.action.skill', 'нужно имя навыка');
-      s.action.args ??= {}; if (!object(s.action.args)) fail(sp + '.action.args', 'нужен объект');
+      if (!id(s.action.skill)) fail(sp + '.action.skill', "a skill name is required");
+      s.action.args ??= {}; if (!object(s.action.args)) fail(sp + '.action.args', "an object is required");
       if (s.until !== undefined) validateCondition(s.until, sp + '.until');
       s.maxAttempts ??= 32; s.retryDelayMs ??= c.failureBackoffMs;
       integer(s.maxAttempts, 1, 1000, sp + '.maxAttempts'); integer(s.retryDelayMs, 100, 300000, sp + '.retryDelayMs');
     });
     const graph = new Map(w.steps.map(s => [s.id, s.dependsOn])), visiting = new Set(), done = new Set();
     const visit = name => {
-      if (!graph.has(name)) fail(p + '.steps', `зависимость ${name} не существует`);
-      if (visiting.has(name)) fail(p + '.steps', `цикл зависимостей около ${name}`);
+      if (!graph.has(name)) fail(p + '.steps', `Dependency ${name} does not exist`);
+      if (visiting.has(name)) fail(p + '.steps', `About the cycle of dependence ${name}`);
       if (done.has(name)) return;
       visiting.add(name); for (const dep of graph.get(name)) visit(dep); visiting.delete(name); done.add(name);
     };
     for (const s of w.steps) visit(s.id);
   });
-  if (totalSteps > 256) fail('$.workflows', 'максимум 256 шагов на агента');
+  if (totalSteps > 256) fail('$.workflows', "maximum 256 Step on agent");
   return c;
 }

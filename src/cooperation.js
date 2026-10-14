@@ -37,7 +37,7 @@ export function proposeTeamTransfer({clients,targets=()=>({}),maxDistance=16}={}
 
 /** Bounded, acknowledged physical transfers. Stop on partial delivery, never replay it. */
 export async function shareTeamSupplies({clients,targets,peers,signal,maxTransfers=12,deliver}={}){
-  if(!Array.isArray(clients)||clients.length<2||clients.length>20||!Number.isInteger(maxTransfers)||maxTransfers<1||maxTransfers>64)throw new Error('Обмен команды: 2–20 клиентов, maxTransfers 1–64.');
+  if(!Array.isArray(clients)||clients.length<2||clients.length>20||!Number.isInteger(maxTransfers)||maxTransfers<1||maxTransfers>64)throw new Error("Command Exchange: 2–20 Clients, maxTransfers 1–64.");
   const transfers=[];
   for(let i=0;i<maxTransfers;i++){
     signal?.throwIfAborted();const next=proposeTeamTransfer({clients,targets});
@@ -51,12 +51,12 @@ export async function shareTeamSupplies({clients,targets,peers,signal,maxTransfe
 
 /** Each member acquires only its deficit; shared chests are accessed sequentially. */
 export async function distributeStorageSupplies({clients,requests,radius=64,signal}={}){
-  if(!Array.isArray(clients)||clients.length<1||clients.length>20||typeof requests!=='function')throw new Error('Распределение припасов: 1–20 клиентов и requests(client).');
+  if(!Array.isArray(clients)||clients.length<1||clients.length>20||typeof requests!=='function')throw new Error("Distribution of supplies: 1–20 clients and requests(client).");
   const receipts=[],missing={},errors=[];
   for(const client of clients){
     signal?.throwIfAborted();
     const wanted=requests(client);
-    if(!wanted||typeof wanted!=='object'||Array.isArray(wanted)||Object.entries(wanted).some(([item,count])=>! /^(?:minecraft:)?[a-z0-9_]+$/.test(item)||!Number.isInteger(count)||count<0||count>4096))throw new Error('requests: карта предметов и количества 0–4096.');
+    if(!wanted||typeof wanted!=='object'||Array.isArray(wanted)||Object.entries(wanted).some(([item,count])=>! /^(?:minecraft:)?[a-z0-9_]+$/.test(item)||!Number.isInteger(count)||count<0||count>4096))throw new Error("requests: map of items and quantities 0–4096.");
     const deficit=Object.fromEntries(Object.entries(wanted).map(([item,count])=>[item.replace(/^minecraft:/,''),Math.max(0,count-client.inventory.ownedCount(item))]).filter(([,count])=>count));
     if(!Object.keys(deficit).length)continue;
     const found=await client.findStorages({radius,count:32,signal});

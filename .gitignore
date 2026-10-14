@@ -8,6 +8,9 @@ data/
 coverage/
 /dist/
 .cache/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
 
 # Local runs and scratch files are not release sources.
 bot-log.txt

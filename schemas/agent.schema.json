@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "MCKudo · поведение агента",
+  "title": "OvermindMC · Agent conduct",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -25,20 +25,20 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 64,
-      "description": "Имя агента в ядре. Ник Minecraft задаёт адаптер."
+      "description": "Name of agent in the kernel. Nick Minecraft it's the adapter."
     },
     "worldId": {
       "type": "string",
       "minLength": 1,
       "maxLength": 128,
-      "description": "Отдельное имя памяти для каждого мира."
+      "description": "A unique memory name for every world."
     },
     "tickIntervalMs": {
       "type": "integer",
       "minimum": 50,
       "maximum": 60000,
       "default": 1000,
-      "description": "Пауза между завершёнными шагами, миллисекунды."
+      "description": "Pause between completed steps, milliseconds."
     },
     "actionTimeoutMs": {
       "type": "integer",
@@ -78,7 +78,7 @@
             "minimum": -1000,
             "maximum": 1000,
             "default": 0,
-            "description": "Чем больше число, тем раньше выполняется правило."
+            "description": "The more the number, the sooner the rule is implemented."
           },
           "description": {
             "type": "string",
@@ -254,7 +254,7 @@
               "type": "string",
               "pattern": "^/(?:[^~]|~[01])*$",
               "maxLength": 200,
-              "description": "Например /self/food или /inventory/minecraft:oak_log."
+              "description": "For example /self/food or /inventory/minecraft:oak_log."
             },
             "eq": {
               "type": [
@@ -309,7 +309,7 @@
           "items": {
             "$ref": "#/$defs/id"
           },
-          "description": "Если поле пропущено — зависимость от предыдущего шага. [] означает независимый шаг."
+          "description": "If field missed — Dependency on the previous step. [] means an independent step."
         },
         "action": {
           "type": "object",
@@ -329,7 +329,7 @@
         },
         "until": {
           "$ref": "#/$defs/condition",
-          "description": "Факт, подтверждающий достижение результата шага."
+          "description": "Fact, a confirmation step."
         },
         "maxAttempts": {
           "type": "integer",

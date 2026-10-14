@@ -41,11 +41,11 @@ export function createEndgameExecutor(bot, { goals, check }) {
     while (Date.now() < end) { check(signal); if (predicate()) return; await delay(50, undefined, { signal }); }
     throw new Error(message);
   };
-  const equip = async (name, signal) => { const item = bot.inventory.items().find(i => i.name === name); if (!item) throw new Error(`Нужен ${name}.`); await bot.equip(item, 'hand'); check(signal); };
-  const coords = p => { if (!p || !['x', 'y', 'z'].every(k => Number.isInteger(p[k]) && Math.abs(p[k]) <= 30000000)) throw new Error('Нужны целые координаты блока.'); return vector(p); };
+  const equip = async (name, signal) => { const item = bot.inventory.items().find(i => i.name === name); if (!item) throw new Error(`Requires ${name}.`); await bot.equip(item, 'hand'); check(signal); };
+  const coords = p => { if (!p || !['x', 'y', 'z'].every(k => Number.isInteger(p[k]) && Math.abs(p[k]) <= 30000000)) throw new Error("Need the whole coordinates of the block."); return vector(p); };
   const blockAction = async (p, expected, item, signal) => {
     await bot.pathfinder.goto(new goals.GoalLookAtBlock(p, bot.world)); check(signal);
-    const b = bot.blockAt(p); if (b?.name !== expected) throw new Error('Целевой блок изменился.');
+    const b = bot.blockAt(p); if (b?.name !== expected) throw new Error("Target block changed.");
     await equip(item, signal); await bot.activateBlock(b); check(signal);
   };
   return {
@@ -60,32 +60,32 @@ export function createEndgameExecutor(bot, { goals, check }) {
     dispose() { bot.removeListener?.('entitySpawn', spawn); bot.removeListener?.('entityMoved', remember); bot.removeListener?.('entityGone', gone); bot.removeListener?.('entityDead', dead); bot.removeListener?.('entityHurt', hurt); bot._client?.removeListener('explosion', explosion); },
     async execute(skill, args, signal) {
       if (skill === 'ignitePortal') {
-        if (!['minecraft:overworld', 'minecraft:the_nether'].includes(dimension())) throw new Error('В этом измерении нельзя активировать Nether-портал.');
+        if (!['minecraft:overworld', 'minecraft:the_nether'].includes(dimension())) throw new Error("In this dimension, cannot be activated Nether-portal.");
         const b = createNetherPortalBlueprint(args);
         const frame = () => b.cells.every(c => bot.blockAt(vector(c))?.name === 'obsidian');
-        if (!frame() || !b.air.every(c => ['air', 'cave_air', 'nether_portal'].includes(bot.blockAt(vector(c))?.name))) throw new Error('Нет полной наблюдаемой рамы или проём занят.');
+        if (!frame() || !b.air.every(c => ['air', 'cave_air', 'nether_portal'].includes(bot.blockAt(vector(c))?.name))) throw new Error("No complete monitored frame or gap occupied.");
         const base = vector(b.air[0]).offset(0, -1, 0);
         await bot.pathfinder.goto(new goals.GoalLookAtBlock(base, bot.world)); check(signal);
-        if (!frame()) throw new Error('Рама изменилась.');
+        if (!frame()) throw new Error("The frame has changed.");
         await equip('flint_and_steel', signal); await bot.activateBlock(bot.blockAt(base));
-        await waitUntil(() => b.air.every(c => bot.blockAt(vector(c))?.name === 'nether_portal'), 3000, signal, 'Сервер не подтвердил активный портал.');
+        await waitUntil(() => b.air.every(c => bot.blockAt(vector(c))?.name === 'nether_portal'), 3000, signal, "The server did not confirm the active portal.");
       } else if (skill === 'fillEndFrame') {
         const p = coords(args);
-        if (dimension() !== 'minecraft:overworld') throw new Error('Рамка ожидается в overworld.');
+        if (dimension() !== 'minecraft:overworld') throw new Error("Box expected in overworld.");
         if (bot.blockAt(p)?.getProperties?.().eye === true) return { ok: true, alreadyFilled: true };
         await blockAction(p, 'end_portal_frame', 'ender_eye', signal);
-        await waitUntil(() => bot.blockAt(p)?.name === 'end_portal_frame' && bot.blockAt(p).getProperties().eye === true, 2000, signal, 'Око в рамке не подтверждено.');
+        await waitUntil(() => bot.blockAt(p)?.name === 'end_portal_frame' && bot.blockAt(p).getProperties().eye === true, 2000, signal, "Eye in frame not confirmed.");
       } else if (skill === 'enterPortal') {
         const p = coords(args), before = dimension(), block = bot.blockAt(p);
-        if (!['nether_portal', 'end_portal'].includes(block?.name)) throw new Error('Входить можно только в наблюдаемый активный портал.');
+        if (!['nether_portal', 'end_portal'].includes(block?.name)) throw new Error("Only a visible active portal can be entered.");
         const expected = block.name === 'end_portal' ? 'minecraft:the_end' : before === 'minecraft:the_nether' ? 'minecraft:overworld' : 'minecraft:the_nether';
-        if (args.dimension && args.dimension !== expected) throw new Error('Портал ведёт в другое измерение.');
+        if (args.dimension && args.dimension !== expected) throw new Error("The portal leads to another dimension.");
         bot.pathfinder.setGoal(new goals.GoalNear(p.x, p.y, p.z, 0));
-        try { await waitUntil(() => dimension() === expected, 20000, signal, 'Переход между измерениями не подтверждён.'); }
+        try { await waitUntil(() => dimension() === expected, 20000, signal, "The transition between dimensions is not confirmed."); }
         finally { bot.pathfinder.setGoal(null); bot.clearControlStates(); }
       } else if (skill === 'throwEye') {
-        if (dimension() !== 'minecraft:overworld') throw new Error('Око бросают в overworld.');
-        if (Object.values(bot.entities).some(e => e !== bot.entity && e.type === 'player' && e.position.distanceTo(bot.entity.position) < 16)) throw new Error('Рядом другой игрок: нельзя надёжно приписать полёт ока этому агенту.');
+        if (dimension() !== 'minecraft:overworld') throw new Error("The window is thrown into overworld.");
+        if (Object.values(bot.entities).some(e => e !== bot.entity && e.type === 'player' && e.position.distanceTo(bot.entity.position) < 16)) throw new Error("Other player nearby: You can't safely attribute the flight of the eye to this agent.");
         const existing = new Set(Object.keys(bot.entities)), launched = pos(bot.entity.position), before = count('ender_eye');
         await equip('ender_eye', signal); await bot.look(bot.entity.yaw, 0, true); check(signal); bot.activateItem();
         let eye, ambiguous = false; const samples = [];
@@ -94,28 +94,28 @@ export function createEndgameExecutor(bot, { goals, check }) {
             const candidates = Object.values(bot.entities).filter(e => e.name === 'eye_of_ender' && !existing.has(String(e.id)) && e.position.distanceTo(vector(launched)) < 16);
             if (candidates.length > 1) { ambiguous = true; return true; }
             eye = candidates[0]; return Boolean(eye);
-          }, 2000, signal, 'Не появился наблюдаемый полёт ока.');
-          if (ambiguous) throw new Error('Наблюдаются несколько новых глаз: бросок неоднозначен.');
+          }, 2000, signal, "No observed eye flight.");
+          if (ambiguous) throw new Error("Several new eyes are observed: The throw is not single.");
           const end = Date.now() + 2200;
           while (Date.now() < end && bot.entities[eye.id] === eye) { check(signal); samples.push(pos(eye.position)); await delay(50, undefined, { signal }); }
-          if (samples.length < 3 || count('ender_eye') >= before) throw new Error('Не подтверждены расход ока и его траектория в survival.');
+          if (samples.length < 3 || count('ender_eye') >= before) throw new Error("Unproven eye flow and trajectory in survival.");
           const origin = samples[0], endpoint = samples.reduce((best, p) => Math.hypot(p.x - origin.x, p.z - origin.z) > Math.hypot(best.x - origin.x, best.z - origin.z) ? p : best, origin);
           const record = { dimension: dimension(), origin, end: endpoint, launched, at: Date.now() }; eyes.push(record); if (eyes.length > 32) eyes.shift();
           return { ok: true, flight: record };
         } finally { bot.deactivateItem(); }
       } else if (skill === 'shoot') {
         const target = bot.entities[args.entityId];
-        if (!target || target.type === 'player' || !['end_crystal', 'ender_dragon', 'blaze', 'ghast'].includes(target.name)) throw new Error('Нет разрешённой цели для лука.');
-        if (target.name === 'end_crystal' && target.position.distanceTo(bot.entity.position) < 12) throw new Error('Слишком близко к взрыву кристалла.');
-        if (target.name === 'ender_dragon' && [5, 6, 7].includes(entityMeta(bot, target, 'phase'))) throw new Error('Дракон сидит: сейчас стрелы не подходят.');
-        if (!count('arrow')) throw new Error('Нужны стрелы.');
+        if (!target || target.type === 'player' || !['end_crystal', 'ender_dragon', 'blaze', 'ghast'].includes(target.name)) throw new Error("No authorized target for bow.");
+        if (target.name === 'end_crystal' && target.position.distanceTo(bot.entity.position) < 12) throw new Error("Too close to the crystal explosion.");
+        if (target.name === 'ender_dragon' && [5, 6, 7].includes(entityMeta(bot, target, 'phase'))) throw new Error("Dragon is perching: The arrows aren't right now.");
+        if (!count('arrow')) throw new Error("Need arrows.");
         await equip('bow', signal);
         bot.pathfinder.setGoal(null); bot.clearControlStates(); bot.activateItem(); bowDrawing = true;
         try {
           await delay(1100, undefined, { signal }); check(signal);
-          if (bot.entities[args.entityId] !== target) throw new Error('Цель исчезла во время натяжения.');
-          if (target.name === 'end_crystal' && target.position.distanceTo(bot.entity.position) < 12) throw new Error('Опасная близость к кристаллу перед выстрелом.');
-          if (target.name === 'ender_dragon' && [5, 6, 7].includes(entityMeta(bot, target, 'phase'))) throw new Error('Дракон сел во время натяжения.');
+          if (bot.entities[args.entityId] !== target) throw new Error("Target disappeared during tension.");
+          if (target.name === 'end_crystal' && target.position.distanceTo(bot.entity.position) < 12) throw new Error("Dangerous proximity to crystal before firing.");
+          if (target.name === 'ender_dragon' && [5, 6, 7].includes(entityMeta(bot, target, 'phase'))) throw new Error("The dragon sat during the tension.");
           const origin = bot.entity.position.offset(0, 1.62, 0), aimAt = target.position.offset(0, target.name === 'ender_dragon' ? 1 : 0.5, 0);
           const first = aimBow({ origin, target: aimAt });
           if (first.status !== 'aimed') throw new Error(first.reason);
@@ -124,43 +124,43 @@ export function createEndgameExecutor(bot, { goals, check }) {
           const aim = aimBow({ origin, target: predicted }); if (aim.status !== 'aimed') throw new Error(aim.reason);
           for (let i = 1; i < aim.path.length; i++) {
             const start = vector(aim.path[i - 1]), delta = vector(aim.path[i]).minus(start), length = delta.norm();
-            if (!bot.blockAt(vector(aim.path[i]))) throw new Error('Траектория выходит в незагруженные блоки.');
-            if (length > 0 && bot.world.raycast(start, delta.scaled(1 / length), length)) throw new Error('Траектория перекрыта блоком: нужна другая позиция или разбор решётки.');
+            if (!bot.blockAt(vector(aim.path[i]))) throw new Error("The trajectory goes into unladen blocks.");
+            if (length > 0 && bot.world.raycast(start, delta.scaled(1 / length), length)) throw new Error("The trajectory is blocked by a block: Need another position or a breakout.");
           }
           await bot.look(aim.yaw, aim.pitch, true); check(signal);
           const arrows = count('arrow'); bowDrawing = false; bot.deactivateItem();
-          await waitUntil(() => count('arrow') < arrows, 2000, signal, 'Расход стрелы не подтверждён.');
+          await waitUntil(() => count('arrow') < arrows, 2000, signal, "Arrow flow not confirmed.");
           // Launch is not a hit. Crystal explosions / dragon death are tracked separately.
           return { ok: true, launched: true, predictedFlightTicks: aim.ticks };
         } finally { cancelBow(); }
       } else if (skill === 'breakBlock') {
         const p = coords(args);
-        if (!['minecraft:iron_bars', 'minecraft:stone', 'minecraft:deepslate', 'minecraft:stone_bricks', 'minecraft:cracked_stone_bricks', 'minecraft:mossy_stone_bricks', 'minecraft:netherrack', 'minecraft:end_stone'].includes(args.block)) throw new Error('Блок не входит в список для прохода.');
+        if (!['minecraft:iron_bars', 'minecraft:stone', 'minecraft:deepslate', 'minecraft:stone_bricks', 'minecraft:cracked_stone_bricks', 'minecraft:mossy_stone_bricks', 'minecraft:netherrack', 'minecraft:end_stone'].includes(args.block)) throw new Error("Block is not on the list for passage.");
         await bot.pathfinder.goto(new goals.GoalLookAtBlock(p, bot.world)); check(signal);
-        const b = bot.blockAt(p); if ('minecraft:' + b?.name !== args.block) throw new Error('Блок изменился.');
-        if (Math.abs(p.x - bot.entity.position.x) < 1 && Math.abs(p.z - bot.entity.position.z) < 1 && p.y <= bot.entity.position.y) throw new Error('Нельзя копать под собой.');
+        const b = bot.blockAt(p); if ('minecraft:' + b?.name !== args.block) throw new Error("The block has changed.");
+        if (Math.abs(p.x - bot.entity.position.x) < 1 && Math.abs(p.z - bot.entity.position.z) < 1 && p.y <= bot.entity.position.y) throw new Error("You can't dig under you.");
         const moves = bot.pathfinder.movements, old = moves.canDig; let safe;
         try { moves.canDig = true; safe = moves.safeToBreak(b); } finally { moves.canDig = old; }
-        if (!safe) throw new Error('Блок небезопасно разрушать.');
+        if (!safe) throw new Error("It's not safe to destroy the block.");
         const tool = bot.pathfinder.bestHarvestTool(b); if (tool) { await bot.equip(tool, 'hand'); check(signal); }
-        if (!b.canHarvest(bot.heldItem?.type ?? null)) throw new Error('Нет инструмента для блока.');
-        await bot.dig(b); check(signal); if (bot.blockAt(p)?.type === b.type) throw new Error('Разрушение не подтверждено.');
+        if (!b.canHarvest(bot.heldItem?.type ?? null)) throw new Error("No tool for block.");
+        await bot.dig(b); check(signal); if (bot.blockAt(p)?.type === b.type) throw new Error("Destruction not confirmed.");
       } else if (skill === 'evade') {
         const source = args.from;
-        if (!source || !['x', 'y', 'z'].every(k => Number.isFinite(source[k]))) throw new Error('evade.from: нужны координаты угрозы.');
+        if (!source || !['x', 'y', 'z'].every(k => Number.isFinite(source[k]))) throw new Error("evade.from: We need the location of the threat.");
         const p = bot.entity.position; let best;
         for (let i = 0; i < 16; i++) {
           const candidate = p.offset(Math.cos(i * Math.PI / 8) * 5, 0, Math.sin(i * Math.PI / 8) * 5).floored();
           if (!['air', 'cave_air'].includes(bot.blockAt(candidate)?.name) || !['air', 'cave_air'].includes(bot.blockAt(candidate.offset(0, 1, 0))?.name) || bot.blockAt(candidate.offset(0, -1, 0))?.boundingBox !== 'block') continue;
           if (!best || candidate.distanceTo(vector(source)) > best.distanceTo(vector(source))) best = candidate;
         }
-        if (!best || best.distanceTo(vector(source)) <= p.distanceTo(vector(source))) throw new Error('Нет безопасного пункта отступления.');
+        if (!best || best.distanceTo(vector(source)) <= p.distanceTo(vector(source))) throw new Error("No safe exit point.");
         await bot.pathfinder.goto(new goals.GoalNear(best.x, best.y, best.z, 1)); check(signal);
       } else if (skill === 'wait') {
         const duration = args.durationMs ?? 250;
         if (!Number.isInteger(duration) || duration < 50 || duration > 2000) throw new Error('wait.durationMs: 50–2000.');
         await delay(duration, undefined, { signal });
-      } else throw new Error(`Неизвестный endgame-навык ${skill}.`);
+      } else throw new Error(`Unknown endgame-Skills ${skill}.`);
       check(signal); return { ok: true };
     }
   };

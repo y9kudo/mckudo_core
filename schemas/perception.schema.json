@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "MCKudo Perception 1 (normalized)",
+  "title": "OvermindMC Perception 1 (normalized)",
   "type": "object",
   "required": [
     "perceptionVersion",

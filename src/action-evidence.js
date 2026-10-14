@@ -1,24 +1,24 @@
-import { normalizeActionFailure } from '../packages/kudoconnect/src/failures.js';
+import { normalizeActionFailure } from '../packages/omconnect/src/failures.js';
 import { jsonCopy } from './config.js';
 
 const canonical = v => Array.isArray(v) ? v.map(canonical) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canonical(v[k])])) : v;
 const name = v => typeof v === 'string' && v.length > 0 && v.length <= 128;
 const actionKey = action => {
-  if (!name(action?.skill)) throw new Error('Evidence memory: нужен skill действия.');
+  if (!name(action?.skill)) throw new Error("Evidence memory: requires skill Action.");
   const key = JSON.stringify(canonical(jsonCopy(action, '$', 16384)));
-  if (key.length > 16384) throw new Error('Evidence memory: действие больше 16 KiB.');
+  if (key.length > 16384) throw new Error("Evidence memory: Action More 16 KiB.");
   return key;
 };
 const repairs = {
-  START_UNSUPPORTED: 'Проверить опору, положение ног и свободное место над головой; выбрать подтверждённую позицию старта.',
-  NO_PATH: 'Проверить другой подход, доступные чанки и разрешённые способы перемещения.',
-  SEARCH_BUDGET: 'Разбить маршрут на участки или запланировать поиск с другим бюджетом.',
-  STEP_STALLED: 'Перепроверить столкновения и фактическое положение перед новым маршрутом.',
-  OCCUPIED: 'Дождаться освобождения прохода или выбрать обход.',
-  SERVER_CORRECTION: 'Сверить физическую модель с серверной позицией.',
-  STALE_WORLD: 'Получить новое наблюдение и перепланировать.',
-  SUPPORT_CHANGED: 'Повторно проверить опору и проход.',
-  ACTION_FAILED: 'Получить новое наблюдение и уточнить причину отказа.'
+  START_UNSUPPORTED: "Check the support, leg position and free space above the head; Select confirmed start position.",
+  NO_PATH: "Test a different approach, available cups and authorized means of movement.",
+  SEARCH_BUDGET: "Break route to sites or plan search with another budget.",
+  STEP_STALLED: "Recheck collisions and actual position before the new route.",
+  OCCUPIED: "Wait for the passage to be released or choose a bypass.",
+  SERVER_CORRECTION: "Check physical model against server position.",
+  STALE_WORLD: "Get new surveillance and re-plan.",
+  SUPPORT_CHANGED: "Recheck the support and passage.",
+  ACTION_FAILED: "Get new surveillance and clarify the reason for the failure."
 };
 
 /**
@@ -28,11 +28,11 @@ const repairs = {
  * not prove that another agent cannot execute the same action.
  */
 export function createActionEvidenceMemory({ worldId, maxEntries = 256, retryMs = 2000, clock = Date.now } = {}) {
-  if (!name(worldId) || !Number.isInteger(maxEntries) || maxEntries < 1 || maxEntries > 4096 || !Number.isInteger(retryMs) || retryMs < 100 || retryMs > 30000 || typeof clock !== 'function') throw new Error('Evidence memory: worldId, maxEntries 1–4096, retryMs 100–30000 и clock.');
+  if (!name(worldId) || !Number.isInteger(maxEntries) || maxEntries < 1 || maxEntries > 4096 || !Number.isInteger(retryMs) || retryMs < 100 || retryMs > 30000 || typeof clock !== 'function') throw new Error("Evidence memory: worldId, maxEntries 1–4096, retryMs 100–30000 and clock.");
   const entries = new Map();
   const stats = { recorded: 0, avoided: 0, sharedAvoided: 0, reconsidered: 0 };
   const query = ({ agentId, dimension, action }) => {
-    if (!name(agentId) || !name(dimension)) throw new Error('Evidence memory: agentId и dimension.');
+    if (!name(agentId) || !name(dimension)) throw new Error("Evidence memory: agentId and dimension.");
     return { agentId, dimension, key: actionKey(action), skill: action.skill };
   };
   return {
@@ -56,7 +56,7 @@ export function createActionEvidenceMemory({ worldId, maxEntries = 256, retryMs 
     },
     assess(input) {
       const q = query(input);
-      if (typeof input.readFact !== 'function') throw new Error('Evidence memory: нужен readFact.');
+      if (typeof input.readFact !== 'function') throw new Error("Evidence memory: requires readFact.");
       let changed = [], unknown = [];
       for (const record of [...entries.values()].reverse()) {
         if (record.dimension !== q.dimension || record.key !== q.key && record.key !== `skill:${q.skill}` || record.mode === 'timer' && record.agentId !== q.agentId) continue;
@@ -77,7 +77,7 @@ export function createActionEvidenceMemory({ worldId, maxEntries = 256, retryMs 
       }
       changed = [...new Set(changed)]; unknown = [...new Set(unknown)];
       if (changed.length || unknown.length) stats.reconsidered++;
-      return { blocked: false, reason: changed.length ? 'Условия изменились; прежний отказ требует новой проверки.' : unknown.length ? 'Недостаточно наблюдений для применения прежнего отказа.' : 'Подходящего действующего отказа нет.', changedFacts: changed, unknownFacts: unknown };
+      return { blocked: false, reason: changed.length ? "Conditions changed; previous failure requires new verification." : unknown.length ? "Not enough observations to apply previous failure." : "No valid refusal.", changedFacts: changed, unknownFacts: unknown };
     },
     snapshot() {
       return { worldId, maxEntries, ...stats, entries: structuredClone([...entries.values()]) };

@@ -1,0 +1,69 @@
+name: OMConnect checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm pack --dry-run
+  release:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.repository }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - name: Publish tested standalone client
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p 'JSON.parse(require("fs").readFileSync("package.json", "utf8")).version')
+          release_flags=()
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            release_flags+=(--latest)
+          elif [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-dev\.[0-9]+$ ]]; then
+            release_flags+=(--prerelease --latest=false)
+          else
+            echo "Unsupported release version: $version"
+            exit 1
+          fi
+          tag="v$version"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists; leaving it unchanged."
+            exit 0
+          fi
+          test -f "docs/releases/$version.md"
+          mkdir -p dist
+          npm pack --ignore-scripts --pack-destination dist
+          (cd dist && sha256sum *.tgz > SHA256SUMS.txt)
+          if tag_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null); then
+            test "$tag_sha" = "$GITHUB_SHA"
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$tag" -f "sha=$GITHUB_SHA" >/dev/null
+          fi
+          gh release create "$tag" dist/* --verify-tag --repo "$GITHUB_REPOSITORY" --title "OMConnect $tag" --notes-file "docs/releases/$version.md" "${release_flags[@]}"

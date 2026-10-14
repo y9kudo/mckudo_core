@@ -10,7 +10,7 @@ const category=name=>{
 
 /** This is a map of received chunk data, not a rendered client image. */
 export function createVisionSnapshot(client,{radius=12,down=8,up=6}={}){
-  if(!Number.isInteger(radius)||radius<2||radius>24||!Number.isInteger(down)||down<1||down>32||!Number.isInteger(up)||up<1||up>16)throw new Error('Обзор: radius 2–24, down 1–32, up 1–16.');
+  if(!Number.isInteger(radius)||radius<2||radius>24||!Number.isInteger(down)||down<1||down>32||!Number.isInteger(up)||up<1||up>16)throw new Error("Overview: radius 2–24, down 1–32, up 1–16.");
   const self=client.state.position;if(!self)return {status:'waiting',radius,cells:[],entities:[]};
   const cx=Math.floor(self.x),cy=Math.floor(self.y),cz=Math.floor(self.z),cells=[];
   for(let dz=-radius;dz<=radius;dz++)for(let dx=-radius;dx<=radius;dx++){

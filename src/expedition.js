@@ -6,6 +6,7 @@ import {isAir,isFullBlock,isHazard} from './navigation.js';
 import {createDragonPolicy} from './dragon-brain.js';
 import {createExplorationPlanner} from './exploration-planner.js';
 import {createCampaignJournal} from './campaign-journal.js';
+import {createNetherReactor,NETHER_TRACKED_BLOCKS} from './nether.js';
 
 /** A reusable objective; the launcher only connects, records evidence and enforces a deadline. */
 export function endExpeditionScenario(){
@@ -34,6 +35,20 @@ export function dragonExpeditionScenario(){
   scenario.steps.push({id:'defeat-dragon',type:'dragon'});return scenario;
 }
 
+/** Complete campaign definition, including a reusable multi-resource Nether objective. */
+export function fullExpeditionScenario(){
+  const scenario=dragonExpeditionScenario();scenario.name='OvermindMC: fresh spawn to the Ender Dragon';
+  Object.assign(scenario.steps[0].targets,{'#logs':8,'minecraft:crafting_table':1});
+  const home=scenario.steps.splice(scenario.steps.findIndex(s=>s.id==='first-shelter'),1)[0];
+  scenario.steps.splice(scenario.steps.findIndex(s=>s.id==='iron-equipment')+1,0,home);
+  const enter=scenario.steps.findIndex(s=>s.id==='enter-nether');
+  scenario.steps.splice(enter,0,{id:'nether-supplies',type:'resources',targets:{'minecraft:golden_boots':1,'minecraft:gold_ingot':16,'minecraft:coal':16,'minecraft:cooked_beef':16,'minecraft:crafting_table':1,'minecraft:furnace':1}});
+  const rods=scenario.steps.find(s=>s.id==='blaze-rods');rods.type='netherResources';delete rods.count;
+  rods.targets={'minecraft:blaze_rod':10,'minecraft:ender_pearl':24,'minecraft:nether_wart':3,'minecraft:soul_sand':1};
+  scenario.steps=scenario.steps.filter(s=>s.id!=='ender-pearls');
+  return scenario;
+}
+
 /** Bounded excavation near a measured stronghold area, with no hidden coordinates. */
 function strongholdSearch(client){
   const visited=new Set();let pending=null;
@@ -52,37 +67,40 @@ function strongholdSearch(client){
       const cells=[{...next,y:here.y+1},{...next,y:here.y},next];
       if(cells.some(p=>!isAir(block(p))&&!safe(p)))continue;
       const dig=cells.find(p=>!isAir(block(p)));pending=next;
-      return {priority:10,action:dig?{skill:'dig',args:{...dig,block:'minecraft:'+block(dig).name}}:{skill:'navigate',args:{...next,range:0,bridge:false}},reason:'Исследовать безопасную лестницу в измеренной области крепости.'};
+      return {priority:10,action:dig?{skill:'dig',args:{...dig,block:'minecraft:'+block(dig).name}}:{skill:'navigate',args:{...next,range:0,bridge:false}},reason:"Examine the safe ladder in the measured area of the fortress."};
     }
     pending=null;return null;
   };
 }
 
-export function createEndExpedition({client,worldId,scenario=endExpeditionScenario(),config={},cognitionMemory,neuralMemory,clock=Date.now}={}){
-  if(!client?.registry)throw new Error('Экспедиции нужен клиент KudoConnect.');
+export function createEndExpedition({client,worldId,scenario=endExpeditionScenario(),config={},cognitionMemory,neuralMemory,checkpoint,clock=Date.now}={}){
+  if(!client?.registry)throw new Error("Expedition needs a client OMConnect.");
   const catalog=catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}),failures=new Map(),dragonCombat=createDragonPolicy({client});
   const explorer=createExplorationPlanner({world:client.world,onReady:()=>client.emit('planningReady')});
   let brain;
   const journal=createCampaignJournal({clock,objective:scenario.steps.some(s=>s.type==='dragon')?'defeat-dragon':'enter-end'});
-  const controller=createScenario({scenario,catalog,getBlock:p=>client.world.blockAt(p),strongholdSearch:strongholdSearch(client),explorationPlanner:explorer,
+  const controller=createScenario({scenario,catalog,getBlock:p=>client.world.blockAt(p),strongholdSearch:strongholdSearch(client),explorationPlanner:explorer,memory:checkpoint,
+    netherFactory:(step,memory)=>createNetherReactor({client,catalog,targets:step.targets,explorationPlanner:explorer,memory,clock,resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10,spatial:brain?.spatial,explorationPlanner:explorer})}),
     resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10,spatial:brain?.spatial,explorationPlanner:explorer}),dragonCombat});
+  controller.reactor.failureScope='action';controller.reactor.managesRetries=true;
+  const failureKey=(dimension,action)=>JSON.stringify([dimension,action]);
   const react=controller.reactor.react;
   controller.reactor.react=o=>{
     const decision=react(o);journal.observe({scenario:controller.snapshot(),self:{...o.self,dimension:o.dimension},inventory:o.inventory,endgame:o.endgame});if(!decision.action)return decision;
-    const failed=failures.get(JSON.stringify(decision.action));
-    return failed&&failed.until>clock()?{action:null,reason:'Пауза после ошибки: '+failed.reason}:decision;
+    const failed=failures.get(failureKey(o.dimension,decision.action));
+    return failed&&failed.until>clock()?{action:null,reason:"Pause after a mistake: "+failed.reason}:decision;
   };
   brain=createMinecraftBrain({client,worldId,computation:{planner:explorer},config:{actionTimeoutMs:60000,...config},survival:false,storage:false,night:{},loot:{radius:8,stockLimits:{'minecraft:dirt':0,'minecraft:egg':0}},cognition:{memory:cognitionMemory},neural:{memory:neuralMemory},
     defense:{attackPlayers:false},hunting:{foodReserve:6,radius:16,targets:{},prepareWool:true},reactors:[controller.reactor],
-    adapterOptions:{trackedBlocks:['#logs','#ores','#workstations','#crops','stone','cobblestone','deepslate','cobbled_deepslate','blackstone','obsidian','gravel','nether_portal','end_portal','end_portal_frame','nether_bricks','nether_brick_fence']}});
-  let current=null;
-  brain.on('action:start',e=>{current=e.id===controller.reactor.id?e.action:null;});
+    adapterOptions:{trackedBlocks:['#logs','#ores','#workstations','#crops','stone','cobblestone','deepslate','cobbled_deepslate','blackstone','obsidian','gravel','end_portal','end_portal_frame',...NETHER_TRACKED_BLOCKS].filter(n=>n.startsWith('#')||client.registry.blocksByName[n])}});
+  let current=null,currentDimension=null;
+  brain.on('action:start',e=>{current=e.id===controller.reactor.id?e.action:null;currentDimension=client.state.dimension;});
   brain.on('action:finish',e=>{
     if(e.rule!==controller.reactor.id||!current)return;
-    controller.recordResult(e,current);const key=JSON.stringify(current);
-    if(e.outcome==='failure'){const attempts=(failures.get(key)?.attempts||0)+1;failures.set(key,{attempts,until:clock()+Math.min(60000,2000*2**Math.min(5,attempts)),reason:e.detail});}
+    controller.recordResult(e,current);const key=failureKey(currentDimension,current);
+    if(e.outcome==='failure'){const attempts=(failures.get(key)?.attempts||0)+1;failures.set(key,{action:structuredClone(current),dimension:currentDimension,attempts,until:clock()+Math.min(60000,2000*2**Math.min(5,attempts)),reason:e.detail});}
     else if(e.outcome==='success')failures.delete(key);
     if(failures.size>256)failures.delete(failures.keys().next().value);current=null;
   });
-  return {brain,controller,snapshot:()=>({scenario:controller.snapshot(),progress:journal.observe({scenario:controller.snapshot(),self:client.state,inventory:client.inventory.snapshot(),endgame:client.endgame}),dragon:dragonCombat.snapshot(),failures:[...failures].map(([action,result])=>({action:JSON.parse(action),...result}))})};
+  return {brain,controller,snapshot:()=>({scenario:controller.snapshot(),progress:journal.observe({scenario:controller.snapshot(),self:client.state,inventory:client.inventory.snapshot(),endgame:client.endgame}),dragon:dragonCombat.snapshot(),failures:structuredClone([...failures.values()])})};
 }

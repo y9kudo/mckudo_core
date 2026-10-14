@@ -4,7 +4,7 @@ import { availableParallelism } from 'node:os';
 
 /** Reused CPU workers. No sockets, controls, credentials or arbitrary code enter this pool. */
 export function createCpuPool({ workers = 1, maxQueue = 16, memoryMb = 96, timeoutMs = 15000 } = {}) {
-  if (!Number.isInteger(workers) || workers < 1 || workers > Math.min(2, availableParallelism()) || !Number.isInteger(maxQueue) || maxQueue < 1 || maxQueue > 128 || !Number.isInteger(memoryMb) || memoryMb < 32 || memoryMb > 256 || !Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 60000) throw new Error('CPU: workers 1–2 (не больше доступных CPU), maxQueue 1–128, memoryMb 32–256, timeoutMs 100–60000.');
+  if (!Number.isInteger(workers) || workers < 1 || workers > Math.min(2, availableParallelism()) || !Number.isInteger(maxQueue) || maxQueue < 1 || maxQueue > 128 || !Number.isInteger(memoryMb) || memoryMb < 32 || memoryMb > 256 || !Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 60000) throw new Error("CPU: workers 1–2 (not more than available CPU), maxQueue 1–128, memoryMb 32–256, timeoutMs 100–60000.");
   const slots = [], queue = [], jobs = new Set();
   let closed = false, sequence = 0;
   const stats = { completed: 0, failed: 0, cancelled: 0, restarts: 0 };
@@ -37,7 +37,7 @@ export function createCpuPool({ workers = 1, maxQueue = 16, memoryMb = 96, timeo
       pump();
     });
     slot.worker.on('error', error => fail(slot, error));
-    slot.worker.on('exit', code => { if (!slot.retiring && !closed) fail(slot, new Error(`CPU worker завершился: ${code}.`)); });
+    slot.worker.on('exit', code => { if (!slot.retiring && !closed) fail(slot, new Error(`CPU worker completed: ${code}.`)); });
     slot.worker.unref(); return slot;
   };
   function pump() {
@@ -53,12 +53,12 @@ export function createCpuPool({ workers = 1, maxQueue = 16, memoryMb = 96, timeo
   }
   return {
     run(input, { signal } = {}) {
-      if (closed || jobs.size >= maxQueue) return Promise.reject(new Error(closed ? 'CPU pool закрыт.' : 'Очередь CPU заполнена.'));
+      if (closed || jobs.size >= maxQueue) return Promise.reject(new Error(closed ? "CPU pool closed." : "Queue CPU full."));
       if (signal?.aborted) return Promise.reject(signal.reason);
       return new Promise((resolve, reject) => {
-        const job = { id: ++sequence, input, signal, resolve, reject, resource: new AsyncResource('MCKudoCpuJob') };
+        const job = { id: ++sequence, input, signal, resolve, reject, resource: new AsyncResource('OvermindMCCpuJob') };
         job.abort = () => { if (!jobs.has(job)) return; stats.cancelled++; finish(job, signal.reason); if (job.slot?.job === job) { job.slot.job = null; replace(job.slot); } else pump(); };
-        job.timer = setTimeout(() => { if (!jobs.has(job)) return; stats.failed++; finish(job, new Error('Истёк бюджет вычислений CPU.')); if (job.slot?.job === job) { job.slot.job = null; replace(job.slot); } else pump(); }, timeoutMs);
+        job.timer = setTimeout(() => { if (!jobs.has(job)) return; stats.failed++; finish(job, new Error("The calculation budget has expired CPU.")); if (job.slot?.job === job) { job.slot.job = null; replace(job.slot); } else pump(); }, timeoutMs);
         jobs.add(job); queue.push(job); signal?.addEventListener('abort', job.abort, { once: true }); pump();
       });
     },
@@ -66,7 +66,7 @@ export function createCpuPool({ workers = 1, maxQueue = 16, memoryMb = 96, timeo
     async close() {
       if (closed) return;
       closed = true;
-      for (const job of [...jobs]) { stats.cancelled++; finish(job, new Error('CPU pool закрыт.')); }
+      for (const job of [...jobs]) { stats.cancelled++; finish(job, new Error("CPU pool closed.")); }
       await Promise.all(slots.map(slot => { slot.retiring = true; return slot.worker.terminate(); })); slots.length = 0;
     }
   };

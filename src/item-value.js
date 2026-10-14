@@ -37,7 +37,7 @@ export function survivalReserves(inventory, targets = {}) {
 
 /** A proposal only. The caller must recheck both inventories and confirm delivery. */
 export function proposeTrade({ from, to, fromTargets = {}, toTargets = {}, fromFood = 20, toFood = 20, allowGift = true, maxCount = 16 } = {}) {
-  if (!from || !to || !Number.isInteger(maxCount) || maxCount < 1 || maxCount > 64 || typeof allowGift !== 'boolean') throw new Error('Обмен: нужны два инвентаря, maxCount 1–64 и allowGift.');
+  if (!from || !to || !Number.isInteger(maxCount) || maxCount < 1 || maxCount > 64 || typeof allowGift !== 'boolean') throw new Error("Exchange: Two items required, maxCount 1–64 and allowGift.");
   const fromReserve = survivalReserves(from, fromTargets), toReserve = survivalReserves(to, toTargets);
   const surplus = (inventory, reserves) => entries(inventory).map(([item, n]) => ({ item, count: Math.min(maxCount, Math.max(0, n - count(reserves, item))) })).filter(s => s.count > 0);
   const outgoing = surplus(from, fromReserve), incoming = surplus(to, toReserve);

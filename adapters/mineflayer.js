@@ -10,22 +10,22 @@ import { createCombatExecutor, entityCombatState } from './mineflayer-combat.js'
 import { createDropCollector } from './mineflayer-drops.js';
 import { createEndgameExecutor } from './mineflayer-endgame.js';
 const resourceName = value => {
-  if (typeof value !== 'string' || !/^(minecraft:)?[a-z0-9_]+$/.test(value)) throw new Error('Mineflayer-адаптер принимает только vanilla ID minecraft:имя. Для модов нужен bridge.');
+  if (typeof value !== 'string' || !/^(minecraft:)?[a-z0-9_]+$/.test(value)) throw new Error("Mineflayer-adapter only accepts vanilla ID minecraft:name. You need fashion bridge.");
   return value.replace(/^minecraft:/, '');
 };
 export function createMineflayerAdapter(bot, { goals, catalog, taxonomy, trackedBlocks, watchedPositions = [], searchRadius = 128, entityRadius = 128, scanIntervalMs = 1000, requestedViewDistance = 16 }) {
-  if (!bot.pathfinder || !goals?.GoalNear || !goals?.GoalLookAtBlock) throw new Error('Загрузи mineflayer-pathfinder и передай его goals.');
+  if (!bot.pathfinder || !goals?.GoalNear || !goals?.GoalLookAtBlock) throw new Error("Load mineflayer-pathfinder and pass it on goals.");
   for (const [name, value, min, max] of [['searchRadius', searchRadius, 16, 512], ['entityRadius', entityRadius, 16, 512], ['scanIntervalMs', scanIntervalMs, 100, 60000], ['requestedViewDistance', requestedViewDistance, 2, 32]]) if (!Number.isInteger(value) || value < min || value > max) throw new Error(`${name}: ${min}–${max}.`);
   catalog ||= bot.registry?.blocksArray && bot.registry?.itemsArray ? catalogFromMinecraftData(bot.registry) : null;
   taxonomy ||= catalog ? createBlockTaxonomy(catalog) : null;
   trackedBlocks ||= taxonomy ? ['#logs', '#ores', '#workstations', '#crops'] : ['minecraft:oak_log', 'minecraft:birch_log', 'minecraft:crafting_table'];
-  if (!Array.isArray(trackedBlocks) || trackedBlocks.length > 128) throw new Error('trackedBlocks: до 128 ID или #классов.');
-  const resolveBlocks = selector => selector.startsWith('#') ? (() => { const members = taxonomy?.members(selector.slice(1)); if (!members?.length) throw new Error(`Неизвестный или пустой класс ${selector}.`); return members.map(resourceName); })() : [resourceName(selector)];
+  if (!Array.isArray(trackedBlocks) || trackedBlocks.length > 128) throw new Error("trackedBlocks: to 128 ID or #classes.");
+  const resolveBlocks = selector => selector.startsWith('#') ? (() => { const members = taxonomy?.members(selector.slice(1)); if (!members?.length) throw new Error(`Unknown or empty ${selector}.`); return members.map(resourceName); })() : [resourceName(selector)];
   const blockGroups = trackedBlocks.map(resolveBlocks), blockNames = [...new Set(blockGroups.flat())];
-  if (blockNames.length > 2048) throw new Error('Не более 2048 типов блоков в одном сканировании.');
+  if (blockNames.length > 2048) throw new Error("No more than 2048 Type of blocks in one scan.");
   const cancel = () => { endgame.cancel(); bot.pathfinder.setGoal(null); bot.stopDigging(); bot.deactivateItem(); bot.clearControlStates(); };
-  const check = signal => { signal.throwIfAborted(); if (!bot.entity || bot.health <= 0) throw new Error('Бот не в мире или мёртв.'); };
-  if (!Array.isArray(watchedPositions) || watchedPositions.length > 2048 || watchedPositions.some(p => !['x', 'y', 'z'].every(k => Number.isInteger(p[k])))) throw new Error('watchedPositions: до 2048 целых координат.');
+  const check = signal => { signal.throwIfAborted(); if (!bot.entity || bot.health <= 0) throw new Error("The Bot is not in the world or dead."); };
+  if (!Array.isArray(watchedPositions) || watchedPositions.length > 2048 || watchedPositions.some(p => !['x', 'y', 'z'].every(k => Number.isInteger(p[k])))) throw new Error("watchedPositions: to 2048 coordinates.");
   const worldActions = createWorldActions(bot, { goals, check, searchRadius }), attackers = new Map();
   const navigate = createNavigator(bot, { searchRadius, check });
   const combatExecutor = createCombatExecutor(bot, { goals, check }), collector = createDropCollector(bot, { goals, check });
@@ -121,32 +121,32 @@ export function createMineflayerAdapter(bot, { goals, catalog, taxonomy, tracked
         } else if (skill === 'eat') {
           const name = resourceName(args.item || 'minecraft:bread');
           const item = bot.inventory.items().find(i => i.name === name);
-          if (!item) throw new Error(`Нет ${name} в инвентаре.`);
+          if (!item) throw new Error(`No ${name} in inventory.`);
           await bot.equip(item, 'hand'); check(signal); await bot.consume();
         } else if (skill === 'navigate') {
           await navigate(args, signal);
         } else if (skill === 'goto') {
-          if (![args.x, args.y, args.z].every(Number.isFinite)) throw new Error('goto: x, y, z должны быть числами.');
+          if (![args.x, args.y, args.z].every(Number.isFinite)) throw new Error("goto: x, y, z must be numbers.");
           const range = args.range ?? 2;
-          if (!Number.isFinite(range) || range < 0 || range > 16) throw new Error('goto: range от 0 до 16.');
+          if (!Number.isFinite(range) || range < 0 || range > 16) throw new Error("goto: range from 0 to 16.");
           await bot.pathfinder.goto(new goals.GoalNear(args.x, args.y, args.z, range));
         } else if (skill === 'craft') {
-          if (!canCraft) throw new Error('В клиенте недоступен API крафта.');
+          if (!canCraft) throw new Error("Unable to access in client API craft.");
           const name = resourceName(args.item), times = args.times ?? 1;
-          if (!Number.isInteger(times) || times < 1 || times > 16) throw new Error('craft.times: целое число 1–16.');
+          if (!Number.isInteger(times) || times < 1 || times > 16) throw new Error("craft.times: an integer 1–16.");
           const item = bot.registry.itemsByName[name];
-          if (!item) throw new Error(`Неизвестный предмет ${name}.`);
+          if (!item) throw new Error(`Unknown item ${name}.`);
           let table = null, recipe = findRecipe(item, times, null, args.ingredients);
           if (!recipe) {
             table = bot.findBlock({ matching: b => b.name === 'crafting_table', maxDistance: searchRadius });
-            if (!table) throw new Error('Нет доступного рецепта в инвентаре; рядом нет верстака.');
+            if (!table) throw new Error("No available inventory recipe; no nearby crafting table.");
             recipe = findRecipe(item, times, table, args.ingredients);
-            if (!recipe) throw new Error('Не хватает ингредиентов для указанного количества крафта.');
+            if (!recipe) throw new Error("Missing ingredients for the specified number of craft.");
             await bot.pathfinder.goto(new goals.GoalLookAtBlock(table.position, bot.world)); check(signal);
             table = bot.blockAt(table.position);
-            if (!table || table.name !== 'crafting_table') throw new Error('Верстак исчез или изменился.');
+            if (!table || table.name !== 'crafting_table') throw new Error("Versace has disappeared or changed.");
             recipe = findRecipe(item, times, table, args.ingredients);
-            if (!recipe) throw new Error('Ингредиенты изменились во время перемещения.');
+            if (!recipe) throw new Error("The ingredients changed during the move.");
           }
           const before = countItem(name), expected = recipe.result.count * times;
           for (let i = 0; i < times; i++) {
@@ -155,36 +155,36 @@ export function createMineflayerAdapter(bot, { goals, catalog, taxonomy, tracked
             await bot.craft(recipe, 1, recipe.requiresTable ? table : null);
             check(signal);
           }
-          if (countItem(name) - before < expected) throw new Error('Инвентарь не подтвердил результат крафта.');
+          if (countItem(name) - before < expected) throw new Error("The inventory did not confirm the craft results.");
         } else if (skill === 'gather') {
           const choices = resolveBlocks(args.block), count = args.count ?? 1;
-          if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error('gather: count от 1 до 16.');
+          if (!Number.isInteger(count) || count < 1 || count > 16) throw new Error("gather: count from 1 to 16.");
           for (let n = 0; n < count; n++) {
             check(signal);
-            if (bot.inventory.emptySlotCount() < 2) throw new Error('Инвентарь заполнен.');
+            if (bot.inventory.emptySlotCount() < 2) throw new Error("Inventory is full.");
             let block = bot.findBlock({ matching: b => choices.includes(b.name), maxDistance: searchRadius });
-            if (!block) throw new Error(`В наблюдаемой области нет ${args.block}.`);
+            if (!block) throw new Error(`No matching resource in observed terrain ${args.block}.`);
             const name = block.name;
             await bot.pathfinder.goto(new goals.GoalLookAtBlock(block.position, bot.world)); check(signal);
             block = bot.blockAt(block.position);
-            if (!block || block.name !== name) throw new Error('Целевой блок изменился.');
+            if (!block || block.name !== name) throw new Error("Target block changed.");
             const moves = bot.pathfinder.movements, old = moves.canDig;
             let safe;
             try { moves.canDig = true; safe = moves.safeToBreak(block); } finally { moves.canDig = old; }
-            if (!safe) throw new Error('Этот блок небезопасно добывать.');
+            if (!safe) throw new Error("It's not safe to extract this block.");
             const tool = bot.pathfinder.bestHarvestTool(block);
             if (tool) { await bot.equip(tool, 'hand'); check(signal); }
-            if (!block.canHarvest(bot.heldItem?.type ?? null)) throw new Error('Не хватает подходящего инструмента.');
+            if (!block.canHarvest(bot.heldItem?.type ?? null)) throw new Error("Lack of a suitable tool.");
             const beforePickup = new Map();
             for (const item of bot.inventory.items()) beforePickup.set(item.name, (beforePickup.get(item.name) || 0) + item.count);
             const expected = args.item?.replace(/^minecraft:/, '') || catalog?.block('minecraft:' + name)?.drops?.[0]?.replace(/^minecraft:/, '') || name;
             await bot.dig(block); check(signal);
-            if (bot.blockAt(block.position)?.type === block.type) throw new Error('Сервер не подтвердил добычу.');
+            if (bot.blockAt(block.position)?.type === block.type) throw new Error("The server didn't confirm the prey.");
             await collector.collect({ item: expected, beforeCount: beforePickup.get(expected) || 0, origin: block.position, radius: 12, timeoutMs: 8000 }, signal);
           }
         } else if (endgame.names.includes(skill)) return await endgame.execute(skill, args, signal);
         else if (worldActions.names.includes(skill)) await worldActions.execute(skill, args, signal);
-        else throw new Error(`Навык не поддерживается: ${skill}`);
+        else throw new Error(`Skills not supported: ${skill}`);
         check(signal); return { ok: true };
       } finally { invalidate(); signal.removeEventListener('abort', cancel); }
     },

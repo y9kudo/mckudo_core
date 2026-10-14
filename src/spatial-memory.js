@@ -8,10 +8,10 @@ const blockName = block => { const name = block?.name ?? block?.id; return typeo
 
 /** Last-observed landmarks, not a source of authoritative collision or inventory facts. */
 export function createSpatialMemory({ worldId, maxEntries = 2048, maxAgeMs = 7 * 86400000, memory, clock = Date.now } = {}) {
-  if (typeof worldId !== 'string' || !worldId || worldId.length > 128 || !Number.isInteger(maxEntries) || maxEntries < 16 || maxEntries > 4096 || !Number.isSafeInteger(maxAgeMs) || maxAgeMs < 1000 || maxAgeMs > 30 * 86400000) throw new Error('Пространственная память: worldId, maxEntries 16–4096, maxAgeMs 1 с–30 суток.');
+  if (typeof worldId !== 'string' || !worldId || worldId.length > 128 || !Number.isInteger(maxEntries) || maxEntries < 16 || maxEntries > 4096 || !Number.isSafeInteger(maxAgeMs) || maxAgeMs < 1000 || maxAgeMs > 30 * 86400000) throw new Error("Spatial memory: worldId, maxEntries 16–4096, maxAgeMs 1 with–30 day.");
   const records = new Map(); let invalidations = 0;
-  if (typeof clock !== 'function') throw new Error('clock должен быть функцией.');
-  const stamp = () => { const now = clock(); if (!Number.isSafeInteger(now) || now < 0) throw new Error('clock должен вернуть целое время Unix в миллисекундах.'); return now; };
+  if (typeof clock !== 'function') throw new Error("clock must be a function.");
+  const stamp = () => { const now = clock(); if (!Number.isSafeInteger(now) || now < 0) throw new Error("clock I'm gonna need to get the whole time back Unix in milliseconds."); return now; };
   const trim = () => {
     const now = stamp();
     for (const [id, entry] of records) if (now - entry.lastSeen > maxAgeMs) records.delete(id);
@@ -19,10 +19,10 @@ export function createSpatialMemory({ worldId, maxEntries = 2048, maxAgeMs = 7 *
   };
   if (memory !== undefined) {
     const m = jsonCopy(memory, 'spatialMemory', 1024 * 1024);
-    if (m.schemaVersion !== 1 || m.worldId !== worldId || !Array.isArray(m.entries) || m.entries.length > 4096) throw new Error('Пространственная память другого мира или формата.');
+    if (m.schemaVersion !== 1 || m.worldId !== worldId || !Array.isArray(m.entries) || m.entries.length > 4096) throw new Error("Spatial memory of another world or format.");
     for (const e of m.entries) {
-      if (!resource(e.dimension) || !resource(e.name) || empty(e.name) || !point(e.position) || !Number.isSafeInteger(e.lastSeen) || e.lastSeen < 0 || !Number.isSafeInteger(e.observations) || e.observations < 1) throw new Error('Повреждена запись пространственной памяти.');
-      const id = key(e.dimension, e.position); if (records.has(id)) throw new Error('Повтор координат в пространственной памяти.');
+      if (!resource(e.dimension) || !resource(e.name) || empty(e.name) || !point(e.position) || !Number.isSafeInteger(e.lastSeen) || e.lastSeen < 0 || !Number.isSafeInteger(e.observations) || e.observations < 1) throw new Error("Spatial memory damage.");
+      const id = key(e.dimension, e.position); if (records.has(id)) throw new Error("Re-references in spatial memory.");
       records.set(id, { name: e.name, position: { ...e.position }, dimension: e.dimension, lastSeen: e.lastSeen, observations: e.observations });
     }
     const ordered = [...records].sort((a, b) => a[1].lastSeen - b[1].lastSeen); records.clear(); for (const [id, e] of ordered) records.set(id, e); trim();
@@ -31,10 +31,10 @@ export function createSpatialMemory({ worldId, maxEntries = 2048, maxAgeMs = 7 *
     worldId,
     observe(observation, { getBlock } = {}) {
       const dimension = observation.dimension;
-      if (!resource(dimension)) throw new Error('Нужен namespaced ID измерения.');
-      if (getBlock !== undefined && typeof getBlock !== 'function') throw new Error('getBlock должен быть функцией.');
+      if (!resource(dimension)) throw new Error("Requires namespaced ID Measurement.");
+      if (getBlock !== undefined && typeof getBlock !== 'function') throw new Error("getBlock must be a function.");
       const blocks = observation.world?.sampledBlocks || [];
-      if (!Array.isArray(blocks) || blocks.length > 4096 || blocks.some(b => !resource(b.name) || !point(b.position))) throw new Error('Нужны наблюдаемые блоки с ID и целыми координатами.');
+      if (!Array.isArray(blocks) || blocks.length > 4096 || blocks.some(b => !resource(b.name) || !point(b.position))) throw new Error("We need observation blocks with ID and the coordinates.");
       trim();
       // Unknown chunks preserve a hint; visible contradictory blocks revoke it.
       if (getBlock) for (const [id, e] of records) if (e.dimension === dimension) {
@@ -53,7 +53,7 @@ export function createSpatialMemory({ worldId, maxEntries = 2048, maxAgeMs = 7 *
       trim(); return added;
     },
     entries({ dimension, names, near, limit = maxEntries } = {}) {
-      if (dimension !== undefined && !resource(dimension) || names !== undefined && (!Array.isArray(names) || names.length > 4096 || names.some(n => !resource(n))) || near !== undefined && !point(near) || !Number.isInteger(limit) || limit < 1 || limit > maxEntries) throw new Error('Неверный запрос пространственной памяти.');
+      if (dimension !== undefined && !resource(dimension) || names !== undefined && (!Array.isArray(names) || names.length > 4096 || names.some(n => !resource(n))) || near !== undefined && !point(near) || !Number.isInteger(limit) || limit < 1 || limit > maxEntries) throw new Error("Incorrect Spatial Memory Request.");
       trim(); const ids = names && new Set(names);
       const found = [...records.values()].filter(e => (!dimension || e.dimension === dimension) && (!ids || ids.has(e.name)));
       found.sort((a, b) => near ? Math.hypot(a.position.x-near.x,a.position.y-near.y,a.position.z-near.z) - Math.hypot(b.position.x-near.x,b.position.y-near.y,b.position.z-near.z) || b.lastSeen-a.lastSeen : b.lastSeen-a.lastSeen);

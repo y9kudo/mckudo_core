@@ -1,20 +1,20 @@
 import { id, jsonCopy } from './config.js';
-export class MckudoRuntime {
+export class OvermindRuntime {
   #agents = new Map(); #resources = new Set(); #pending = null; #paused = false; #concurrency;
   constructor({ concurrency = 2 } = {}) {
-    if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 32) throw new Error('concurrency: целое число 1–32.');
+    if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 32) throw new Error("concurrency: an integer 1–32.");
     this.#concurrency = concurrency;
   }
   add(name, core, { resourceKey = name } = {}) {
-    if (this.#pending) throw new Error('Состав runtime нельзя менять во время шага.');
-    if (!id(name) || typeof resourceKey !== 'string' || !resourceKey || resourceKey.length > 200 || !core?.tick || !core?.snapshot || !core?.pause || !core?.resume) throw new Error('Нужны ID агента, core и resourceKey.');
-    if (this.#agents.has(name) || this.#resources.has(resourceKey) || [...this.#agents.values()].some(v => v.core === core)) throw new Error('Агент, экземпляр ядра или игровой ресурс уже занят.');
-    if (core.snapshot().running) throw new Error('Останови отдельный цикл core.start() перед добавлением в runtime.');
+    if (this.#pending) throw new Error("Composition runtime You can't change during a step.");
+    if (!id(name) || typeof resourceKey !== 'string' || !resourceKey || resourceKey.length > 200 || !core?.tick || !core?.snapshot || !core?.pause || !core?.resume) throw new Error("Requires ID agent, core and resourceKey.");
+    if (this.#agents.has(name) || this.#resources.has(resourceKey) || [...this.#agents.values()].some(v => v.core === core)) throw new Error("Agent, core instance or game resource is already busy.");
+    if (core.snapshot().running) throw new Error("Stop separate cycle core.start() before the addition to runtime.");
     this.#agents.set(name, { core, resourceKey }); this.#resources.add(resourceKey); return this;
   }
   remove(name) {
-    if (this.#pending) throw new Error('Состав runtime нельзя менять во время шага.');
-    const agent = this.#agents.get(name); if (!agent) throw new Error(`Нет агента ${name}.`);
+    if (this.#pending) throw new Error("Composition runtime You can't change during a step.");
+    const agent = this.#agents.get(name); if (!agent) throw new Error(`No agent ${name}.`);
     this.#agents.delete(name); this.#resources.delete(agent.resourceKey); return agent.core;
   }
   snapshot() { return jsonCopy({ paused: this.#paused, concurrency: this.#concurrency,
@@ -27,7 +27,7 @@ export class MckudoRuntime {
       const worker = async () => {
         while (!this.#paused && cursor < agents.length) {
           const { core } = agents[cursor++];
-          if (core.snapshot().running) throw new Error('Не запускай core.start() для агента, которым управляет runtime.');
+          if (core.snapshot().running) throw new Error("Don't start it core.start() for agent, which is administered by runtime.");
           await core.tick();
         }
       };

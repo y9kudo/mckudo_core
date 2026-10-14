@@ -6,7 +6,7 @@ export class FileMemory {
   constructor(file) { this.file = resolve(file); }
   async load() {
     try { return JSON.parse(await readFile(this.file, 'utf8')); }
-    catch (error) { if (error.code === 'ENOENT') return undefined; throw new Error('Не удалось прочитать память. Файл оставлен без изменений.', { cause: error }); }
+    catch (error) { if (error.code === 'ENOENT') return undefined; throw new Error("Could not read memory. File not modified.", { cause: error }); }
   }
   async save(memory) {
     const data = jsonCopy(memory, '$', 1048576), temporary = this.file + '.' + randomUUID() + '.tmp';

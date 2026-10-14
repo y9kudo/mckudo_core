@@ -1,6 +1,6 @@
 /** Progress is a change in game evidence, not elapsed timer or repeated successful waits. */
 export function createCampaignJournal({clock=Date.now,stallAfterMs=120000,maxEntries=128,objective='enter-end'}={}){
-  if(typeof clock!=='function'||!Number.isInteger(stallAfterMs)||stallAfterMs<1000||stallAfterMs>3600000||!Number.isInteger(maxEntries)||maxEntries<1||maxEntries>1024||!['enter-end','defeat-dragon'].includes(objective))throw new Error('Campaign journal: неверные настройки.');
+  if(typeof clock!=='function'||!Number.isInteger(stallAfterMs)||stallAfterMs<1000||stallAfterMs>3600000||!Number.isInteger(maxEntries)||maxEntries<1||maxEntries>1024||!['enter-end','defeat-dragon'].includes(objective))throw new Error("Campaign journal: Uncorrect settings.");
   const startedAt=clock();let progressAt=startedAt,stage=null,fingerprint=null,last=null;const entries=[];
   const observe=({scenario,self,inventory={},endgame={}})=>{
     const now=clock();

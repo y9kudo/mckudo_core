@@ -5,18 +5,18 @@ import { defineMission } from './mission.js';
 
 /** A small application facade. Planning and execution still belong to the reusable core/client. */
 export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {}, memoryDirectory, brainOptions = {}, createClient, createBrain } = {}) {
-  if (typeof worldId !== 'string' || !worldId.trim()) throw new Error('Укажи постоянный worldId для памяти этого мира.');
+  if (typeof worldId !== 'string' || !worldId.trim()) throw new Error("Show me the constant worldId to remember this world.");
   const manager = createAgentManager({ count: 1, names: [name], worldId, connection, memoryDirectory, brainOptions, createClient, createBrain });
   let connecting, active, closing, closed = false;
   const entry = () => manager.entries.get(name);
-  const ensureOpen = () => { if (closed) throw new Error('Агент закрыт. Создай новый экземпляр.'); };
+  const ensureOpen = () => { if (closed) throw new Error("Agent closed. Create a new instance."); };
   const snapshot = () => manager.snapshot().agents[0];
   const connect = async () => {
     ensureOpen();
     if (!connecting) connecting = manager.execute(name, 'connect').finally(() => { connecting = null; });
     await connecting;
     ensureOpen();
-    if (entry().client.state.status !== 'ready') throw new Error('Агент не готов: проверь подключение и здоровье.');
+    if (entry().client.state.status !== 'ready') throw new Error("Agent isn't ready: Check the connection and health.");
     return snapshot();
   };
   const cancel = reason => {
@@ -24,7 +24,7 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
     entry().client.pending?.abort.abort(reason);
   };
   const pause = async () => {
-    cancel(new Error('Сценарий остановлен пользователем.'));
+    cancel(new Error("Scenario stopped by user."));
     if (active) await active.promise.catch(() => {});
     if (!closed) await manager.execute(name, 'pause');
   };
@@ -37,8 +37,8 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
     swimTo(position,options) { return api.mission([{swim:position}],options); },
     async start(goal = 'wood') {
       ensureOpen();
-      if (active) throw new Error('Сначала останови выполняемый сценарий.');
-      if (!['wood', 'stone_tools', 'iron_pickaxe', 'diamond_set'].includes(goal)) throw new Error('Неизвестная цель выживания.');
+      if (active) throw new Error("First stop the script.");
+      if (!['wood', 'stone_tools', 'iron_pickaxe', 'diamond_set'].includes(goal)) throw new Error("Unknown Goal of Survival.");
       await connect();
       await manager.execute(name, 'goal', { target: goal });
       await manager.execute(name, 'start');
@@ -46,9 +46,9 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
     },
     run(input, { timeoutMs = 300000, signal } = {}) {
       ensureOpen();
-      if (active) throw new Error('Один агент выполняет один сценарий. Сначала дождись завершения или вызови pause().');
+      if (active) throw new Error("One agent does one script. Wait till you're finished or call pause().");
       const scenario = validateScenario(input);
-      if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 1800000) throw new Error('timeoutMs: от 1000 до 1800000 мс.');
+      if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 1800000) throw new Error("timeoutMs: from 1000 to 1800000 ms.");
       signal?.throwIfAborted();
       const controller = new AbortController(), run = { controller, promise: null };
       active = run;
@@ -56,7 +56,7 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
       signal?.addEventListener('abort', abort, { once: true });
       const timer = setTimeout(() => {
         const reason=entry().queue?.snapshot().find(t=>t.status!=='completed')?.reason;
-        controller.abort(new Error('Истекло время выполнения сценария.'+(reason?' Последний этап: '+reason:'')));
+        controller.abort(new Error("The scenario time has expired."+(reason?" Final phase: "+reason:'')));
       }, timeoutMs);
       // Closing an unfinished handshake also interrupts connect(), not just skill execution.
       const interrupt = () => {
@@ -73,10 +73,10 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
           while (true) {
             controller.signal.throwIfAborted();
             const e = entry(), state = e.queue.snapshot();
-            if (e.client.state.status !== 'ready' || e.client.state.health != null && e.client.state.health <= 0) throw new Error('Агент погиб или отключился. Сценарий не завершён.');
+            if (e.client.state.status !== 'ready' || e.client.state.health != null && e.client.state.health <= 0) throw new Error("Agent died or disconnected. The scenario is incomplete.");
             if (state.length && state.every(t => t.status === 'completed')) break;
             const failed = state.find(t => t.status === 'failed');
-            if (failed) throw new Error(failed.reason || 'Сценарий завершился ошибкой.');
+            if (failed) throw new Error(failed.reason || "The script ended with a mistake.");
             await delay(100, undefined, { signal: controller.signal });
           }
         } catch (error) {
@@ -93,7 +93,7 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
     async respawn() { ensureOpen(); await pause(); await manager.execute(name, 'respawn'); return snapshot(); },
     close() {
       if (!closing) {
-        closed = true; cancel(new Error('Агент закрывается.'));
+        closed = true; cancel(new Error("Agent closes."));
         if (entry().client.state.status === 'connecting') void entry().client.close().catch(() => {});
         closing = (async () => { await active?.promise.catch(() => {}); await connecting?.catch(() => {}); await manager.close(); })();
       }

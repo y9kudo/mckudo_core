@@ -8,17 +8,17 @@ export class WorkflowPlanner {
   #definitions; #states = new Map();
   constructor(definitions, saved = {}) {
     this.#definitions = definitions;
-    if (!object(saved)) throw new Error('Повреждена память задач.');
+    if (!object(saved)) throw new Error("The memory of the task is damaged.");
     for (const w of definitions) {
       const state = { fingerprint: fingerprint(w), active: false, steps: Object.fromEntries(w.steps.map(s => [s.id, emptyStep()])) };
       if (Object.hasOwn(saved, w.id)) {
         const old = saved[w.id];
-        if (old.fingerprint !== state.fingerprint) throw new Error(`Изменилась задача ${w.id}. Используй новую память или явно удали её старый прогресс.`);
-        if (typeof old.active !== 'boolean' || !object(old.steps)) throw new Error('Повреждена память задач.');
+        if (old.fingerprint !== state.fingerprint) throw new Error(`Changed mission ${w.id}. Use a new memory or clearly delete its old progress.`);
+        if (typeof old.active !== 'boolean' || !object(old.steps)) throw new Error("The memory of the task is damaged.");
         state.active = old.active;
         for (const s of w.steps) {
           const entry = old.steps[s.id];
-          if (!entry || !['pending', 'running', 'completed', 'failed', 'interrupted'].includes(entry.status) || !Number.isInteger(entry.attempts) || entry.attempts < 0 || entry.attempts > s.maxAttempts || !Number.isFinite(entry.retryAt) || typeof entry.error !== 'string') throw new Error(`Повреждён шаг ${w.id}/${s.id}.`);
+          if (!entry || !['pending', 'running', 'completed', 'failed', 'interrupted'].includes(entry.status) || !Number.isInteger(entry.attempts) || entry.attempts < 0 || entry.attempts > s.maxAttempts || !Number.isFinite(entry.retryAt) || typeof entry.error !== 'string') throw new Error(`Step damaged ${w.id}/${s.id}.`);
           state.steps[s.id] = { ...emptyStep(), status: entry.status === 'running' ? 'interrupted' : entry.status, attempts: entry.attempts, retryAt: entry.retryAt, error: entry.error.slice(0, 300) };
         }
       }
@@ -27,9 +27,9 @@ export class WorkflowPlanner {
   }
   #get(workflowId, stepId) {
     const definition = this.#definitions.find(w => w.id === workflowId), state = this.#states.get(workflowId);
-    if (!definition) throw new Error(`Нет задачи ${workflowId}.`);
+    if (!definition) throw new Error(`No task ${workflowId}.`);
     const step = definition.steps.find(s => s.id === stepId);
-    if (stepId !== undefined && !step) throw new Error(`Нет шага ${workflowId}/${stepId}.`);
+    if (stepId !== undefined && !step) throw new Error(`No step ${workflowId}/${stepId}.`);
     return { definition, state, step, entry: step && state.steps[stepId] };
   }
   candidates(observation, now) {
@@ -53,8 +53,8 @@ export class WorkflowPlanner {
         const entry = state.steps[s.id];
         if (entry.status !== 'pending' || !s.dependsOn.every(d => state.steps[d].status === 'completed')) continue;
         out.push({ id: `${w.id}/${s.id}`, kind: 'workflow', workflowId: w.id, stepId: s.id,
-          memoryKey: JSON.stringify(['workflow', w.id, s.id]), priority: w.priority, description: w.description || `Задача ${w.id}, шаг ${s.id}.`,
-          action: s.action, until: s.until || null, blocked: entry.retryAt > now ? 'Ожидание повторной попытки шага.' : null });
+          memoryKey: JSON.stringify(['workflow', w.id, s.id]), priority: w.priority, description: w.description || `Task ${w.id}, step ${s.id}.`,
+          action: s.action, until: s.until || null, blocked: entry.retryAt > now ? "Waiting for a second step." : null });
       }
     }
     return out;
@@ -65,7 +65,7 @@ export class WorkflowPlanner {
     entry.error = detail || ''; entry.retryAt = 0;
     if (outcome === 'cancelled') { entry.attempts = Math.max(0, entry.attempts - 1); entry.status = 'pending'; return; }
     if (outcome === 'success') { entry.status = 'completed'; return; }
-    if (entry.attempts >= step.maxAttempts) { entry.status = 'failed'; entry.error ||= 'Исчерпан лимит попыток достижения результата.'; return; }
+    if (entry.attempts >= step.maxAttempts) { entry.status = 'failed'; entry.error ||= "Ended the limit on trying to achieve results."; return; }
     entry.status = 'pending';
     if (outcome === 'failure') entry.retryAt = now + Math.min(300000, step.retryDelayMs * 2 ** Math.min(entry.attempts - 1, 6));
   }
@@ -75,7 +75,7 @@ export class WorkflowPlanner {
   }
   retry(workflowId, stepId) {
     const { entry } = this.#get(workflowId, stepId);
-    if (!['failed', 'interrupted'].includes(entry.status)) throw new Error('Повтор доступен только для ошибочного или прерванного шага.');
+    if (!['failed', 'interrupted'].includes(entry.status)) throw new Error("Re-accessible only for an erroneous or interrupted step.");
     Object.assign(entry, emptyStep());
   }
   snapshot() {

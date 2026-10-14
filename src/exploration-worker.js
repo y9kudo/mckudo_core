@@ -4,7 +4,7 @@ import { readVoxelSnapshot } from './voxel-snapshot.js';
 
 parentPort.on('message', ({ id, input }) => {
   try {
-    if (input?.type !== 'exploration') throw new Error('Неизвестная задача CPU.');
+    if (input?.type !== 'exploration') throw new Error("Unknown task CPU.");
     const getBlock = readVoxelSnapshot(input.voxels), costs = new Map(input.costs);
     const result = planExploration({ ...input.options, getBlock, candidateCost: p => costs.get(`${p.x},${p.y},${p.z}`) || 0 });
     parentPort.postMessage({ id, result });

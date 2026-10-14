@@ -1,6 +1,6 @@
 import {dragonDecision} from './endgame.js';
 import {isAir,isFullBlock,planRoute} from './navigation.js';
-import {bridgeMaterials,solveAim,perchedDragonHead,traceVisibility} from '../kudoconnect/index.js';
+import {bridgeMaterials,solveAim,perchedDragonHead,traceVisibility} from '../omconnect/index.js';
 
 const floor=p=>({x:Math.floor(p.x),y:Math.floor(p.y),z:Math.floor(p.z)});
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
@@ -9,8 +9,8 @@ const idle=reason=>({action:null,reason});
 
 /** Native End policy: observed trajectories, reversible towers and cage openings. */
 export function createDragonPolicy({client,maxTowerHeight=48}={}) {
-  if(!client?.world||!Number.isInteger(maxTowerHeight)||maxTowerHeight<1||maxTowerHeight>64)throw new Error('Dragon policy: клиент и maxTowerHeight 1–64.');
-  let tower=null,failures=0,lastReason='Ожидание End.';
+  if(!client?.world||!Number.isInteger(maxTowerHeight)||maxTowerHeight<1||maxTowerHeight>64)throw new Error("Dragon policy: client and maxTowerHeight 1–64.");
+  let tower=null,failures=0,lastReason="Wait End.";
   const openedCrystals=new Set(),pendingShots=new Map(),shotTicks=new Map();
   const block=p=>client.world.blockAt(p);
   const shot=(e,from=client.state.position)=>solveAim({origin:{...from,y:from.y+1.52},target:{...e.position,y:e.position.y+(client.registry.entitiesByName[e.name]?.height??2)/2},targetVelocity:e.velocity||{x:0,y:0,z:0},getBlock:block});
@@ -36,10 +36,10 @@ export function createDragonPolicy({client,maxTowerHeight=48}={}) {
     return found.sort((a,b)=>a.d-b.d)[0]?.p||null;
   };
   const perchedMelee=(dragon,here)=>{
-    const head=perchedDragonHead(dragon);if(!head)return idle('Положение головы сидящего дракона пока неизвестно.');
+    const head=perchedDragonHead(dragon);if(!head)return idle("The position of the dragon's head is not yet known.");
     const eye={...here,y:here.y+1.62};
     if(dist(eye,head)<3&&traceVisibility({origin:eye,target:head,getBlock:block,maxDistance:4}).visible)
-      return act('attackDragon',{entityId:dragon.id,critical:true},'Ударить по голове сидящего дракона мечом; крит только при безопасном прыжке.',800);
+      return act('attackDragon',{entityId:dragon.id,critical:true},"Hit the head with a sword on the dragon sitting down; Screams only when jumping safely.",800);
     const candidates=[];
     for(const [dx,dz] of [[2,0],[-2,0],[0,2],[0,-2],[2,2],[2,-2],[-2,2],[-2,-2]])for(let y=Math.floor(head.y)-3;y<=Math.floor(head.y);y++){
       const q={x:Math.floor(head.x+dx),y,z:Math.floor(head.z+dz)},center={x:q.x+.5,y:y+1.62,z:q.z+.5};
@@ -50,7 +50,7 @@ export function createDragonPolicy({client,maxTowerHeight=48}={}) {
       if(route.status==='planned')candidates.push({q,cost:route.cost});
     }
     const best=candidates.sort((a,b)=>a.cost-b.cost)[0];
-    return best?act('navigate',{...best.q,range:0,bridge:false,sprintJump:false},'Подойти к голове сидящего дракона по наблюдаемой опоре.',600):idle('К голове сидящего дракона нет проверенного безопасного подхода.');
+    return best?act('navigate',{...best.q,range:0,bridge:false,sprintJump:false},"Approach the head of the sitting dragon on the observed support.",600):idle("There is no safe approach to the head of the sitting dragon.");
   };
   const towerPlan=(e,o)=>{
     const available=bridgeMaterials(client.registry,client.inventory.items(),{blockAtState:id=>client.world.Block.fromStateId(id,0)}).reduce((n,b)=>n+b.count,0),here=floor(o.self.position),goalY=Math.floor(e.position.y);
@@ -85,66 +85,66 @@ export function createDragonPolicy({client,maxTowerHeight=48}={}) {
     return best?{entityId:e.id,anchor:best.anchor,topY:best.topY,mode:'approach',kind:'ranged',shots:0}:null;
   };
   const react=o=>{
-    if(o.dimension!=='minecraft:the_end')return idle('Бой с драконом доступен в End.');
+    if(o.dimension!=='minecraft:the_end')return idle("Dragon fight is available in End.");
     const decision=dragonDecision(o),here=o.self.position;
     if(decision.mode==='completed')return null;
     // Finish dismantling the known tower before walking away or evading on its top.
     if(tower && (tower.mode==='descend' || failures>=2 || !o.entities.some(e=>e.id===tower.entityId))){
-      if(ownSupport(o))return act('descendPillar',{count:1},'Вернуться по собственной опоре после открытия клетки.');
+      if(ownSupport(o))return act('descendPillar',{count:1},"Return on your own support after opening the cell.");
       tower=null;failures=0;
     }
     const cloud=o.entities.find(e=>e.name==='area_effect_cloud'&&dist(e.position,here)<(e.radius||3)+2);
-    if(cloud)return ownSupport(o)?act('descendPillar',{count:1},'Уйти с собственной опоры ниже облака.',1000):act('evade',{from:cloud.position},'Выйти из облака дыхания.',1000);
-    if(o.self.health<=8)return idle('Нужно восстановить здоровье перед продолжением боя.');
+    if(cloud)return ownSupport(o)?act('descendPillar',{count:1},"Walk from your own support below the cloud.",1000):act('evade',{from:cloud.position},"Out of the air cloud.",1000);
+    if(o.self.health<=8)return idle("We need to restore health before the fight continues.");
     if(tower){
       const e=o.entities.find(e=>e.id===tower.entityId);
-      if(Math.hypot(here.x-tower.anchor.x-.5,here.z-tower.anchor.z-.5)>.2)return act('navigate',{...tower.anchor,range:0,bridge:false,sprintJump:false},'Подойти к проверенному месту столба.');
-      if(here.y<tower.topY-.1){tower.mode='climb';return act('pillar',{count:1},'Подниматься к решётке по одному подтверждённому блоку.');}
+      if(Math.hypot(here.x-tower.anchor.x-.5,here.z-tower.anchor.z-.5)>.2)return act('navigate',{...tower.anchor,range:0,bridge:false,sprintJump:false},"Approach the tested post.");
+      if(here.y<tower.topY-.1){tower.mode='climb';return act('pillar',{count:1},"Go up to the grate one confirmed block.");}
       if(tower.kind==='ranged'){
-        if(tower.mode==='waiting'&&Date.now()<(pendingShots.get(e.id)||0))return act('wait',{durationMs:250},'Дождаться попадания по кристаллу с дальнего столба.');
+        if(tower.mode==='waiting'&&Date.now()<(pendingShots.get(e.id)||0))return act('wait',{durationMs:250},"Wait for the crystal to hit the long pole.");
         if(tower.shots<3&&shootable(e,here)){
           const aim=shot(e,here);shotTicks.set(e.id,aim.ticks);
-          return act('shoot',{entityId:e.id},'Стрелять по открытому кристаллу с безопасной дистанции.');
+          return act('shoot',{entityId:e.id},"Shoot open crystal from a safe distance.");
         }
-        tower.mode='descend';return ownSupport(o)?act('descendPillar',{count:1},'Вернуться с огневой позиции после проверенных выстрелов.'):idle('Не найдена собственная опора для спуска.');
+        tower.mode='descend';return ownSupport(o)?act('descendPillar',{count:1},"Return from the firing position after the verified shots."):idle("No own launch support found.");
       }
       const eye={...here,y:here.y+1.62},bars=cages(e).filter(p=>dist(eye,{x:p.x+.5,y:p.y+.5,z:p.z+.5})<4.2).sort((a,b)=>dist(eye,a)-dist(eye,b));
       // Remove an accessible near wall, never the crystal's supporting bedrock.
-      if(bars.length && tower.opened<6)return act('dig',{...bars[0],block:'minecraft:iron_bars'},'Открыть ближнюю сторону клетки без удара по кристаллу.');
-      tower.mode='descend';return ownSupport(o)?act('descendPillar',{count:1},'Спуститься перед выстрелом по открытому кристаллу.'):idle('Для отхода от решётки нужно новое наблюдение опоры.');
+      if(bars.length && tower.opened<6)return act('dig',{...bars[0],block:'minecraft:iron_bars'},"Open the nearest side of the cell without impacting the crystal.");
+      tower.mode='descend';return ownSupport(o)?act('descendPillar',{count:1},"Down before firing on the open crystal."):idle("To get away from the grate, you need a new support leg observation.");
     }
     if(decision.mode==='evade' && decision.target)return act('evade',{from:decision.target},decision.reason,950);
     if(decision.mode==='perch'){
       const dragon=o.entities.find(e=>e.id===decision.entityId);
-      return dragon?perchedMelee(dragon,here):idle('Сидящий дракон больше не наблюдается.');
+      return dragon?perchedMelee(dragon,here):idle("The dragon sitting is no longer visible.");
     }
     const clearCrystals=o.entities.filter(e=>e.name==='end_crystal'&&dist(e.position,here)>=12&&Date.now()>=(pendingShots.get(e.id)||0))
       .map(e=>({e,aim:shot(e)})).filter(s=>s.aim.status==='aimed').sort((a,b)=>a.aim.ticks-b.aim.ticks);
     if(clearCrystals.length){
       const chosen=clearCrystals[0];shotTicks.set(chosen.e.id,chosen.aim.ticks);
-      return act('shoot',{entityId:chosen.e.id},'Выстрелить по кристаллу с проверенной траекторией.');
+      return act('shoot',{entityId:chosen.e.id},"Shoot a crystal with a proven trajectory.");
     }
-    if(o.entities.some(e=>e.name==='end_crystal'&&Date.now()<(pendingShots.get(e.id)||0)))return act('wait',{durationMs:250},'Дождаться долёта уже выпущенной стрелы.');
+    if(o.entities.some(e=>e.name==='end_crystal'&&Date.now()<(pendingShots.get(e.id)||0)))return act('wait',{durationMs:250},"Wait for the arrow to come out.");
     const e=o.entities.find(e=>e.id===decision.entityId);
-    if(!e)return idle('Цель не наблюдается; отсутствие дракона не подтверждает победу.');
-    if(!o.inventory['minecraft:bow']||!o.inventory['minecraft:arrow'])return idle('Для боя нужны лук и стрелы.');
+    if(!e)return idle("Target not observed; The absence of a dragon does not prove victory.");
+    if(!o.inventory['minecraft:bow']||!o.inventory['minecraft:arrow'])return idle("You need bow and arrows to fight.");
     if(shootable(e))return act('shoot',{entityId:e.id},decision.reason);
     const ladder=nearbyLadder(here);
-    if(ladder)return act('climbLadder',ladder,'Подняться по наблюдаемой лестнице к острову и открыть обзор.');
+    if(ladder)return act('climbLadder',ladder,"Go up the observed ladder to the island and open the review.");
     if(e.name==='end_crystal'){
       tower=rangedTowerPlan(e,o);
-      if(tower)return act('navigate',{...tower.anchor,range:0,bridge:false,sprintJump:false},'Выйти к безопасному дальнему столбу для выстрела.');
+      if(tower)return act('navigate',{...tower.anchor,range:0,bridge:false,sprintJump:false},"Go to the safe far pole for firing.");
     }
     if(e.name==='end_crystal' && cages(e).length&&!openedCrystals.has(e.id)){
       tower=towerPlan(e,o);
-      if(tower)return act('navigate',{...tower.anchor,range:0,bridge:false,sprintJump:false},'Подготовить обратимый подъём к закрытому кристаллу.');
+      if(tower)return act('navigate',{...tower.anchor,range:0,bridge:false,sprintJump:false},"Prepare a reversible rise to closed crystal.");
     }
     // Try another ground firing position before spending blocks on a tower.
     const p=floor(here);
     for(const [dx,dz] of [[6,0],[-6,0],[0,6],[0,-6],[4,4],[-4,-4]]){
       const q={x:p.x+dx,y:p.y,z:p.z+dz},center={x:q.x+.5,y:q.y,z:q.z+.5};
       if(e.name==='end_crystal'&&dist(center,e.position)<12||!shootable(e,center))continue;
-      if(planRoute({start:p,goal:q,getBlock:block,maxNodes:1500,maxDistance:16,maxDrop:1}).status==='planned')return act('navigate',{...q,range:0,bridge:false,sprintJump:false},'Сменить позицию для свободной траектории.');
+      if(planRoute({start:p,goal:q,getBlock:block,maxNodes:1500,maxDistance:16,maxDrop:1}).status==='planned')return act('navigate',{...q,range:0,bridge:false,sprintJump:false},"Change Position for Free Trace.");
     }
     // When the target is hidden beyond a rising slope, move toward it in
     // checked terrain stages. Each destination has confirmed support and A*.
@@ -155,12 +155,12 @@ export function createDragonPolicy({client,maxTowerHeight=48}={}) {
         const q={x,y,z};if(!isAir(block(q))||!isAir(block({...q,y:y+1}))||!isFullBlock(block({...q,y:y-1})))continue;
         if(e.name==='end_crystal'&&dist({x:x+.5,y:y+1.62,z:z+.5},e.position)<12)continue;
         const route=planRoute({start:p,goal:q,getBlock:block,maxNodes:2500,maxDistance:24,maxDrop:2});
-        if(route.status==='planned')return act('navigate',{...q,range:0,bridge:false,sprintJump:true},'Подойти по наблюдаемому склону к огневой позиции.');
+        if(route.status==='planned')return act('navigate',{...q,range:0,bridge:false,sprintJump:true},"Approaching the observed slope to the firing position.");
       }
     }
-    return idle('Нет проверенной позиции для выстрела или подъёма; нужна новая область наблюдения.');
+    return idle("No verified position for firing or lifting; Need a new field of observation.");
   };
-  return {react(o){const result=react(o);lastReason=result?.reason||'Подтверждена смерть дракона.';return result;},recordResult(e,action){
+  return {react(o){const result=react(o);lastReason=result?.reason||"The dragon's death confirmed.";return result;},recordResult(e,action){
     if(e.outcome==='failure'){failures++;if(action.skill==='shoot')pendingShots.delete(action.args.entityId);}
     else if(e.outcome==='success'){
       failures=0;

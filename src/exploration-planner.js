@@ -4,13 +4,13 @@ import { explorationCandidates } from './exploration.js';
 
 /** A reactor can ask for a plan without waiting or blocking emergency reactions. */
 export function createExplorationPlanner({ world, pool = explorationCpu, onReady = () => {}, clock = Date.now } = {}) {
-  if (!world || typeof world.blockAt !== 'function' || !pool || typeof pool.run !== 'function') throw new Error('Исследованию нужны world и CPU pool.');
+  if (!world || typeof world.blockAt !== 'function' || !pool || typeof pool.run !== 'function') throw new Error("Research needed world and CPU pool.");
   let job = null, closed = false;
   const stats = { requested: 0, completed: 0, stale: 0, failed: 0 };
-  const reset = () => { job?.abort.abort(new Error('Запрос исследования заменён.')); job = null; };
+  const reset = () => { job?.abort.abort(new Error("Request for study replaced.")); job = null; };
   return {
     poll(options) {
-      if (closed) return { status: 'blocked', reason: 'Планировщик исследования закрыт.' };
+      if (closed) return { status: 'blocked', reason: "The research planner is closed." };
       const { position, mode = 'surface', radius = 24, maxNodes = 800, maxCandidates = 8, visited = [], candidateCost = () => 0, context = '' } = options;
       const p = Object.fromEntries(['x', 'y', 'z'].map(k => [k, Math.floor(position[k])]));
       const key = JSON.stringify([world.dimension, p, mode, radius, maxNodes, maxCandidates, context]);
@@ -39,7 +39,7 @@ export function createExplorationPlanner({ world, pool = explorationCpu, onReady
           stats.failed++; current.result = { status: 'blocked', reason: String(error.message).slice(0, 500) }; current.finishedAt = clock(); onReady();
         });
       }
-      return { status: 'pending', reason: 'CPU вычисляет безопасный пункт исследования; защита и физика продолжают работать.' };
+      return { status: 'pending', reason: "CPU computes a safe research point; Protection and physics continue to work." };
     },
     invalidate: reset,
     snapshot: () => ({ ...stats, pending: Boolean(job && !job.result), cpu: pool.snapshot?.() ?? null }),

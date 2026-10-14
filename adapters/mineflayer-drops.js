@@ -9,10 +9,10 @@ export function createDropCollector(bot, { goals, check }) {
   return { observe: () => drops().map(({ entity: e, item }) => ({ id: String(e.id), item: 'minecraft:' + item.name, count: item.count, position: { x: e.position.x, y: e.position.y, z: e.position.z } })),
     async collect({ item, entityId, origin, radius = 8, timeoutMs = 8000, beforeCount }, signal) {
       if (!Number.isFinite(radius) || radius < 1 || radius > 64 || !Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 30000) throw new Error('collect: radius 1–64, timeoutMs 100–30000.');
-      if (item !== undefined && (typeof item !== 'string' || !/^(minecraft:)?[a-z0-9_]+$/.test(item))) throw new Error('collect.item: нужен vanilla ID.');
+      if (item !== undefined && (typeof item !== 'string' || !/^(minecraft:)?[a-z0-9_]+$/.test(item))) throw new Error("collect.item: requires vanilla ID.");
       const name = item?.replace(/^minecraft:/, ''), before = name ? beforeCount ?? count(name) : null;
       const p = origin || bot.entity.position, collected = new Set();
-      if (!['x', 'y', 'z'].every(k => Number.isFinite(p[k])) || before !== null && (!Number.isInteger(before) || before < 0)) throw new Error('collect: неверные координаты или beforeCount.');
+      if (!['x', 'y', 'z'].every(k => Number.isFinite(p[k])) || before !== null && (!Number.isInteger(before) || before < 0)) throw new Error("collect: incorrect coordinates or beforeCount.");
       const onCollect = (collector, entity) => { if (collector === bot.entity) collected.add(entity.id); };
       bot.on?.('playerCollect', onCollect);
       const deadline = Date.now() + timeoutMs; let target, nextPathAt = 0, attempts = 0, goalKey = '';
@@ -35,7 +35,7 @@ export function createDropCollector(bot, { goals, check }) {
           }
           await delay(50, undefined, { signal });
         }
-        throw new Error(`Подбор не подтверждён: ${name || entityId || 'предмет'}, попыток ${attempts}.`);
+        throw new Error(`Pickup not confirmed: ${name || entityId || "subject"}, attempts ${attempts}.`);
       } finally { bot.pathfinder.setGoal(null); bot.clearControlStates(); bot.removeListener?.('playerCollect', onCollect); }
     }
   };

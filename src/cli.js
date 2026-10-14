@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
-import { createCore, validateConfig, MCKUDO } from '../mckudo_core.js';
+import { createCore, validateConfig, OVERMIND } from '../overmindmc.js';
 import { createSimulator } from '../adapters/simulator.js';
 
 const [command = 'help', ...args] = process.argv.slice(2);
 const readConfig = async file => validateConfig(JSON.parse(await readFile(resolve(file), 'utf8')));
 try {
   if (command === 'validate') {
-    if (args.length > 1) throw new Error('Использование: mckudo validate [agent.json]');
+    if (args.length > 1) throw new Error("Usage: overmindmc validate [agent.json]");
     const config = await readConfig(args[0] || 'agent.json');
-    console.log(`JSON корректен: ${config.name}; правил ${config.rules.length}, задач ${config.workflows.length}, целей ${config.goals.length}.`);
+    console.log(`JSON valid: ${config.name}; rules ${config.rules.length}, tasks ${config.workflows.length}, goals ${config.goals.length}.`);
   } else if (command === 'simulate') {
     const file = args[0] || 'agent.json';
-    if (args.length > 1 && (args[1] !== '--steps' || args.length !== 3)) throw new Error('Использование: mckudo simulate agent.json --steps 20');
+    if (args.length > 1 && (args[1] !== '--steps' || args.length !== 3)) throw new Error("Usage: overmindmc simulate agent.json --steps 20");
     const steps = Number(args[2] ?? 20);
-    if (!Number.isInteger(steps) || steps < 1 || steps > 1000) throw new Error('steps: целое число 1–1000.');
+    if (!Number.isInteger(steps) || steps < 1 || steps > 1000) throw new Error("steps: an integer 1–1000.");
     const core = createCore({ config: await readConfig(file), adapter: createSimulator() });
     core.on('action:finish', result => console.log(`${result.rule}: ${result.outcome}`));
     for (let n = 0; n < steps; n++) await core.tick();
@@ -24,18 +24,18 @@ try {
     await core.stop();
     if (['fault', 'blocked'].includes(state.status)) process.exitCode = 2;
   } else if (command === 'init') {
-    if (args.length !== 1) throw new Error('Использование: mckudo init путь-к-новой-папке');
+    if (args.length !== 1) throw new Error("Usage: overmindmc init path-to-new-folder");
     const dir = resolve(args[0]);
     const exists = await stat(dir).then(() => true, error => { if (error.code === 'ENOENT') return false; throw error; });
-    if (exists) throw new Error('Папка уже существует. Выбери новую папку; существующие файлы не перезаписываются.');
+    if (exists) throw new Error("Folder already exists. Choose a new folder; Existing files not re-recorded.");
     const config = JSON.parse(await readFile(new URL('../examples/workshop.json', import.meta.url), 'utf8'));
-    config.$schema = './node_modules/mckudo/schemas/agent.schema.json'; config.worldId = 'my-workshop';
+    config.$schema = './node_modules/overmindmc/schemas/agent.schema.json'; config.worldId = 'my-workshop';
     await mkdir(dir, { recursive: false });
     await writeFile(join(dir, 'agent.json'), JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
-    await writeFile(join(dir, 'package.json'), JSON.stringify({ name: 'mckudo-workspace', private: true, type: 'module', scripts: { start: 'node index.js' } }, null, 2) + '\n', { flag: 'wx' });
+    await writeFile(join(dir, 'package.json'), JSON.stringify({ name: 'overmindmc-workspace', private: true, type: 'module', scripts: { start: 'node index.js' } }, null, 2) + '\n', { flag: 'wx' });
     await writeFile(join(dir, 'index.js'), `import { readFile } from 'node:fs/promises';
-import { createCore } from 'mckudo';
-import { createSimulator } from 'mckudo/adapters/simulator';
+import { createCore } from 'overmindmc';
+import { createSimulator } from 'overmindmc/adapters/simulator';
 const config = JSON.parse(await readFile(new URL('./agent.json', import.meta.url), 'utf8'));
 const core = createCore({ config, adapter: createSimulator() });
 core.on('action:finish', r => console.log(r.rule, r.outcome));
@@ -43,8 +43,12 @@ for (let n = 0; n < 20; n++) await core.tick();
 console.log(core.snapshot().workflows);
 await core.stop();
 `, { flag: 'wx' });
-    console.log(`Проект создан: ${dir}\nУстанови в него локальный пакет mckudo (.tgz или папку), затем выполни npm start. Пример использует симулятор.`);
+    console.log(`Project established: ${dir}
+Put a local overmindmc package (.tgz or folder), Then execute npm start. Example Using Simulator.`);
   } else if (['help', '--help', '-h'].includes(command)) {
-    console.log(`${MCKUDO.name} ${MCKUDO.version} · разработано ${MCKUDO.author}\nmckudo init <новая-папка>\nmckudo validate [agent.json]\nmckudo simulate [agent.json] [--steps 20]`);
-  } else throw new Error(`Неизвестная команда: ${command}. Используй mckudo help.`);
+    console.log(`${OVERMIND.name} ${OVERMIND.version} · developed by ${OVERMIND.author}
+overmindmc init <new-Folder>
+overmindmc validate [agent.json]
+overmindmc simulate [agent.json] [--steps 20]`);
+  } else throw new Error(`Unknown command: ${command}. Run overmindmc help.`);
 } catch (error) { console.error(error.message); process.exitCode = 1; }

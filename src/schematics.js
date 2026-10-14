@@ -5,64 +5,64 @@ import {isFullBlock} from './navigation.js';
 
 const MAX_SOURCE=8*1024*1024,MAX_NBT=32*1024*1024,MAX_VOLUME=65536,MAX_CELLS=4096;
 const int=n=>Number.isInteger(n)&&Math.abs(n)<=30000000;
-const vector=(value,label)=>{if(!Array.isArray(value)||value.length!==3||!value.every(int))throw new Error(`${label}: нужны три целые координаты.`);return value;};
+const vector=(value,label)=>{if(!Array.isArray(value)||value.length!==3||!value.every(int))throw new Error(`${label}: I need three full coordinates.`);return value;};
 const block=state=>{
-  if(!state||typeof state.Name!=='string'||!/^([a-z0-9_.-]+:)?[a-z0-9_./-]+$/.test(state.Name))throw new Error('Схема содержит неверный ID блока.');
+  if(!state||typeof state.Name!=='string'||!/^([a-z0-9_.-]+:)?[a-z0-9_./-]+$/.test(state.Name))throw new Error("The diagram contains incorrect ID block.");
   const properties=state.Properties||{};
-  if(!properties||typeof properties!=='object'||Array.isArray(properties))throw new Error('Некорректные свойства блока.');
+  if(!properties||typeof properties!=='object'||Array.isArray(properties))throw new Error("Uncorrect properties of the block.");
   return {block:state.Name.includes(':')?state.Name:'minecraft:'+state.Name,properties};
 };
 const air=id=>['minecraft:air','minecraft:cave_air','minecraft:void_air','minecraft:structure_void'].includes(id);
 const dimension=(root,label)=>{
   const size=[root.Width,root.Height,root.Length];
-  if(size.some(n=>!Number.isInteger(n)||n<-32768||n>32767))throw new Error(`${label}: неверные размеры.`);
+  if(size.some(n=>!Number.isInteger(n)||n<-32768||n>32767))throw new Error(`${label}: Wrong dimensions.`);
   for(let i=0;i<size.length;i++)size[i]&=0xffff;
-  if(size.some(n=>!n)||size.reduce((a,b)=>a*b,1)>MAX_VOLUME)throw new Error(`${label}: размер должен быть от 1 до ${MAX_VOLUME} позиций.`);
+  if(size.some(n=>!n)||size.reduce((a,b)=>a*b,1)>MAX_VOLUME)throw new Error(`${label}: The size shall be from 1 to ${MAX_VOLUME} positions.`);
   return size;
 };
 const stateString=value=>{
-  if(typeof value!=='string')throw new Error('Неверное имя блока в палитре.');
+  if(typeof value!=='string')throw new Error("Wrong name of block in palette.");
   const match=/^([^\[\]]+)(?:\[([^\[\]]+)\])?$/.exec(value);
-  if(!match)throw new Error('Неверное состояние блока в палитре.');
+  if(!match)throw new Error("Uncorrect condition of block in palette.");
   const properties={};
   if(match[2])for(const property of match[2].split(',')){
     const pair=/^([a-z0-9_]+)=([a-z0-9_]+)$/.exec(property);
-    if(!pair||Object.hasOwn(properties,pair[1]))throw new Error('Неверное свойство блока в палитре.');
+    if(!pair||Object.hasOwn(properties,pair[1]))throw new Error("The false property of the block in the palette.");
     properties[pair[1]]=pair[2];
   }
   return block({Name:match[1],Properties:properties});
 };
 const varints=(bytes,count)=>{
-  if(!Array.isArray(bytes)||bytes.length>MAX_NBT)throw new Error('Sponge: нужен массив BlockData/Data.');
+  if(!Array.isArray(bytes)||bytes.length>MAX_NBT)throw new Error("Sponge: I need a mass BlockData/Data.");
   const result=[];let pos=0;
   for(let i=0;i<count;i++){
     let value=0,complete=false;
     for(let shift=0;shift<35;shift+=7){
-      if(pos>=bytes.length)throw new Error('Sponge: обрезанные данные блоков.');
+      if(pos>=bytes.length)throw new Error("Sponge: truncated block data.");
       const part=bytes[pos++]&255;
-      if(shift===28&&part>15)throw new Error('Sponge: неверный VarInt блока.');
+      if(shift===28&&part>15)throw new Error("Sponge: Infidel VarInt block.");
       value+=(part&127)*2**shift;
       if(!(part&128)){complete=true;break;}
     }
-    if(!complete)throw new Error('Sponge: VarInt блока длиннее 5 байт.');
+    if(!complete)throw new Error("Sponge: VarInt block longer 5 Byte.");
     result.push(value);
   }
-  if(pos!==bytes.length)throw new Error('Sponge: данные блоков длиннее объявленного объёма.');
+  if(pos!==bytes.length)throw new Error("Sponge: the blocks are longer than the declared volume.");
   return result;
 };
 function sponge(root){
-  if(![2,3].includes(root.Version))throw new Error('Поддерживаются Sponge .schem версий 2 и 3.');
+  if(![2,3].includes(root.Version))throw new Error("Supported Sponge .schem versions 2 and 3.");
   const [sx,sy,sz]=dimension(root,'Sponge'),container=root.Version===3?root.Blocks:root;
-  if(!container||!container.Palette||typeof container.Palette!=='object')throw new Error('Sponge: отсутствует палитра блоков.');
+  if(!container||!container.Palette||typeof container.Palette!=='object')throw new Error("Sponge: no block palette.");
   const palette=new Map();
   for(const [name,index] of Object.entries(container.Palette)){
-    if(!Number.isInteger(index)||index<0||index>MAX_CELLS||palette.has(index))throw new Error('Sponge: неверный индекс палитры.');
+    if(!Number.isInteger(index)||index<0||index>MAX_CELLS||palette.has(index))throw new Error("Sponge: wrong palette index.");
     palette.set(index,stateString(name));
   }
-  const [ox,oy,oz]=vector(root.Offset||[0,0,0],'Смещение Sponge'),offset={x:ox,y:oy,z:oz};
+  const [ox,oy,oz]=vector(root.Offset||[0,0,0],"Offset Sponge"),offset={x:ox,y:oy,z:oz};
   const data=varints(root.Version===3?container.Data:root.BlockData,sx*sy*sz),cells=[];
   for(let i=0;i<data.length;i++){
-    const state=palette.get(data[i]);if(!state)throw new Error('Sponge: индекс блока отсутствует в палитре.');
+    const state=palette.get(data[i]);if(!state)throw new Error("Sponge: Unit index missing in palette.");
     if(!air(state.block))cells.push({x:i%sx,y:Math.floor(i/(sx*sz)),z:Math.floor(i/sx)%sz,...state});
   }
   return {format:'schem',size:{x:sx,y:sy,z:sz},offset,cells,dataVersion:root.DataVersion??null};
@@ -71,33 +71,33 @@ function sponge(root){
 // Names that preserve the legacy ID when metadata is zero and need no explicit orientation.
 const LEGACY_NAMES={1:'stone',2:'grass_block',3:'dirt',4:'cobblestone',5:'oak_planks',7:'bedrock',12:'sand',13:'gravel',14:'gold_ore',15:'iron_ore',16:'coal_ore',19:'sponge',20:'glass',21:'lapis_ore',22:'lapis_block',24:'sandstone',41:'gold_block',42:'iron_block',45:'bricks',47:'bookshelf',48:'mossy_cobblestone',49:'obsidian',56:'diamond_ore',57:'diamond_block',73:'redstone_ore',79:'ice',80:'snow_block',82:'clay',87:'netherrack',88:'soul_sand',89:'glowstone',98:'stone_bricks',103:'melon',110:'mycelium',112:'nether_bricks',121:'end_stone',129:'emerald_ore',133:'emerald_block',152:'redstone_block',155:'quartz_block',165:'slime_block',169:'sea_lantern',170:'hay_block',172:'terracotta',173:'coal_block',174:'packed_ice',201:'purpur_block',206:'end_stone_bricks',213:'magma_block',214:'nether_wart_block',215:'red_nether_bricks',216:'bone_block',251:'white_concrete',252:'white_concrete_powder'};
 function legacy(root){
-  if(root.Materials!=='Alpha')throw new Error('Legacy .schematic: поддерживается только формат Alpha.');
+  if(root.Materials!=='Alpha')throw new Error("Legacy .schematic: only the format is supported Alpha.");
   const [sx,sy,sz]=dimension(root,'Legacy'),volume=sx*sy*sz;
-  if(!Array.isArray(root.Blocks)||!Array.isArray(root.Data)||root.Blocks.length!==volume||root.Data.length!==volume)throw new Error('Legacy .schematic: неверная длина Blocks/Data.');
-  if(root.AddBlocks&&(!Array.isArray(root.AddBlocks)||root.AddBlocks.length<Math.ceil(volume/2)))throw new Error('Legacy .schematic: неверная длина AddBlocks.');
+  if(!Array.isArray(root.Blocks)||!Array.isArray(root.Data)||root.Blocks.length!==volume||root.Data.length!==volume)throw new Error("Legacy .schematic: Incorrect length Blocks/Data.");
+  if(root.AddBlocks&&(!Array.isArray(root.AddBlocks)||root.AddBlocks.length<Math.ceil(volume/2)))throw new Error("Legacy .schematic: Incorrect length AddBlocks.");
   const cells=[];
   for(let i=0;i<volume;i++){
     const extra=root.AddBlocks?((root.AddBlocks[i>>1]&255)>>((i&1)*4)&15):0;
     const id=(root.Blocks[i]&255)|(extra<<8),meta=root.Data[i]&255;
     if(id===0)continue;
     // Legacy numeric IDs and metadata are not portable. Fail explicitly instead of silently placing the wrong block.
-    if(meta||id>=256)throw new Error(`Legacy .schematic: блок ${id}:${meta} требует преобразования в современный формат .schem.`);
+    if(meta||id>=256)throw new Error(`Legacy .schematic: block ${id}:${meta} requires conversion to the modern format .schem.`);
     const name=LEGACY_NAMES[id];
-    if(!name)throw new Error(`Legacy .schematic: блок ${id}:${meta} требует преобразования в современный формат .schem.`);
+    if(!name)throw new Error(`Legacy .schematic: block ${id}:${meta} requires conversion to the modern format .schem.`);
     cells.push({x:i%sx,y:Math.floor(i/(sx*sz)),z:Math.floor(i/sx)%sz,block:'minecraft:'+name,properties:{}});
   }
   return {format:'schematic',size:{x:sx,y:sy,z:sz},cells,dataVersion:null};
 }
 
 function vanilla(root){
-  const size=vector(root.size,'Размер структуры');
-  if(size.some(n=>n<1)||size.reduce((a,b)=>a*b,1)>MAX_VOLUME)throw new Error(`Структура: максимум ${MAX_VOLUME} позиций.`);
+  const size=vector(root.size,"Structure size");
+  if(size.some(n=>n<1)||size.reduce((a,b)=>a*b,1)>MAX_VOLUME)throw new Error(`Structure: maximum ${MAX_VOLUME} positions.`);
   const palette=root.palette||root.palettes?.[0];
-  if(!Array.isArray(palette)||!Array.isArray(root.blocks))throw new Error('Нужен vanilla Structure NBT с palette и blocks.');
+  if(!Array.isArray(palette)||!Array.isArray(root.blocks))throw new Error("Requires vanilla Structure NBT with palette and blocks.");
   const cells=[];
   for(const entry of root.blocks){
-    const [x,y,z]=vector(entry.pos,'Позиция блока');
-    if(x<0||y<0||z<0||x>=size[0]||y>=size[1]||z>=size[2]||!Number.isInteger(entry.state)||!palette[entry.state])throw new Error('Блок находится вне структуры или палитры.');
+    const [x,y,z]=vector(entry.pos,"Position of the block");
+    if(x<0||y<0||z<0||x>=size[0]||y>=size[1]||z>=size[2]||!Number.isInteger(entry.state)||!palette[entry.state])throw new Error("Block outside structure or palette.");
     const state=block(palette[entry.state]);if(!air(state.block))cells.push({x,y,z,...state});
   }
   return {format:'nbt',size:{x:size[0],y:size[1],z:size[2]},cells,dataVersion:root.DataVersion??null};
@@ -107,35 +107,35 @@ function long(value){
   if(typeof value==='bigint')return BigInt.asUintN(64,value);
   if(Array.isArray(value)&&value.length===2)return BigInt.asUintN(64,(BigInt(value[0]>>>0)<<32n)|BigInt(value[1]>>>0));
   if(typeof value==='number'&&Number.isSafeInteger(value))return BigInt.asUintN(64,BigInt(value));
-  throw new Error('Неверный packed long в BlockStates.');
+  throw new Error("Invalid packed long in BlockStates.");
 }
 function packedIndex(words,index,bits){
   const offset=index*bits,word=Math.floor(offset/64),shift=offset%64,mask=(1n<<BigInt(bits))-1n;
-  if(word>=words.length)throw new Error('BlockStates короче объявленного объёма.');
+  if(word>=words.length)throw new Error("BlockStates Shorter than the declared volume.");
   let value=words[word]>>BigInt(shift);
-  if(shift+bits>64){if(word+1>=words.length)throw new Error('Обрезанный BlockStates.');value|=words[word+1]<<BigInt(64-shift);}
+  if(shift+bits>64){if(word+1>=words.length)throw new Error("Circumcision BlockStates.");value|=words[word+1]<<BigInt(64-shift);}
   return Number(value&mask);
 }
 function litematic(root){
-  if(!root.Regions||typeof root.Regions!=='object')throw new Error('Нужен Litematica NBT с Regions.');
+  if(!root.Regions||typeof root.Regions!=='object')throw new Error("Requires Litematica NBT with Regions.");
   const cells=[],positions=new Set();let volume=0;
   for(const region of Object.values(root.Regions)){
     const p=region.Position,s=region.Size;
-    if(!p||!s||![p.x,p.y,p.z,s.x,s.y,s.z].every(int)||[s.x,s.y,s.z].some(n=>n===0))throw new Error('Регион: Position и Size должны быть целыми ненулевыми векторами.');
+    if(!p||!s||![p.x,p.y,p.z,s.x,s.y,s.z].every(int)||[s.x,s.y,s.z].some(n=>n===0))throw new Error("Region: Position and Size must be a whole non-zero vector.");
     const [sx,sy,sz]=[Math.abs(s.x),Math.abs(s.y),Math.abs(s.z)];volume+=sx*sy*sz;
-    if(volume>MAX_VOLUME)throw new Error(`Litematic: максимум ${MAX_VOLUME} позиций.`);
-    const palette=region.BlockStatePalette;if(!Array.isArray(palette)||!palette.length||!Array.isArray(region.BlockStates))throw new Error('Регион: нужны BlockStatePalette и BlockStates.');
+    if(volume>MAX_VOLUME)throw new Error(`Litematic: maximum ${MAX_VOLUME} positions.`);
+    const palette=region.BlockStatePalette;if(!Array.isArray(palette)||!palette.length||!Array.isArray(region.BlockStates))throw new Error("Region: requires BlockStatePalette and BlockStates.");
     const words=region.BlockStates.map(long),bits=Math.max(2,Math.ceil(Math.log2(palette.length)));
     for(let y=0;y<sy;y++)for(let z=0;z<sz;z++)for(let x=0;x<sx;x++){
       const index=packedIndex(words,(y*sz+z)*sx+x,bits);
-      if(!palette[index])throw new Error('Индекс палитры вне диапазона.');
+      if(!palette[index])throw new Error("Palitrate index outside range.");
       const state=block(palette[index]);
       if(air(state.block))continue;
       const cell={x:p.x+x*Math.sign(s.x),y:p.y+y*Math.sign(s.y),z:p.z+z*Math.sign(s.z),...state};
-      const key=blockKey(cell);if(positions.has(key))throw new Error('Регионы перекрываются.');positions.add(key);cells.push(cell);
+      const key=blockKey(cell);if(positions.has(key))throw new Error("Regions overlap.");positions.add(key);cells.push(cell);
     }
   }
-  if(!cells.length)throw new Error('В схеме нет устанавливаемых блоков.');
+  if(!cells.length)throw new Error("No blocks installed in the diagram.");
   const min={x:Math.min(...cells.map(c=>c.x)),y:Math.min(...cells.map(c=>c.y)),z:Math.min(...cells.map(c=>c.z))};
   for(const c of cells){c.x-=min.x;c.y-=min.y;c.z-=min.z;}
   return {format:'litematic',size:{x:Math.max(...cells.map(c=>c.x))+1,y:Math.max(...cells.map(c=>c.y))+1,z:Math.max(...cells.map(c=>c.z))+1},cells,dataVersion:root.MinecraftDataVersion??null};
@@ -144,23 +144,23 @@ function litematic(root){
 /** Parse vanilla Structure NBT, Litematica, Sponge and a safe subset of legacy MCEdit schematics. */
 export function parseSchematic(input,{filename='structure.nbt'}={}){
   const buffer=Buffer.from(input||[]);
-  if(!buffer.length||buffer.length>MAX_SOURCE)throw new Error('Схема: размер 1 байт – 8 МиБ.');
-  if(!/\.(?:nbt|litematic|litematica|schem|schematic)$/i.test(filename))throw new Error('Схема: расширение .nbt, .litematic, .litematica, .schem или .schematic.');
+  if(!buffer.length||buffer.length>MAX_SOURCE)throw new Error("Schematic: size 1 Byte – 8 MiB.");
+  if(!/\.(?:nbt|litematic|litematica|schem|schematic)$/i.test(filename))throw new Error("Schematic: expansion .nbt, .litematic, .litematica, .schem or .schematic.");
   const raw=buffer[0]===0x1f&&buffer[1]===0x8b?gunzipSync(buffer,{maxOutputLength:MAX_NBT}):buffer[0]===0x78?inflateSync(buffer,{maxOutputLength:MAX_NBT}):buffer;
-  if(raw.length>MAX_NBT)throw new Error('NBT превышает 32 МиБ.');
+  if(raw.length>MAX_NBT)throw new Error("NBT more than 32 MiB.");
   const root=nbt.simplify(nbt.parseUncompressed(raw));
   const ext=filename.toLowerCase().split('.').at(-1);
   const value=root.Schematic&&typeof root.Schematic==='object'?root.Schematic:root;
   const result=ext==='schem'?sponge(value):ext==='schematic'?legacy(value):root.Regions?litematic(root):vanilla(root);
-  if(!result.cells.length)throw new Error('В схеме нет устанавливаемых блоков.');
-  if(result.cells.length>MAX_CELLS)throw new Error(`Схема: максимум ${MAX_CELLS} устанавливаемых блоков.`);
+  if(!result.cells.length)throw new Error("No blocks installed in the diagram.");
+  if(result.cells.length>MAX_CELLS)throw new Error(`Schematic: maximum ${MAX_CELLS} units installed.`);
   const unsupported=result.cells.filter(c=>Object.keys(c.properties).length).length;
   return {...result,blockCount:result.cells.length,unsupportedStates:unsupported};
 }
 
 export function schematicBlueprint(schematic,origin){
-  if(!origin||!['x','y','z'].every(k=>int(origin[k])))throw new Error('Нужны целые координаты начала постройки.');
-  if(schematic.unsupportedStates)throw new Error(`В схеме ${schematic.unsupportedStates} блоков со свойствами: поворот/состояние пока не поддержаны при установке.`);
+  if(!origin||!['x','y','z'].every(k=>int(origin[k])))throw new Error("We need the full coordinates of the beginning of the building.");
+  if(schematic.unsupportedStates)throw new Error(`In the scheme ${schematic.unsupportedStates} blocks with properties: placement of these block states is not supported.`);
   const shift=schematic.offset||{x:0,y:0,z:0};
   return validateBlueprint({schemaVersion:1,id:'imported-schematic',origin,cells:schematic.cells.map(c=>({x:origin.x+shift.x+c.x,y:origin.y+shift.y+c.y,z:origin.z+shift.z+c.z,block:c.block})),air:[],dependent:[]});
 }
@@ -180,7 +180,7 @@ export async function buildSchematic(client,schematic,origin,{signal=AbortSignal
     const available=plan.actions.find(a=>[[0,-1,0],[0,1,0],[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]].some(([dx,dy,dz])=>{
       const b=getBlock({x:a.args.x+dx,y:a.args.y+dy,z:a.args.z+dz});return b?.boundingBox==='block';
     }));
-    if(!available)return {status:'blocked',actions,reason:'У оставшихся блоков нет опоры. Добавь основание или начни с поверхности.'};
+    if(!available)return {status:'blocked',actions,reason:"The remaining blocks have no support. Add the base or start with the surface."};
     if(client.state.gameMode==='creative'&&!client.inventory.count(available.args.block)){
       await client.execute({skill:'creativeTake',args:{item:available.args.block,count:64,replace:true}},{signal,priority:100});
     }
@@ -191,7 +191,7 @@ export async function buildSchematic(client,schematic,origin,{signal=AbortSignal
 
 /** Find a verified empty, flat footprint in already received chunks. Never clears existing builds. */
 export function findSchematicSite(client,schematic,{near=client.state.position,minDistance=48,maxDistance=160}={}){
-  if(!near||!Number.isInteger(minDistance)||!Number.isInteger(maxDistance)||minDistance<0||maxDistance<minDistance||maxDistance>512)throw new Error('Поиск участка: near и дистанция 0–512.');
+  if(!near||!Number.isInteger(minDistance)||!Number.isInteger(maxDistance)||minDistance<0||maxDistance<minDistance||maxDistance>512)throw new Error("Search for site: near and distance 0–512.");
   const get=p=>client.world.blockAt(p),base={x:Math.floor(near.x),y:Math.floor(near.y),z:Math.floor(near.z)};
   const candidates=[];
   for(let distance=minDistance;distance<=maxDistance;distance+=16)for(const [dx,dz] of [[distance,0],[0,distance],[-distance,0],[0,-distance],[distance,distance],[-distance,distance],[-distance,-distance],[distance,-distance]])candidates.push({x:base.x+dx,z:base.z+dz});
@@ -215,10 +215,10 @@ const propertiesEqual=(a,b)=>Object.keys(a).length===Object.keys(b).length&&Obje
 
 /** Creative player actions: take an item with block-state component, move, look, place, verify. No server commands. */
 export async function buildSchematicPhysical(client,schematic,origin,{signal=AbortSignal.timeout(120000),maxActions=64,onProgress=()=>{},cellFilter=()=>true,strategy='layer',failureCounts=new Map()}={}){
-  if(client.state.gameMode!=='creative')throw new Error('Поэтапная постановка из Creative-инвентаря требует Creative.');
-  if(!origin||!['x','y','z'].every(k=>int(origin[k])))throw new Error('Нужны целые координаты начала постройки.');
+  if(client.state.gameMode!=='creative')throw new Error("Phased production from Creative-Equipment requires Creative.");
+  if(!origin||!['x','y','z'].every(k=>int(origin[k])))throw new Error("We need the full coordinates of the beginning of the building.");
   if(!Number.isInteger(maxActions)||maxActions<1||maxActions>4096)throw new Error('maxActions: 1–4096.');
-  if(typeof cellFilter!=='function'||!['layer','nearest'].includes(strategy)||!(failureCounts instanceof Map))throw new Error('Неверная стратегия, фильтр или журнал ошибок строительных ячеек.');
+  if(typeof cellFilter!=='function'||!['layer','nearest'].includes(strategy)||!(failureCounts instanceof Map))throw new Error("Wrong strategy, filter or error log of building cells.");
   const offset=schematic.offset||{x:0,y:0,z:0};
   const cells=schematic.cells.filter(cellFilter).map(c=>({...c,position:{x:origin.x+offset.x+c.x,y:origin.y+offset.y+c.y,z:origin.z+offset.z+c.z}})).sort((a,b)=>a.y-b.y||a.z-b.z||a.x-b.x);
   let actions=0;const failed=new Map();
@@ -229,10 +229,10 @@ export async function buildSchematicPhysical(client,schematic,origin,{signal=Abo
     const eligible=missing.filter(c=>!failed.has(blockKey(c.position))&&(failureCounts.get(blockKey(c.position))?.count||0)<2&&(client.world.blockAt(c.position)?.name==='air'||c.block==='minecraft:potted_pink_tulip'&&client.world.blockAt(c.position)?.name==='flower_pot')&&hasSupport(client.world,c.position));
     const bottom=eligible[0]?.y;
     const next=strategy==='nearest'?eligible.filter(c=>c.y===bottom).sort((a,b)=>Math.hypot(a.position.x-client.state.position.x,a.position.y-client.state.position.y,a.position.z-client.state.position.z)-Math.hypot(b.position.x-client.state.position.x,b.position.y-client.state.position.y,b.position.z-client.state.position.z))[0]:eligible[0];
-    if(!next)return {status:'blocked',actions,blockCount:cells.length,remaining:missing.length,failures:[...new Map([...failed.values(),...[...failureCounts.values()].filter(f=>f.count>=2)].map(f=>[blockKey(f.position),f])).values()],reason:'Нет доступной опоры, безопасного подхода или некоторые состояния не удалось поставить.'};
+    if(!next)return {status:'blocked',actions,blockCount:cells.length,remaining:missing.length,failures:[...new Map([...failed.values(),...[...failureCounts.values()].filter(f=>f.count>=2)].map(f=>[blockKey(f.position),f])).values()],reason:"No available support, or some states failed."};
     const id=next.block.replace(/^minecraft:/,'');
     if(!client.registry.itemsByName[id]&&id!=='potted_pink_tulip'){
-      const failure={position:next.position,block:next.block,reason:'Нет предмета блока в Creative-инвентаре.'};failed.set(blockKey(next.position),failure);failureCounts.set(blockKey(next.position),{...failure,count:2});continue;
+      const failure={position:next.position,block:next.block,reason:"No block item in Creative-equipment."};failed.set(blockKey(next.position),failure);failureCounts.set(blockKey(next.position),{...failure,count:2});continue;
     }
     const held=client.inventory.held(),wanted=next.properties||{};
     try{

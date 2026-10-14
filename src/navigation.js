@@ -1,1 +1,1 @@
-export * from '../packages/kudoconnect/src/navigation.js';
+export * from '../packages/omconnect/src/navigation.js';

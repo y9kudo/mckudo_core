@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "MCKudo · простой план агента",
+  "title": "OvermindMC · A simple agent plan",
   "type": "array",
   "minItems": 1,
   "maxItems": 64,
@@ -13,29 +13,29 @@
     "oneOf": [
       {
         "type":"object", "additionalProperties":false, "required":["swim"],
-        "properties":{"swim":{"type":"object","additionalProperties":false,"required":["x","y","z"],"properties":{"x":{"$ref":"#/$defs/coordinate"},"y":{"$ref":"#/$defs/coordinate"},"z":{"$ref":"#/$defs/coordinate"}},"description":"Водный маршрут KudoVectorize к клетке, с проверкой тела и воздуха."}}
+        "properties":{"swim":{"type":"object","additionalProperties":false,"required":["x","y","z"],"properties":{"x":{"$ref":"#/$defs/coordinate"},"y":{"$ref":"#/$defs/coordinate"},"z":{"$ref":"#/$defs/coordinate"}},"description":"Water route OMVectorize cage, Body and air inspection."}}
       },
       {
         "type": "object", "additionalProperties": false, "required": ["get"],
         "properties": {
-          "get": { "type": "string", "pattern": "^(?:#[a-z0-9_:.-]+|(?:[a-z0-9_.-]+:)?[a-z0-9_./-]+)$", "description": "Ресурс или класс: #logs, #stone, birch_log. Количество — сколько нужно иметь." },
+          "get": { "type": "string", "pattern": "^(?:#[a-z0-9_:.-]+|(?:[a-z0-9_.-]+:)?[a-z0-9_./-]+)$", "description": "Resources or class: #logs, #stone, birch_log. Count — How much is needed." },
           "count": { "$ref": "#/$defs/count" }
         }
       },
       {
         "type": "object", "additionalProperties": false, "required": ["craft"],
         "properties": {
-          "craft": { "$ref": "#/$defs/item", "description": "Получить предмет с подготовкой ингредиентов, инструментов и станций, например stone_pickaxe." },
+          "craft": { "$ref": "#/$defs/item", "description": "Get a subject that prepares ingredients, tools and stations, for example stone_pickaxe." },
           "count": { "$ref": "#/$defs/count" }
         }
       },
       {
         "type": "object", "additionalProperties": false, "required": ["go"],
         "properties": {
-          "go": { "type": "object", "additionalProperties": false, "required": ["x","y","z"], "properties": { "x": { "$ref": "#/$defs/coordinate" }, "y": { "$ref": "#/$defs/coordinate" }, "z": { "$ref": "#/$defs/coordinate" } }, "description": "Координаты ног в текущем измерении. Путь рассчитывает ядро." },
+          "go": { "type": "object", "additionalProperties": false, "required": ["x","y","z"], "properties": { "x": { "$ref": "#/$defs/coordinate" }, "y": { "$ref": "#/$defs/coordinate" }, "z": { "$ref": "#/$defs/coordinate" } }, "description": "Leg coordinates in the current measurement. The path counts the core." },
           "range": { "type": "integer", "minimum": 0, "maximum": 8, "default": 1 },
-          "bridge": { "type": "boolean", "default": true, "description": "Разрешить подготовку материалов и строительство моста." },
-          "excavate": { "type": "boolean", "default": false, "description": "Разрешить расчистку обычного грунта с учётом защиты построек." }
+          "bridge": { "type": "boolean", "default": true, "description": "Allow materials and bridge construction." },
+          "excavate": { "type": "boolean", "default": false, "description": "Allow the clearance of the normal ground with regard to the protection of the structures." }
         }
       }
     ]

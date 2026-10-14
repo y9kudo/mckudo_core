@@ -2,7 +2,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { blockKey } from '../src/construction.js';
 import { resourceId } from '../src/catalog.js';
 import { cropTypes } from '../src/food.js';
-const nameOf = id => { const value = resourceId(id); if (!value.startsWith('minecraft:')) throw new Error('Mineflayer принимает vanilla ID.'); return value.slice(10); };
+const nameOf = id => { const value = resourceId(id); if (!value.startsWith('minecraft:')) throw new Error("Mineflayer accepts vanilla ID."); return value.slice(10); };
 
 export function createWorldActions(bot, { goals, check, searchRadius = 128 }) {
   const names = [];
@@ -15,57 +15,57 @@ export function createWorldActions(bot, { goals, check, searchRadius = 128 }) {
   const item = name => bot.inventory.items().find(i => i.name === name);
   return { names, async execute(skill, args, signal) {
     if (skill === 'place') {
-      if (!['x', 'y', 'z'].every(k => Number.isInteger(args[k]) && Math.abs(args[k]) <= 30000000)) throw new Error('place: нужны целые координаты.');
+      if (!['x', 'y', 'z'].every(k => Number.isInteger(args[k]) && Math.abs(args[k]) <= 30000000)) throw new Error("place: integer coordinates are required.");
       const name = nameOf(args.block), p = vector(args), current = bot.blockAt(p);
-      if (!current) throw new Error('Целевая ячейка не загружена.');
+      if (!current) throw new Error("Target cell is not loaded.");
       if (current.name === name) return;
-      if (!['air', 'cave_air', 'void_air'].includes(current.name)) throw new Error('Целевая ячейка занята; перезапись блоков запрещена.');
-      if (!item(name)) throw new Error(`Нет ${name} для установки.`);
+      if (!['air', 'cave_air', 'void_air'].includes(current.name)) throw new Error("Target cell is occupied; overwriting blocks is forbidden.");
+      if (!item(name)) throw new Error(`No ${name} for placement.`);
       const goal = new goals.GoalPlaceBlock(p, bot.world, { range: 4, LOS: true });
       await bot.pathfinder.goto(goal); check(signal);
-      if (!['air', 'cave_air', 'void_air'].includes(bot.blockAt(p)?.name)) throw new Error('Ячейка изменилась во время движения.');
+      if (!['air', 'cave_air', 'void_air'].includes(bot.blockAt(p)?.name)) throw new Error("Cell changed during movement.");
       const face = goal.getFaceAndRef(bot.entity.position.offset(0, 1.6, 0));
-      if (!face) throw new Error('Нет доступной грани для установки блока.');
+      if (!face) throw new Error("No reachable face for block placement.");
       const reference = bot.blockAt(face.ref);
       await bot.equip(item(name), 'hand'); check(signal);
       await bot.placeBlock(reference, face.face.scaled(-1)); check(signal);
-      if (bot.blockAt(p)?.name !== name) throw new Error(`Не подтверждён блок в ${blockKey(args)}.`);
+      if (bot.blockAt(p)?.name !== name) throw new Error(`Block not confirmed at ${blockKey(args)}.`);
     } else if (skill === 'harvest') {
-      if (!['x', 'y', 'z'].every(k => Number.isInteger(args[k]))) throw new Error('harvest: нужны целые координаты.');
+      if (!['x', 'y', 'z'].every(k => Number.isInteger(args[k]))) throw new Error("harvest: integer coordinates are required.");
       const name = nameOf(args.block), crop = cropTypes[name], position = vector(args);
-      if (!crop || typeof args.replant !== 'boolean') throw new Error('Неподдерживаемая культура или replant.');
+      if (!crop || typeof args.replant !== 'boolean') throw new Error("Unsupported crop or replant.");
       let block = bot.blockAt(position);
       const mature = b => b?.name === name && b.getProperties().age === crop.age;
-      if (!mature(block)) throw new Error('Урожай ещё не созрел или блок изменился.');
+      if (!mature(block)) throw new Error("Crop is not mature or the block changed.");
       await bot.pathfinder.goto(new goals.GoalLookAtBlock(position, bot.world)); check(signal);
-      block = bot.blockAt(position); if (!mature(block)) throw new Error('Зрелость урожая изменилась.');
+      block = bot.blockAt(position); if (!mature(block)) throw new Error("Crop maturity changed.");
       const before = bot.inventory.items().reduce((s, i) => s + i.count, 0);
       await bot.dig(block); check(signal);
       await bot.pathfinder.goto(new goals.GoalNear(args.x, args.y, args.z, 1)); check(signal);
       const deadline = Date.now() + 2000;
       while (bot.inventory.items().reduce((s, i) => s + i.count, 0) <= before && Date.now() < deadline) await delay(50, undefined, { signal });
       check(signal);
-      if (bot.inventory.items().reduce((s, i) => s + i.count, 0) <= before) throw new Error('Подбор урожая не подтверждён.');
+      if (bot.inventory.items().reduce((s, i) => s + i.count, 0) <= before) throw new Error("Crop pickup was not confirmed.");
       if (args.replant) {
         const soil = bot.blockAt(position.offset(0, -1, 0));
-        if (soil?.name !== 'farmland' || !['air', 'cave_air'].includes(bot.blockAt(position)?.name) || !item(crop.seed)) throw new Error('Урожай собран, но для посадки нет семян, грядки или свободного места.');
+        if (soil?.name !== 'farmland' || !['air', 'cave_air'].includes(bot.blockAt(position)?.name) || !item(crop.seed)) throw new Error("Crop harvested, but no seeds are available for replanting, or space.");
         await bot.equip(item(crop.seed), 'hand'); check(signal); await bot.placeBlock(soil, position.minus(soil.position)); check(signal);
-        if (bot.blockAt(position)?.name !== name) throw new Error('Посадка не подтверждена сервером.');
+        if (bot.blockAt(position)?.name !== name) throw new Error("The landing was not confirmed by the server.");
       }
     } else if (skill === 'smelt') {
       const input = nameOf(args.input), output = nameOf(args.item), fuel = nameOf(args.fuel);
       const station = nameOf(args.station || 'minecraft:furnace');
-      if (!['furnace', 'smoker', 'blast_furnace'].includes(station)) throw new Error('Нужна печь, коптильня или плавильная печь.');
-      if (![args.count, args.fuelCount].every(n => Number.isInteger(n) && n > 0 && n <= 64)) throw new Error('smelt: count и fuelCount от 1 до 64.');
-      if (count(input) < args.count + (fuel === input ? args.fuelCount : 0) || count(fuel) < args.fuelCount) throw new Error('Не хватает сырья или топлива.');
+      if (!['furnace', 'smoker', 'blast_furnace'].includes(station)) throw new Error("I need a furnace, Coil or melting furnace.");
+      if (![args.count, args.fuelCount].every(n => Number.isInteger(n) && n > 0 && n <= 64)) throw new Error("smelt: count and fuelCount from 1 to 64.");
+      if (count(input) < args.count + (fuel === input ? args.fuelCount : 0) || count(fuel) < args.fuelCount) throw new Error("Lack of raw materials or fuel.");
       let block = bot.findBlock({ matching: b => b.name === station, maxDistance: searchRadius });
-      if (!block) throw new Error('Рядом нет печи.');
+      if (!block) throw new Error("There's no furnace nearby.");
       await bot.pathfinder.goto(new goals.GoalLookAtBlock(block.position, bot.world)); check(signal);
-      block = bot.blockAt(block.position); if (block?.name !== station) throw new Error('Печь исчезла.');
+      block = bot.blockAt(block.position); if (block?.name !== station) throw new Error("The furnace is gone.");
       const furnace = await bot.openFurnace(block);
       try {
         check(signal);
-        if (furnace.inputItem() || furnace.outputItem() || furnace.fuelItem()) throw new Error('Печь занята. Ядро не забирает чужое содержимое.');
+        if (furnace.inputItem() || furnace.outputItem() || furnace.fuelItem()) throw new Error("Furnace is busy. The kernel does not take away the contents of others.");
         const before = count(output);
         await furnace.putFuel(item(fuel).type, null, args.fuelCount); check(signal);
         await furnace.putInput(item(input).type, null, args.count); check(signal);
@@ -74,26 +74,26 @@ export function createWorldActions(bot, { goals, check, searchRadius = 128 }) {
           check(signal);
           const produced = furnace.outputItem();
           if (produced) {
-            if (produced.name !== output) throw new Error('Печь произвела неожиданный предмет.');
+            if (produced.name !== output) throw new Error("The liver produced a unexpected object.");
             await furnace.takeOutput(); check(signal);
           }
-          if (Date.now() > deadline) throw new Error('Истекло время ожидания плавки.');
+          if (Date.now() > deadline) throw new Error("Time for the swim has expired.");
           if (count(output) - before < args.count) await delay(250, undefined, { signal });
         }
       } finally { furnace.close(); }
     } else {
       const entity = bot.entities?.[args.entityId];
-      if (!entity?.position || entity === bot.entity) throw new Error('Цель боя исчезла или недопустима.');
+      if (!entity?.position || entity === bot.entity) throw new Error("The goal of the battle has disappeared or is unacceptable.");
       const maxDistance = args.maxDistance ?? 12;
-      if (!Number.isFinite(maxDistance) || maxDistance < 1 || maxDistance > 32) throw new Error('Дистанция боя: 1–32.');
-      if (entity.position.distanceTo(bot.entity.position) > maxDistance) throw new Error('Цель за пределами дистанции преследования.');
-      if (skill === 'hunt' && (entity.type === 'player' || !['cow', 'pig', 'chicken', 'sheep', 'rabbit'].includes(entity.name))) throw new Error('Цель не разрешена для охоты.');
+      if (!Number.isFinite(maxDistance) || maxDistance < 1 || maxDistance > 32) throw new Error("Fight distance: 1–32.");
+      if (entity.position.distanceTo(bot.entity.position) > maxDistance) throw new Error("Target outside the pursuit distance.");
+      if (skill === 'hunt' && (entity.type === 'player' || !['cow', 'pig', 'chicken', 'sheep', 'rabbit'].includes(entity.name))) throw new Error("Target not allowed for hunting.");
       if (skill === 'flee') {
         const dx = bot.entity.position.x - entity.position.x, dz = bot.entity.position.z - entity.position.z, length = Math.hypot(dx, dz) || 1;
         const x = bot.entity.position.x + (dx === 0 && dz === 0 ? 1 : dx / length) * 6, z = bot.entity.position.z + dz / length * 6;
         await bot.pathfinder.goto(new goals.GoalNear(x, bot.entity.position.y, z, 2)); check(signal); return;
       }
-      if (!['attack', 'hunt'].includes(skill)) throw new Error('Неизвестное действие мира.');
+      if (!['attack', 'hunt'].includes(skill)) throw new Error("Unknown Impact of the World.");
       const weapon = bot.inventory.items().filter(i => /_(sword|axe)$/.test(i.name)).sort((a, b) => {
         const tier = i => ['wooden', 'golden', 'stone', 'iron', 'diamond', 'netherite'].findIndex(t => i.name.startsWith(t)); return tier(b) - tier(a);
       })[0];
@@ -101,7 +101,7 @@ export function createWorldActions(bot, { goals, check, searchRadius = 128 }) {
       if (entity.position.distanceTo(bot.entity.position) > 3) {
         await bot.pathfinder.goto(new goals.GoalNear(entity.position.x, entity.position.y, entity.position.z, 2)); check(signal);
       }
-      if (!bot.entities[args.entityId] || entity.position.distanceTo(bot.entity.position) > 3) throw new Error('Цель вне досягаемости удара.');
+      if (!bot.entities[args.entityId] || entity.position.distanceTo(bot.entity.position) > 3) throw new Error("Target outside impact range.");
       await bot.lookAt(entity.position.offset(0, Math.min(entity.height || 1, 1.2), 0)); check(signal);
       bot.attack(entity);
       await delay(1000, undefined, { signal }); check(signal);

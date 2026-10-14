@@ -3,9 +3,11 @@ import { createBlockTaxonomy, resourceSources } from './taxonomy.js';
 import { planExploration } from './exploration.js';
 import { isAir, isFullBlock, isHazard } from './navigation.js';
 import { itemValue } from './item-value.js';
-import {traceVisibility} from '../packages/kudoconnect/src/visibility.js';
-import { smeltingRecipe, fuelItems } from '../packages/kudoconnect/src/crafting.js';
-import { blockEvidenceValue } from '../packages/kudoconnect/src/failures.js';
+import {traceVisibility} from '../packages/omconnect/src/visibility.js';
+import { smeltingRecipe, fuelItems } from '../packages/omconnect/src/crafting.js';
+import { blockEvidenceValue } from '../packages/omconnect/src/failures.js';
+import {piglinAngerRisk} from '../packages/omconnect/src/bartering.js';
+import {remainingDurability} from '../packages/omconnect/src/equipment.js';
 
 const key = p => `${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`;
 const floor = p => ({ x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) });
@@ -28,18 +30,19 @@ function attachResults(reactor, core) {
 
 /** Opportunistic collection is independent of goals and receives a fresh item position every tick. */
 export function createLootReactor({ radius = 24, priority = 80, retryMs = 5000, clock = Date.now, targets = {}, stockLimits = {}, peer } = {}) {
-  if (!Number.isFinite(radius) || radius < 1 || radius > 64 || !Number.isInteger(priority) || priority < -1000 || priority > 989 || !Number.isInteger(retryMs) || retryMs < 100 || !stockLimits || typeof stockLimits!=='object' || Array.isArray(stockLimits) || Object.entries(stockLimits).some(([id,n])=>!/^minecraft:[a-z0-9_]+$/.test(id)||!Number.isInteger(n)||n<0||n>4096)) throw new Error('Неверная политика подбора.');
-  const blocked = new Map(); let selected = null, observation;
-  const reactor = { id: 'mckudo:loot', apiVersion: 1, failureScope: 'action',
+  if (!Number.isFinite(radius) || radius < 1 || radius > 64 || !Number.isInteger(priority) || priority < -1000 || priority > 989 || !Number.isInteger(retryMs) || retryMs < 100 || !stockLimits || typeof stockLimits!=='object' || Array.isArray(stockLimits) || Object.entries(stockLimits).some(([id,n])=>!/^minecraft:[a-z0-9_]+$/.test(id)||!Number.isInteger(n)||n<0||n>4096)) throw new Error("Wrong selection policy.");
+  const blocked = new Map(); let selected = null, observation,failedStreak=0,yieldUntil=0;
+  const reactor = { id: 'overmind:loot', apiVersion: 1, failureScope: 'action',
     react(o) {
       observation=o;
       selected = null;
-      if (!o.self?.position || o.self.health === 0 || o.self.freeInventorySlots === 0) return { action: null, reason: 'Подбор сейчас недоступен.' };
+      if (!o.self?.position || o.self.health === 0 || o.self.freeInventorySlots === 0) return { action: null, reason: "Selection is not available now." };
       const now = clock(),present=new Map((o.drops||[]).map(d=>[String(d.id),d]));
       for(const [id,failure] of blocked){
         const drop=present.get(id);
-        if(failure.dimension!==o.dimension||distance(failure.from,o.self.position)>=3||now>failure.until+120000||drop&&(!finitePoint(drop.position)||distance(failure.origin,drop.position)>=1))blocked.delete(id);
+        if(failure.dimension!==o.dimension||distance(failure.from,o.self.position)>=3||now>failure.until+120000||drop&&(!finitePoint(drop.position)||distance(failure.origin,drop.position)>=1)){blocked.delete(id);yieldUntil=0;}
       }
+      if(now<yieldUntil)return {action:null,reason:"Unaccessible lute postponed: Continue with the core task."};
       const drops = (o.drops || []).filter(d => finitePoint(d.position) && typeof (d.item || d.name) === 'string' && (blocked.get(String(d.id))?.until||0)<=now)
         .map(d => ({ ...d, item: rid(d.item || d.name), distance: distance(d.position, o.self.position) }))
         .filter(d=>{
@@ -48,15 +51,16 @@ export function createLootReactor({ radius = 24, priority = 80, retryMs = 5000, 
           const owner=claims[0]&&peer.owner(claims[0].resource);return !owner||owner===peer.id;
         })
         .filter(d => d.distance <= radius && (o.inventory[d.item]||0)<(stockLimits[d.item]??Infinity)).sort((a, b) => b.count * itemValue(b.item, { inventory: o.inventory, targets }) / (1 + b.distance) - a.count * itemValue(a.item, { inventory: o.inventory, targets }) / (1 + a.distance));
-      const drop = drops[0]; if (!drop) return { action: null, reason: 'Нет доступного наблюдаемого лута.' };
+      const drop = drops[0]; if (!drop) return { action: null, reason: "No visible lute." };
       selected = String(drop.id);
-      return { priority, action: { skill: 'collect', args: { item: drop.item, entityId:String(drop.id), beforeCount: count(o, drop.item), origin: drop.position, timeoutMs: 6000 } }, reason: `Подобрать выпавший ${drop.item}.` };
+      return { priority, action: { skill: 'collect', args: { item: drop.item, entityId:String(drop.id), beforeCount: count(o, drop.item), origin: drop.position, timeoutMs: 6000 } }, reason: `Select the fallen one ${drop.item}.` };
     },
     recordResult(result, action) {
       const id=String(action?.args?.entityId??selected??'');if(!id)return;
-      if(result.outcome==='success'){blocked.delete(id);return;}
+      if(result.outcome==='success'){blocked.delete(id);failedStreak=0;yieldUntil=0;return;}
       const origin=action?.args?.origin||observation?.drops?.find(d=>String(d.id)===id)?.position;
       if(result.outcome==='failure'&&finitePoint(origin)&&finitePoint(observation?.self?.position)){
+        failedStreak++;if(failedStreak>=2)yieldUntil=clock()+Math.min(30000,retryMs*2**Math.min(3,failedStreak-1));
         const attempts=(blocked.get(id)?.attempts||0)+1;
         blocked.set(id,{attempts,until:clock()+Math.min(120000,retryMs*2**Math.min(8,attempts-1)),origin:{...origin},from:{...observation.self.position},dimension:observation.dimension});
         while(blocked.size>256)blocked.delete(blocked.keys().next().value);
@@ -69,18 +73,28 @@ export function createLootReactor({ radius = 24, priority = 80, retryMs = 5000, 
 /** Stateful, bounded next-action policy. Inventory is always authoritative; plans never complete goals. */
 export function createSurvivalReactor({ client, peer, spatial, explorationPlanner, actionEvidence, catalog = client?.registry && catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}), target = 'diamond_set', targets,
   priority = 5, exploration = true, digStaircase = true, preservePickaxeTier = 2, maxMemory = 2048, maxRecipeNodes = 2000, clock = Date.now } = {}) {
-  if (!catalog || typeof catalog.recipes !== 'function') throw new Error('Выживанию нужен каталог рецептов.');
-  if(actionEvidence && (typeof actionEvidence.record!=='function'||typeof actionEvidence.assess!=='function'))throw new Error('actionEvidence: память с record/assess.');
-  if(preservePickaxeTier!==false&&(!Number.isInteger(preservePickaxeTier)||preservePickaxeTier<1||preservePickaxeTier>4))throw new Error('preservePickaxeTier: false или 1–4.');
-  if (!['diamond_set', 'iron_pickaxe', 'stone_tools', 'wood'].includes(target) || !Number.isInteger(priority) || priority < -1000 || priority > 989 || !Number.isInteger(maxMemory) || maxMemory < 32 || maxMemory > 8192 || !Number.isInteger(maxRecipeNodes) || maxRecipeNodes < 32 || maxRecipeNodes > 20000) throw new Error('Неверные параметры выживания.');
+  if (!catalog || typeof catalog.recipes !== 'function') throw new Error("Survival needs a recipe catalogue.");
+  if(actionEvidence && (typeof actionEvidence.record!=='function'||typeof actionEvidence.assess!=='function'))throw new Error("actionEvidence: memory with record/assess.");
+  if(preservePickaxeTier!==false&&(!Number.isInteger(preservePickaxeTier)||preservePickaxeTier<1||preservePickaxeTier>4))throw new Error("preservePickaxeTier: false or 1–4.");
+  if (!['diamond_set', 'iron_pickaxe', 'stone_tools', 'wood'].includes(target) || !Number.isInteger(priority) || priority < -1000 || priority > 989 || !Number.isInteger(maxMemory) || maxMemory < 32 || maxMemory > 8192 || !Number.isInteger(maxRecipeNodes) || maxRecipeNodes < 32 || maxRecipeNodes > 20000) throw new Error("Uncorrect Survival Parameters.");
   const taxonomy = createBlockTaxonomy(catalog);
+  // Match the executor's usable-tool rule, not just the existence of a worn stack.
+  // A fresh tool is crafted even if the inventory still contains its unusable predecessor.
+  const countCache=new Map(),recipeCache=new Map(),blockCache=new Map();
+  const count=(o,item)=>{
+    const id=rid(item);
+    if(countCache.has(id))return countCache.get(id);
+    const total=(o.inventory?.[id]||0)+Object.values(o.equipment||{}).filter(i=>i?.item===id).reduce((n,i)=>n+i.count,0);
+    const usable=client?.inventory?.items&&client.registry&&/_(pickaxe|axe|shovel|hoe|sword)$/.test(id)?Math.max(0,total-client.inventory.items().filter(i=>rid(i.name)===id&&remainingDurability(i,client.registry)<=1).reduce((n,i)=>n+i.count,0)):total;
+    countCache.set(id,usable);return usable;
+  };
   const requested = Object.fromEntries(Object.entries(targets ?? (target === 'diamond_set' ? diamondSetTargets() : target === 'iron_pickaxe' ? { iron_pickaxe: 1 } : target === 'stone_tools' ? { stone_pickaxe: 1, furnace: 1 } : { crafting_table: 1 })).map(([item, n]) => [item.startsWith('#')?item:rid(item), n]));
-  if (!Object.keys(requested).length || Object.keys(requested).length > 64 || Object.entries(requested).some(([item, n]) => !(item.startsWith('#')?taxonomy.members(item.slice(1)).some(id=>catalog.item(id)):catalog.item(item)) || !Number.isInteger(n) || n < 1 || n > 4096)) throw new Error('Цели: существующие предметы/#классы и количество 1–4096.');
+  if (!Object.keys(requested).length || Object.keys(requested).length > 64 || Object.entries(requested).some(([item, n]) => !(item.startsWith('#')?taxonomy.members(item.slice(1)).some(id=>catalog.item(id)):catalog.item(item)) || !Number.isInteger(n) || n < 1 || n > 4096)) throw new Error("Objectives: existing items/#classes and number 1–4096.");
   const classes=Object.entries(requested).filter(([id])=>id.startsWith('#')),explicit=Object.fromEntries(Object.entries(requested).filter(([id])=>!id.startsWith('#')));
   let goal={...explicit};
   const allSources = resourceSources(catalog, { taxonomy, availableBlocks: catalog.blocks().map(b => b.id) });
   const sourcesByItem = new Map();
-  const recipesFor=item=>catalog.recipesFor(item).filter(r=>r.executable&&r.type.startsWith('minecraft:crafting_'));
+  const recipesFor=item=>{if(!recipeCache.has(item))recipeCache.set(item,catalog.recipesFor(item).filter(r=>r.executable&&r.type.startsWith('minecraft:crafting_')));return recipeCache.get(item);};
   const furnaceRecipe = item => client?.registry ? smeltingRecipe(client.registry,item) : item === rid('iron_ingot') ? { inputs:['raw_iron','iron_ore','deepslate_iron_ore'] } : null;
   const mobSources={string:['spider','cave_spider'],feather:['chicken'],beef:['cow'],porkchop:['pig'],mutton:['sheep'],chicken:['chicken'],leather:['cow'],bone:['skeleton'],ender_pearl:['enderman'],blaze_rod:['blaze']};
   for (const s of allSources) { if (!sourcesByItem.has(s.item)) sourcesByItem.set(s.item, []); sourcesByItem.get(s.item).push(s); }
@@ -89,8 +103,8 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
   const memory = new Map(), failures = new Map(), unreachable = new Map(), unreachableRoutes = new Map(), visited = [], milestones = new Set();
   let dimension, pendingStep = null, heading = null, selected = null, o, evaluations, estimates, claim = null, trace = [];
   const releaseClaim = () => { if(claim){peer?.release(claim);claim=null;} };
-  let state = { status: 'waiting', stage: basicStages[0], reason: 'Ожидание наблюдения.', targets: goal, completed: [], knownResources: 0, lastFailure: null };
-  const getBlock = p => client?.world?.blockAt(p) ?? null;
+  let state = { status: 'waiting', stage: basicStages[0], reason: "Waiting for observation.", targets: goal, completed: [], knownResources: 0, lastFailure: null };
+  const getBlock = p => {const id=key(p);if(!blockCache.has(id))blockCache.set(id,client?.world?.blockAt(p)??null);return blockCache.get(id);};
   const actionKey = action => action.skill + ':' + JSON.stringify(action.args);
   const routeStamp=(from,to)=>[from,to].flatMap(p=>{
     const cells=[];for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)for(let dy=-1;dy<=2;dy++){
@@ -120,16 +134,18 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
   const station = item => (o.world?.sampledBlocks || []).some(b => b.name === item && distance(b.position, o.self.position) <= 32);
   const hasPickaxe = min => pickaxes.slice(min).some(n => count(o, n));
   const sourceCache = new Map(), observedByBlock = new Map();
+  const sourceDistance=p=>distance(p,o.self.position)+Math.max(0,p.y-o.self.position.y-3)*4;
   const knownSources = item => {
     if (!sourceCache.has(item)) sourceCache.set(item, (sourcesByItem.get(item) || []).flatMap(s => (observedByBlock.get(s.block) || []).map(b => ({ ...s, ...b }))).filter(s=>!client?.protection || client.protection.check({operation:'dig',dimension:o.dimension,position:s.position,block:getBlock(s.position),getBlock}).allowed)
-      .sort((a, b) => distance(a.position, o.self.position) + learnedCost({skill:'dig',args:{...a.position,block:a.block}}) - distance(b.position, o.self.position) - learnedCost({skill:'dig',args:{...b.position,block:b.block}})));
+      .sort((a, b) => sourceDistance(a.position) + learnedCost({skill:'dig',args:{...a.position,block:a.block}}) - sourceDistance(b.position) - learnedCost({skill:'dig',args:{...b.position,block:b.block}})));
     return sourceCache.get(item);
   };
   const safeDig = p => {
-    const b = getBlock(p); if (!b || !b.diggable || isHazard(b) || b.hardness < 0 || /(?:sand|concrete_powder|anvil|dripstone)$/.test(b.name)) return false;
+    const b = getBlock(p); if (!b || !b.diggable || isHazard(b) || b.hardness < 0 || /^(?:sand|red_sand|.*_concrete_powder|(?:chipped_|damaged_)?anvil|pointed_dripstone)$/.test(b.name)) return false;
+    if(/^(?:nether_gold_ore|gold_block|gilded_blackstone)$/.test(b.name)&&piglinAngerRisk(o.dimension,p,o.entities||[]))return false;
     if (client?.protection && !client.protection.check({operation:'dig',dimension:o.dimension,position:p,block:b,getBlock}).allowed) return false;
     const here = floor(o.self.position); if (p.x === here.x && p.z === here.z && p.y < here.y) return false;
-    return [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(([x, y, z]) => { const n = getBlock({ x: p.x + x, y: p.y + y, z: p.z + z }); return n && !isHazard(n) && !(y && /(?:sand|gravel|concrete_powder|anvil|dripstone)$/.test(n.name)); });
+    return [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(([x, y, z]) => { const n = getBlock({ x: p.x + x, y: p.y + y, z: p.z + z }); return n && !isHazard(n) && !(y && /^(?:sand|red_sand|gravel|.*_concrete_powder|(?:chipped_|damaged_)?anvil|pointed_dripstone)$/.test(n.name)); });
   };
   const updateMemory = () => {
     if (dimension !== o.dimension) { memory.clear(); unreachable.clear(); unreachableRoutes.clear(); visited.length = 0; pendingStep = null; heading = null; dimension = o.dimension; }
@@ -153,7 +169,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
     if (ancestors.includes(item) || ancestors.length > 12 || ++evaluations > maxRecipeNodes) return 1e6;
     const cacheKey = item + ':' + n; if (estimates.has(cacheKey)) return estimates.get(cacheKey);
     const next = [...ancestors, item], sources = knownSources(item);
-    let cost = sources.length ? missing * (2 + Math.min(128, distance(sources[0].position, o.self.position)) / 8 + learnedCost({skill:'dig',args:{...sources[0].position,block:sources[0].block}})) : sourcesByItem.has(item) ? 40 + missing * 4 : 1e6;
+    let cost = sources.length ? missing * (2 + Math.min(256, sourceDistance(sources[0].position)) / 8 + learnedCost({skill:'dig',args:{...sources[0].position,block:sources[0].block}})) : sourcesByItem.has(item) ? 40 + missing * 4 : 1e6;
     if(mobSources[item.replace(/^minecraft:/,'')])cost=Math.min(cost,50+missing*10);
     const smelting=furnaceRecipe(item);
     if(smelting)cost=Math.min(cost,missing*4+Math.min(...smelting.inputs.filter(n=>catalog.item(rid(n))).map(n=>estimate(rid(n),missing,next))));
@@ -166,16 +182,17 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
   };
 
   function explore(item, preferred) {
-    if (!exploration || !client?.world) return { action: null, reason: `Нет доступного источника ${item}; исследование недоступно.` };
-    const ore = /(?:diamond|raw_iron|coal|cobblestone|cobbled_deepslate)$/.test(item), p = floor(o.self.position);
-    const destinationY = Math.max((client.world.minY ?? -64)+2,item === rid('diamond') ? -54 : item === rid('raw_iron') ? 16 : p.y - 8);
+    if (!exploration || !client?.world) return { action: null, reason: `No available source ${item}; Unavailable.` };
+    const ore = /(?:diamond|raw_iron|raw_gold|redstone|lapis_lazuli|gold_nugget|quartz|ancient_debris|coal|cobblestone|cobbled_deepslate)$/.test(item), p = floor(o.self.position);
+    const levels=o.dimension==='minecraft:the_nether'?{ancient_debris:15,gold_nugget:32,quartz:32}:{diamond:-54,raw_iron:16,raw_gold:-16,redstone:-54,lapis_lazuli:0};
+    const destinationY = Math.max((client.world.minY ?? -64)+2,levels[item.replace(/^minecraft:/,'')]??p.y-8);
     if (pendingStep && distance(p, pendingStep) < 0.5) pendingStep = null;
     // Before opening a shaft, test a known, walkable descent into a cave.
     // This is based on observed blocks and a complete route, never on an assumed void.
     if (ore && !pendingStep && p.y > destinationY + 3) {
       const cave = planExploration({position:p,getBlock,mode:'ores',visited,radius:32,maxNodes:1800,maxCandidates:24});
       if(cave.status==='planned' && cave.target.y <= p.y - 3){
-        const result=response('navigate',{...cave.target,range:0,bridge:false,excavate:false},'Сначала исследовать доступный спуск в пещеру.');
+        const result=response('navigate',{...cave.target,range:0,bridge:false,excavate:false},"First, explore the available descent to the cave.");
         if(!blocked(result.action))return result;
       }
     }
@@ -193,7 +210,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
         const cells = []; for (let y = Math.max(p.y + 1, next.y + 1); y >= next.y; y--) cells.push({ ...next, y });
         if (cells.some(c => !isAir(getBlock(c)) && !safeDig(c))) continue;
         const cell = cells.find(c => !isAir(getBlock(c)));
-        const result = cell ? response('dig', { ...cell, block: rid(getBlock(cell).name) }, `Прокладывать безопасный проход для поиска ${item}.`) : response('navigate', { ...next, range: 0 }, `Исследовать проход к уровню ${destinationY}.`);
+        const result = cell ? response('dig', { ...cell, block: rid(getBlock(cell).name) }, `Secure search passage ${item}.`) : response('navigate', { ...next, range: 0 }, `Search the passage to level ${destinationY}.`);
         // Finish opening and entering the step before collecting dirt above it.
         // Otherwise loot navigation stands on the unfinished support and makes
         // the final excavation an illegal "dig under yourself" operation.
@@ -213,7 +230,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       const exits=[...visited.filter(v=>v.y===p.y+1&&Math.hypot(v.x-p.x,v.z-p.z)<=1.5).reverse(),...observedExits]
         .filter(v=>isFullBlock(getBlock({...v,y:v.y-1})));
       for(const exit of exits){
-        const result=response('navigate',{...exit,range:0,bridge:false,excavate:true,maxDrop:2},'Вернуться на известную ступень из тупика и выбрать другой проход.');
+        const result=response('navigate',{...exit,range:0,bridge:false,excavate:true,maxDrop:2},"Go back to a certain step from the impasse and pick another way.");
         result.priority=Math.max(priority,81);if(!blocked(result.action))return result;
       }
     }
@@ -224,49 +241,61 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       const result = response('navigate', { ...search.target, range: 0 }, search.reason);
       if (!blocked(result.action)) return result;
     }
-    return { action: null, reason: `Нет безопасного доступного источника ${item}; неизвестные чанки и опасные проходы не считаются путём.` };
+    return { action: null, reason: `No safe source available ${item}; unknown cups and dangerous passageways are not considered as a route.` };
   }
 
   function ensure(item, amount, ancestors = []) {
     item = rid(item); const missing = Math.max(0, amount - count(o, item)); if (!missing) return null;
-    if (ancestors.includes(item) || ancestors.length >= 16) return { action: null, reason: `Циклическая или слишком длинная зависимость ${item}.` };
+    if (ancestors.includes(item) || ancestors.length >= 16) return { action: null, reason: `Cyclic or too long addiction ${item}.` };
     const next = [...ancestors, item];
     if(trace.length<32)trace.push({item,required:amount,missing,parent:ancestors.at(-1)||null});
     const mobs=mobSources[item.replace(/^minecraft:/,'')];
     if(mobs){
       const drop=o.drops?.find(d=>d.item===item);
-      if(drop)return response('collect',{item,entityId:drop.id,origin:drop.position,timeoutMs:6000},`Подобрать наблюдаемый ${item}.`);
+      if(drop)return response('collect',{item,entityId:drop.id,origin:drop.position,timeoutMs:6000},`Select Observed ${item}.`);
       const mob=(o.entities||[]).filter(e=>mobs.includes(e.name)&&e.kind!=='player'&&!e.isBaby&&!e.named&&distance(e.position,o.self.position)<=32).sort((a,b)=>distance(a.position,o.self.position)-distance(b.position,o.self.position))[0];
       if(mob){
-        const next=distance(mob.position,o.self.position)>2.8?response('navigate',{...floor(mob.position),range:1,bridge:false,sprintJump:false},`Подойти к источнику ${item}.`):response('combat',{entityId:mob.id,maxDistance:5,durationMs:600},`Добыть ${item} с наблюдаемого ${mob.name}.`);
+        const next=distance(mob.position,o.self.position)>2.8?response('navigate',{...floor(mob.position),range:1,bridge:false,sprintJump:false},`Approach the source ${item}.`):response('combat',{entityId:mob.id,maxDistance:5,durationMs:600},`Collect ${item} with observed ${mob.name}.`);
         if(!blocked(next.action))return next;
       }
       return explore(item);
     }
     const smelting=furnaceRecipe(item);
-    if (smelting) {
+    // Nether gold drops nuggets. Do not search for Overworld raw gold while nine nuggets are ready.
+    const craftInstead=recipesFor(item).some(r=>{
+      const available={...o.inventory};for(const g of r.ingredients){let needed=g.count*Math.ceil(missing/r.output.count);for(const choice of g.choices){const n=Math.min(needed,available[choice]||0);available[choice]=(available[choice]||0)-n;needed-=n;}if(needed)return false;}return true;
+    })||o.dimension==='minecraft:the_nether'&&item===rid('gold_ingot');
+    if (smelting&&!craftInstead) {
       const inputs=smelting.inputs.filter(n=>catalog.item(rid(n))).sort((a,b)=>estimate(rid(a),1,next)-estimate(rid(b),1,next));
       const raw = inputs.find(n => count(o, n)) || inputs[0];
-      if(!raw)return {action:null,reason:`Нет входного ресурса для выплавки ${item}.`};
+      if(!raw)return {action:null,reason:`No input for smelting ${item}.`};
       const inputCount = Math.min(missing, 2);
       const dependency = ensure(raw, inputCount, next); if (dependency) return dependency;
       const coal = ['coal', 'charcoal'].find(n => count(o, n) >= Math.ceil(inputCount/fuelItems(n)));
       let fuel = coal;
       if (!fuel) {
         const planks = taxonomy.members('planks').filter(n=>fuelItems(n.replace(/^minecraft:/,''))>0).sort((a, b) => estimate(a, inputCount) - estimate(b, inputCount)); fuel = planks[0];
-        if (!fuel) return { action: null, reason: 'Нет доступного рецепта топлива.' };
+        if (!fuel) return { action: null, reason: "No fuel recipe available." };
         const dep = ensure(fuel, inputCount, next); if (dep) return dep;
       }
       if (!station(rid('furnace'))) {
         const dependency = ensure('furnace', 1, next); if (dependency) return dependency;
-        return response('ensureStation', { station: 'furnace', gather: false }, `Установить печь для выплавки ${item}.`);
+        return response('ensureStation', { station: 'furnace', gather: false }, `Set the smelting furnace ${item}.`);
       }
-      return response('smelt', { item, count: inputCount, input: rid(raw), fuel: rid(fuel) }, `Выплавить ${item} и проверить результат печи.`);
+      return response('smelt', { item, count: inputCount, input: rid(raw), fuel: rid(fuel) }, `Smelt ${item} and check the furnace results.`);
     }
-    const sources = knownSources(item);
+    let sources = knownSources(item);
     if (sourcesByItem.has(item) && !taxonomy.has(item, 'planks')) {
-      const minTier = item === rid('obsidian') ? 3 : item === rid('diamond') || item === rid('raw_gold') || item === rid('redstone') ? 2 : item === rid('raw_iron') || item === rid('lapis_lazuli') ? 1 : taxonomy.has(item, 'logs') ? -1 : sources.some(s => s.tools.length) || /(?:coal|cobblestone|cobbled_deepslate)$/.test(item) ? 0 : -1;
+      const minTier = item === rid('obsidian') || item === rid('ancient_debris') ? 3 : item === rid('diamond') || item === rid('raw_gold') || item === rid('redstone') ? 2 : item === rid('raw_iron') || item === rid('lapis_lazuli') ? 1 : taxonomy.has(item, 'logs') ? -1 : sources.some(s => s.tools.length) || /(?:coal|cobblestone|cobbled_deepslate)$/.test(item) ? 0 : -1;
       if (minTier >= 0 && !hasPickaxe(minTier)) { const dep = ensure(pickaxes[minTier], 1, next); if (dep) return dep; }
+      // A visible local face wins over a nearer buried cell and remote cave descent.
+      const ready=new Set();
+      if(client?.world){const eye={...o.self.position,y:o.self.position.y+1.62};
+        const ranked=sources.map((s,index)=>{const target={x:s.position.x+.5,y:s.position.y+.5,z:s.position.z+.5},d=distance(eye,target);
+          const visible=d<=8.5&&Math.abs(s.position.y-o.self.position.y)<=2&&!unreachable.has(key(s.position))&&safeDig(s.position)&&traceVisibility({origin:eye,target,maxDistance:8.5,getBlock:p=>key(p)===key(s.position)?{shapes:[]}:getBlock(p)}).visible;
+          if(visible)ready.add(s);return {s,index,rank:visible?(d<=4.3?0:1):2};});
+        sources=ranked.sort((a,b)=>a.rank-b.rank||a.index-b.index).map(r=>r.s);
+      }
       // Prefer extending a local mine over chasing an exposed cave face many
       // levels below the surface, for which ordinary walking cannot find a path.
       if(exploration&&digStaircase&&client?.world&&minTier>=0&&sources.length&&sources.every(s=>s.position.y<o.self.position.y-4))return explore(item,sources[0]);
@@ -274,7 +303,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       // candidates before opening a short, supported mining staircase.
       if(exploration&&digStaircase&&client?.world&&/^(minecraft:)?(cobblestone|cobbled_deepslate)$/.test(item)){
         const eye={...o.self.position,y:o.self.position.y+1.62};
-        const immediate=sources.some(s=>{
+        const immediate=ready.size>0||sources.some(s=>{
           const target={x:s.position.x+.5,y:s.position.y+.5,z:s.position.z+.5};
           return distance(eye,target)<=4.3&&safeDig(s.position)&&traceVisibility({origin:eye,target,maxDistance:4.3,getBlock:p=>key(p)===key(s.position)?{shapes:[]}:getBlock(p)}).visible;
         });
@@ -284,16 +313,27 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
         if (unreachable.has(key(source.position))) continue;
         const actual = getBlock(source.position);
         if (client?.world && (!actual || !safeDig(source.position))) continue;
+        if(client?.world&&taxonomy.has(item,'logs')){
+          const eye={...o.self.position,y:o.self.position.y+1.62},target={x:source.position.x+.5,y:source.position.y+.5,z:source.position.z+.5};
+          if(distance(eye,target)<=8.5){
+            const ray=traceVisibility({origin:eye,target,maxDistance:8.5,getBlock:p=>key(p)===key(source.position)?{shapes:[]}:getBlock(p)});
+            const p=ray.reason==='blocked'&&ray.position,b=p&&getBlock(p);
+            if(b&&taxonomy.has(rid(b.name),'leaves')&&safeDig(p)&&distance(eye,{x:p.x+.5,y:p.y+.5,z:p.z+.5})<=4.3){
+              const opening=response('dig',{...p,block:rid(b.name)},'Clear reachable leaves covering a nearby trunk.');
+              if(!blocked(opening.action))return opening;
+            }
+          }
+        }
         // Buried resources are remembered, but are approached by excavation, never by teleport or a fictitious path.
         if (actual && ![[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]].some(([x, y, z]) => isAir(getBlock({ x: source.position.x + x, y: source.position.y + y, z: source.position.z + z })))) continue;
-        const result = response('dig', { ...source.position, block: source.block }, `Добыть ${item} из наблюдаемого ${source.block}.`);
+        const result = response('dig', { ...source.position, block: source.block }, `Collect ${item} of observed ${source.block}.`);
         if (!blocked(result.action)) {
           if(peer){
             const resource=`block/${o.dimension}/${source.position.x}/${source.position.y}/${source.position.z}`;
             const owner=peer.owner(resource);
             if(owner&&owner!==peer.id)continue;
             if(claim!==resource){releaseClaim();claim=resource;peer.claim(resource,{bid:distance(source.position,o.self.position)/8+learnedCost(result.action),ttlMs:30000});}
-            if(!peer.owns(resource))return {action:null,reason:'Согласование ресурса с другими агентами.'};
+            if(!peer.owns(resource))return {action:null,reason:"Harmonization of resource with other agents."};
           }
           return result;
         }
@@ -308,7 +348,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       const action={skill:'craft',args:{item,count:Math.min(64,missing),recipeId:recipe.id}};
       return { recipe, requirements, score: requirements.reduce((n, r) => n + estimate(r.item, r.count, next), 0) + learnedCost(action) + (blocked(action)?1e5:0) };
     }).sort((a, b) => a.score - b.score);
-    if (!recipes.length) return { action: null, reason: `Нет поддерживаемого способа получить ${item}.` };
+    if (!recipes.length) return { action: null, reason: `There is no supported way to get ${item}.` };
     const chosen = recipes[0];
     const entry=trace.findLast(t=>t.item===item);if(entry){entry.recipeId=chosen.recipe.id;entry.ingredients=chosen.requirements;entry.alternatives=recipes.slice(0,4).map(r=>({recipeId:r.recipe.id,cost:r.score}));}
     // Collect a batch before returning to the workstation. Walking back after
@@ -316,15 +356,16 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
     for (const required of chosen.requirements) { const dependency = ensure(required.item, required.count, next); if (dependency) return dependency; }
     if (chosen.recipe.station && !station(chosen.recipe.station)) {
       const dependency = ensure(chosen.recipe.station, 1, next); if (dependency) return dependency;
-      return response('ensureStation', { station: chosen.recipe.station.replace(/^minecraft:/, ''), gather: false }, 'Установить нужную рабочую станцию.');
+      return response('ensureStation', { station: chosen.recipe.station.replace(/^minecraft:/, ''), gather: false }, "Set up the required workstation.");
     }
-    return response('craft', { item, count: Math.min(64, missing), recipeId: chosen.recipe.id }, `Создать ${item} из подтверждённых запасов.`);
+    return response('craft', { item, count: Math.min(64, missing), recipeId: chosen.recipe.id }, `New ${item} of confirmed stocks.`);
   }
 
-  const reactor = { id: 'mckudo:survival', apiVersion: 1, failureScope: 'action', managesRetries: Boolean(actionEvidence),
+  const reactor = { id: 'overmind:survival', apiVersion: 1, failureScope: 'action', managesRetries: Boolean(actionEvidence),
     react(observation) {
+      countCache.clear();recipeCache.clear();blockCache.clear();
       o = observation; selected = null;
-      if (!finitePoint(o.self?.position) || o.self.health == null || o.self.health <= 0) return { action: null, reason: 'Выживание ожидает живого бота и позицию.' };
+      if (!finitePoint(o.self?.position) || o.self.health == null || o.self.health <= 0) return { action: null, reason: "Survival is waiting for a live bot and position." };
       evaluations = 0; estimates = new Map(); trace = []; learnedCosts.clear(); evidenceChecks.clear(); updateMemory();
       sourceCache.clear(); observedByBlock.clear();
       for (const block of memory.values()) {
@@ -334,18 +375,18 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       goal={...explicit};
       for(const [selector,n]of classes){
         const members=taxonomy.members(selector.slice(1)).filter(id=>catalog.item(id)),owned=members.reduce((sum,id)=>sum+count(o,id),0);if(owned>=n)continue;
-        const nearby=members.flatMap(item=>knownSources(item).map(source=>({item,distance:distance(source.position,o.self.position)+learnedCost({skill:'dig',args:{...source.position,block:source.block}})}))).sort((a,b)=>a.distance-b.distance);
+        const nearby=members.flatMap(item=>knownSources(item).filter(source=>!unreachable.has(key(source.position))&&!blocked(response('dig',{...source.position,block:source.block},"Check Class Source.").action)).map(source=>({item,distance:sourceDistance(source.position)+learnedCost({skill:'dig',args:{...source.position,block:source.block}})}))).sort((a,b)=>a.distance-b.distance);
         const item=nearby[0]?.item||members.sort((a,b)=>count(o,b)-count(o,a))[0];goal[item]=Math.max(goal[item]||0,count(o,item)+n-owned);
       }
       const remaining = Object.entries(goal).filter(([item, n]) => count(o, item) < n);
       state = { ...state, targets: { ...goal }, completed: [...milestones], knownResources: memory.size, remaining: Object.fromEntries(remaining) };
-      if (!remaining.length) { state = { ...state, status: 'completed', stage: null, reason: 'Весь целевой набор подтверждён текущим инвентарём.' }; return { action: null, reason: state.reason }; }
+      if (!remaining.length) { state = { ...state, status: 'completed', stage: null, reason: "The entire target set is confirmed by the current inventory." }; return { action: null, reason: state.reason }; }
       const limit = targets?0:target === 'wood' ? 1 : target === 'stone_tools' ? 4 : 5;
       const stage = basicStages.slice(0, limit).find(s => !milestones.has(s));
       state.stage = stage || remaining[0][0];
       let result = ensure(stage || remaining[0][0], stage ? 1 : remaining[0][1]);
-      if (!result) result = { action: null, reason: 'Нужно новое наблюдение для следующего шага.' };
-      if (result.action && blocked(result.action)) result = { action: null, reason: 'Пауза перед повтором конкретного неудачного действия.' };
+      if (!result) result = { action: null, reason: "We need a new surveillance for the next step." };
+      if (result.action && blocked(result.action)) result = { action: null, reason: "Pause before repetition of a particular failure." };
       selected = result.action;
       state = { ...state, status: result.action ? 'progressing' : 'blocked', reason: result.reason, plan: trace };
       return result;
@@ -359,20 +400,21 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
         if(actionEvidence && o?.dimension)actionEvidence.record({agentId:evidenceAgent,dimension:o.dimension,action,failure:result.failure||{code:'ACTION_FAILED'}});
         // Structured transport failures use the evidence memory. Legacy adapters
         // keep their existing route cache until they can supply certificates.
-        if(!result.failure&&action.skill==='navigate'&&client?.world&&finitePoint(action.args)&&o?.self?.position&&/маршрут|пути|путь|path|route/i.test(result.detail||'')){
+        if(!result.failure&&action.skill==='navigate'&&client?.world&&finitePoint(action.args)&&o?.self?.position&&/route|routes|path|path|route/i.test(result.detail||'')){
           const from=floor(client.state?.position||o.self.position),to=floor(action.args);
           unreachableRoutes.set(id,{from,to,revision:client.world.revision,stamp:routeStamp(from,to)});
           while(unreachableRoutes.size>256)unreachableRoutes.delete(unreachableRoutes.keys().next().value);
         }
         // A timer does not make an unreachable block reachable. Reconsider it after
         // movement or a block change; meanwhile excavate a new approach or explore.
-        if (action.skill === 'dig' && /достижимой|маршрут|пути/i.test(result.detail || '') && finitePoint(action.args) && o?.self?.position) {
+        const unreachableFailure=['NO_PATH','START_UNSUPPORTED','SEARCH_BUDGET','STEP_STALLED'].includes(result.failure?.code)||/reachable|achievable|route|path|\u0434\u043e\u0441\u0442\u0438\u0436\u0438\u043c\u043e\u0439|\u043c\u0430\u0440\u0448\u0440\u0443\u0442|\u043f\u0443\u0442\u0438/i.test(result.detail||'');
+        if (action.skill === 'dig' && unreachableFailure && finitePoint(action.args) && o?.self?.position) {
           unreachable.set(key(action.args), {position: floor(action.args), from: {...o.self.position}, block: getBlock(action.args)?.name});
           while (unreachable.size > 256) unreachable.delete(unreachable.keys().next().value);
         }
         const attempts = (failures.get(id)?.attempts || 0) + 1;
         failures.set(id, { attempts, until: clock() + Math.min(120000, 2000 * 2 ** Math.min(6, attempts - 1)) });
-        state.lastFailure = { action, message: String(result.detail || 'Действие не удалось.').slice(0, 300), attempts, ...(result.failure?{failure:result.failure}:{}) };
+        state.lastFailure = { action, message: String(result.detail || "Unable to act.").slice(0, 300), attempts, ...(result.failure?{failure:result.failure}:{}) };
         if (action.skill === 'navigate') { const p = floor(action.args); visited.push(p); if (visited.length > 512) visited.shift(); pendingStep = null; }
         while (failures.size > 256) failures.delete(failures.keys().next().value);
       } else failures.delete(id);

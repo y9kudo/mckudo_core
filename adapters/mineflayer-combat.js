@@ -25,9 +25,9 @@ export function createCombatExecutor(bot, { goals, check, clock = Date.now }) {
   };
   return { stop, state: () => ({ nextAttackAt, shieldUp }), async execute(args, signal) {
     const duration = args.durationMs ?? 400, maxDistance = args.maxDistance ?? 16, retreatHealth = args.retreatHealth ?? 8;
-    if (!Number.isInteger(duration) || duration < 50 || duration > 2000 || !Number.isFinite(maxDistance) || maxDistance < 1 || maxDistance > 64 || !Number.isFinite(retreatHealth) || retreatHealth < 1 || retreatHealth > 20) throw new Error('combat: неверный бюджет или дистанция.');
+    if (!Number.isInteger(duration) || duration < 50 || duration > 2000 || !Number.isFinite(maxDistance) || maxDistance < 1 || maxDistance > 64 || !Number.isFinite(retreatHealth) || retreatHealth < 1 || retreatHealth > 20) throw new Error("combat: Wrong budget or distance.");
     const target = bot.entities?.[args.entityId];
-    if (!target || target === bot.entity || target.position.distanceTo(bot.entity.position) > maxDistance) throw new Error('Цель боя недоступна.');
+    if (!target || target === bot.entity || target.position.distanceTo(bot.entity.position) > maxDistance) throw new Error("The target is not available.");
     const deadline = clock() + duration;
     try {
       const available = [...bot.inventory.items()];
@@ -43,7 +43,7 @@ export function createCombatExecutor(bot, { goals, check, clock = Date.now }) {
       while (clock() < deadline) {
         check(signal);
         if (bot.entities?.[args.entityId] !== target || target.isValid === false || entityMeta(bot, target, 'health') === 0) return { ok: true, targetGone: true };
-        const d = target.position.distanceTo(bot.entity.position); if (d > maxDistance) throw new Error('Цель вышла за дистанцию преследования.');
+        const d = target.position.distanceTo(bot.entity.position); if (d > maxDistance) throw new Error("Target moved beyond pursuit range.");
         const self = { position: bot.entity.position, health: bot.health, shield: bot.inventory.slots?.[45]?.name === 'shield' };
         const projectiles = Object.values(bot.entities).filter(e => ['arrow', 'spectral_arrow', 'small_fireball', 'fireball', 'trident'].includes(e.name)).map(e => entityCombatState(bot, e));
         const tactic = combatDecision({ self, target: entityCombatState(bot, target), projectiles, now: clock(), nextAttackAt, retreatHealth });

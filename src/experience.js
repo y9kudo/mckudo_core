@@ -8,7 +8,7 @@ const primitive = v => v === null || ['number', 'string', 'boolean'].includes(ty
 
 /** Grounded hypotheses from repeated action transitions, never a causal guarantee. */
 export function createExperienceModel({ worldId, facts, contextFacts = ['/dimension'], minEvidence = 3, retryMs = 5000, clock = Date.now } = {}) {
-  if (typeof worldId !== 'string' || !worldId || worldId.length > 128 || !Array.isArray(facts) || !facts.length || facts.length > 8 || !Array.isArray(contextFacts) || contextFacts.length > 8 || !Number.isInteger(minEvidence) || minEvidence < 2 || minEvidence > 100 || !Number.isInteger(retryMs) || retryMs < 100 || retryMs > 300000) throw new Error('Опыт: worldId, 1–8 facts, до 8 contextFacts, minEvidence 2–100.');
+  if (typeof worldId !== 'string' || !worldId || worldId.length > 128 || !Array.isArray(facts) || !facts.length || facts.length > 8 || !Array.isArray(contextFacts) || contextFacts.length > 8 || !Number.isInteger(minEvidence) || minEvidence < 2 || minEvidence > 100 || !Number.isInteger(retryMs) || retryMs < 100 || retryMs > 300000) throw new Error("Experience: worldId, 1–8 facts, to 8 contextFacts, minEvidence 2–100.");
   for (const fact of [...facts, ...contextFacts]) validateCondition({ fact, exists: true }, 'experience.fact');
   facts = [...new Set(facts)]; contextFacts = [...new Set(contextFacts)];
   const records = new Map(), recent = new Map(), journal = []; let revision = 0;
@@ -20,7 +20,7 @@ export function createExperienceModel({ worldId, facts, contextFacts = ['/dimens
   };
   const record = input => {
     const sample = jsonCopy(input), { episodeId, action, before, after, outcome } = sample;
-    if (typeof episodeId !== 'string' || !episodeId || episodeId.length > 160 || !action || !id(action.skill) || !['success', 'progress', 'failure', 'cancelled'].includes(outcome) || !before) throw new Error('Опыт: episodeId, action, before и outcome обязательны.');
+    if (typeof episodeId !== 'string' || !episodeId || episodeId.length > 160 || !action || !id(action.skill) || !['success', 'progress', 'failure', 'cancelled'].includes(outcome) || !before) throw new Error("Experience: episodeId, action, before and outcome required.");
     if (recent.has(episodeId) || outcome === 'cancelled') return false;
     const group = keyFor(action, before); if (!group) return false;
     const beforeFacts = project(before, facts), afterFacts = after ? project(after, facts) : [];

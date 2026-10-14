@@ -3,21 +3,21 @@ import { jsonCopy, id } from '../src/config.js';
 
 // Transport contract for a separately implemented game-side mod. This is not a Forge/NeoForge mod.
 export async function createBridgeAdapter({ transport, expectedLoader }) {
-  if (!['forge', 'neoforge', 'fabric'].includes(expectedLoader)) throw new Error('Укажи expectedLoader: forge, neoforge или fabric.');
-  for (const method of ['describe', 'observe', 'execute', 'cancel']) if (typeof transport?.[method] !== 'function') throw new Error(`Bridge transport должен реализовать ${method}().`);
+  if (!['forge', 'neoforge', 'fabric'].includes(expectedLoader)) throw new Error("Specify expectedLoader: forge, neoforge or fabric.");
+  for (const method of ['describe', 'observe', 'execute', 'cancel']) if (typeof transport?.[method] !== 'function') throw new Error(`Bridge transport must implement ${method}().`);
   const description = jsonCopy(await transport.describe());
-  if (description.protocolVersion !== 1 || description.loader !== expectedLoader || typeof description.minecraftVersion !== 'string' || !description.minecraftVersion || !Array.isArray(description.skills) || !description.skills.every(id)) throw new Error('Bridge: несовместимый протокол, загрузчик или список навыков.');
+  if (description.protocolVersion !== 1 || description.loader !== expectedLoader || typeof description.minecraftVersion !== 'string' || !description.minecraftVersion || !Array.isArray(description.skills) || !description.skills.every(id)) throw new Error("Bridge: incompatible protocol, loader or skill list.");
   let quarantined = false;
   return {
     describe: () => jsonCopy({ ...description, kind: 'mod-bridge' }),
     observe: async ({ signal }) => {
-      if (quarantined) throw new Error('Bridge: остановка не подтверждена. Требуется новое подключение.');
+      if (quarantined) throw new Error("Bridge: Stop not confirmed. New connection required.");
       signal.throwIfAborted(); const result = await transport.observe({ signal }); signal.throwIfAborted(); return jsonCopy(result);
     },
     execute: async (action, { signal }) => {
       signal.throwIfAborted();
-      if (quarantined) throw new Error('Bridge заблокирован до переподключения.');
-      if (!description.skills.includes(action.skill)) throw new Error('Bridge не объявил этот навык.');
+      if (quarantined) throw new Error("Bridge locked until reconnect.");
+      if (!description.skills.includes(action.skill)) throw new Error("Bridge I didn't declare this skill.");
       const requestId = randomUUID(); let cancellation;
       const cancel = () => {
         cancellation = Promise.resolve().then(() => transport.cancel({ requestId })).then(reply => {

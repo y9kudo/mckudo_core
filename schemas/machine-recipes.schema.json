@@ -1,12 +1,12 @@
 {
   "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "title":"MCKudo · граф машинных рецептов",
+  "title":"OvermindMC · Engine recipe graph",
   "type":"object", "additionalProperties":false,
   "required":["schemaVersion","minecraftVersion","recipes"],
   "properties":{
     "schemaVersion":{"const":1},
     "minecraftVersion":{"type":"string","minLength":1},
-    "source":{"type":"string","description":"Название экспортёра или модпака"},
+    "source":{"type":"string","description":"Name of exporter or fashion pack"},
     "recipes":{"type":"array","maxItems":50000,"items":{"$ref":"#/$defs/recipe"}}
   },
   "$defs":{

@@ -1,1 +1,1 @@
-export const MCKUDO = Object.freeze({ name: 'MCKudo Core', id: 'mckudo_core', version: '0.7.0', author: 'y9kudo', protocolVersion: 1 });
+export const OVERMIND = Object.freeze({ name: 'OvermindMC', id: 'overmindmc', version: '1.0.0-Arthas-dev.1', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-dev.1', author: 'y9kudo', protocolVersion: 1 });

@@ -1,31 +1,31 @@
 {
-  "name": "mckudo",
-  "version": "0.7.0",
+  "name": "overmindmc",
+  "version": "1.0.0-Arthas-dev.1",
   "description": "Reusable Minecraft automation kernel: catalogs, resource planning, construction and reactors",
   "author": "y9kudo",
   "license": "MIT",
   "type": "module",
-  "main": "./mckudo_core.js",
-  "types": "./mckudo_core.d.ts",
+  "main": "./overmindmc.js",
+  "types": "./overmindmc.d.ts",
   "bin": {
-    "mckudo": "./src/cli.js"
+    "overmindmc": "./src/cli.js"
   },
   "exports": {
     ".": {
-      "types": "./mckudo_core.d.ts",
-      "import": "./mckudo_core.js"
+      "types": "./overmindmc.d.ts",
+      "import": "./overmindmc.js"
     },
     "./adapters/mineflayer": {
       "types": "./adapters/mineflayer.d.ts",
       "import": "./adapters/mineflayer.js"
     },
     "./connect": {
-      "types": "./kudoconnect/index.d.ts",
-      "import": "./kudoconnect/index.js"
+      "types": "./omconnect/index.d.ts",
+      "import": "./omconnect/index.js"
     },
-    "./adapters/kudoconnect": {
-      "types": "./adapters/kudoconnect.d.ts",
-      "import": "./adapters/kudoconnect.js"
+    "./adapters/omconnect": {
+      "types": "./adapters/omconnect.d.ts",
+      "import": "./adapters/omconnect.js"
     },
     "./adapters/bridge": "./adapters/bridge.js",
     "./adapters/simulator": "./adapters/simulator.js",
@@ -33,16 +33,20 @@
     "./schema": "./schemas/agent.schema.json",
     "./adapters/catalog-simulator": "./adapters/catalog-simulator.js",
     "./vectorize": {
-      "types": "./packages/kudoconnect/src/vectorize.d.ts",
-      "import": "./packages/kudoconnect/src/vectorize.js"
+      "types": "./packages/omconnect/src/vectorize.d.ts",
+      "import": "./packages/omconnect/src/vectorize.js"
+    },
+    "./intelligence": {
+      "types": "./src/intelligence.d.ts",
+      "import": "./src/intelligence.js"
     }
   },
   "files": [
-    "mckudo_core.js",
-    "mckudo_core.d.ts",
+    "overmindmc.js",
+    "overmindmc.d.ts",
     "src/",
-    "kudoconnect/",
-    "packages/kudoconnect/",
+    "omconnect/",
+    "packages/omconnect/",
     "adapters/",
     "schemas/",
     "examples/",
@@ -51,17 +55,21 @@
     "ROADMAP.md",
     "CONTRIBUTING.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "mckudo_core.js",
+    "mckudo_core.d.ts"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13.0"
   },
   "scripts": {
+    "expedition:full": "node examples/from-zero-to-dragon.js",
+    "expedition:check": "node examples/from-zero-to-dragon.js --check",
     "release:check": "node scripts/release-check.js",
     "test:package": "node scripts/package-smoke.js",
     "demo:mission": "node examples/mission.js",
     "demo:evidence": "node examples/evidence-memory.js",
-    "test:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types/daily.mts test/types/platform07.mts test/types/evidence.mts",
+    "test:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types/daily.mts test/types/platform07.mts test/types/evidence.mts test/types/nether.mts test/types/intelligence.mts test/types/physical.mts",
     "test:live:mission": "node examples/mission-live.js",
     "mission:check": "node examples/mission.js examples/missions/first-tools.json --check",
     "test:live:protection": "node examples/protection-live.js",
@@ -69,7 +77,7 @@
     "test:live:timing": "node examples/timing-live.js",
     "test:runtime": "node examples/runtime-responsiveness.js",
     "test:live:agent": "node examples/agent-live.js",
-    "test": "node --test --test-concurrency=4 test/*.test.js packages/kudoconnect/test/*.test.js",
+    "test": "node --test --test-concurrency=4 test/*.test.js packages/omconnect/test/*.test.js",
     "demo": "node examples/demo.js",
     "demo:workflow": "node examples/workflow.js",
     "demo:plugins": "node examples/plugin.js",
@@ -114,7 +122,15 @@
     "test:live:creative:schematic": "node examples/creative-schematic-build.js",
     "test:live:cooperative-diamonds": "node examples/cooperative-diamonds-live.js",
     "test:cooperative-diamonds:check": "node examples/cooperative-diamonds-live.js --check",
-    "dashboard:creative": "node examples/creative-dashboard.js"
+    "dashboard:creative": "node examples/creative-dashboard.js",
+    "train:local": "node examples/train-local.js",
+    "test:v1": "node --test test/v1-*.test.js test/arthas-*.test.js",
+    "benchmark:decisions": "node examples/decision-speed.js",
+    "test:live:curriculum": "node examples/curriculum-live.js",
+    "train:curriculum": "node examples/train-curriculum.js",
+    "train:physical": "node examples/train-physical.js",
+    "test:live:rl": "node examples/rl-connect-live.js",
+    "check:english": "node scripts/check-english.js"
   },
   "dependencies": {
     "minecraft-data": "^3.117.0",
