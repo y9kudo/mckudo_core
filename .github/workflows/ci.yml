@@ -17,6 +17,27 @@ jobs:
           node-version: ${{ matrix.node }}
           package-manager-cache: false
       - run: npm ci --ignore-scripts
+      - name: Build optional C kernel from verified Node headers
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p process.version)"
+          mkdir -p .cache/native-toolchain
+          cd .cache/native-toolchain
+          archive="node-${version}-headers.tar.gz"
+          curl -fsSL "https://nodejs.org/dist/${version}/${archive}" -o "$archive"
+          curl -fsSL "https://nodejs.org/dist/${version}/SHASUMS256.txt" -o SHASUMS256.txt
+          grep "  ${archive}$" SHASUMS256.txt > headers.sha256
+          sha256sum --check headers.sha256
+          tar -xzf "$archive"
+          cd ../..
+          npm run native:build -- --cc=gcc --node-include="$PWD/.cache/native-toolchain/node-${version}/include/node"
+      - name: Require compiled C kernel checks
+        if: runner.os == 'Linux'
+        run: npm run test:native
+        env:
+          OM_REQUIRE_NATIVE: '1'
       - run: npm run check
       - run: npm run check:english
       - run: npm run test:types

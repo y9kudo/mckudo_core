@@ -33,6 +33,9 @@ try {
     import {OMVECTORIZE as clientVector} from 'omconnect/vectorize';
     import {createMachineGraph,planMachineResources,createCampaignJournal} from 'overmindmc';
     import {createDQN,createVectorEnvironment,openWorldStore} from 'overmindmc/intelligence';
+    import {loadNativeKernel,createNativeNavigationBackend,NativeFrameDecoder} from 'overmindmc/native';
+    assert.equal(typeof createNativeNavigationBackend,'function');assert.equal(typeof NativeFrameDecoder,'function');
+    assert.throws(()=>loadNativeKernel(),/Cannot load/,'the source archive does not ship local native binaries');
     const require = createRequire(import.meta.url);
     assert.throws(()=>require.resolve('mineflayer'), {code:'MODULE_NOT_FOUND'});
     assert.equal(OVERMIND.version, ${JSON.stringify(version)});
