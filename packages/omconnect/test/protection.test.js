@@ -47,6 +47,60 @@ test('native digging, placing and pillars reject protected coordinates before ap
   assert.equal(f.packets.filter(p=>p.name==='block_dig'||p.name==='block_place').length,0);
 });
 
+test('block approach rejects occluded standing ledges before issuing movement',async()=>{
+  const f=fixture();
+  // Every remote standing ledge is hidden behind an intact wall. A ray endpoint
+  // at the target is ignored, but intervening wall geometry remains opaque.
+  for(let x=1;x<=8;x++)for(let z=-5;z<=5;z++)for(let y=1;y<=4;y++)f.blocks.set(`${x},${y},${z}`,f.block('stone'));
+  f.blocks.set('5,1,0',f.block('air'));f.blocks.set('5,2,0',f.block('air'));
+  let navigation=0;f.c.waitFor=async()=>{navigation++;throw new Error('Unexpected movement wait.');};
+  await assert.rejects(f.c.execute({skill:'dig',args:{x:6,y:1,z:0}}),/line of sight/);
+  assert.equal(navigation,0);assert.equal(f.packets.some(p=>p.name==='block_dig'),false);
+});
+
+test('confirmed personal stations permit adjacent mining after restart while foreign anchors stay protected',()=>{
+  const f=fixture(),station={x:2,y:1,z:0},target={x:1,y:1,z:0};
+  f.blocks.set('2,1,0',f.block('furnace'));f.blocks.set('1,1,0',f.block('stone'));
+  const options={operation:'dig',dimension,position:target,block:f.c.world.blockAt(target),getBlock:f.c.world.blockAt};
+  assert.equal(f.c.protection.check(options).allowed,false);
+  f.c.protection.remember(dimension,station,f.c.world.blockAt(station));
+  assert.equal(f.c.protection.check(options).allowed,true);
+  const restored=new OMProtection();restored.restoreMemory(f.c.protection.exportMemory());
+  f.blocks.set('2,1,0',{...f.block('furnace'),stateId:f.block('furnace').stateId+1});
+  assert.equal(restored.check(options).allowed,true,'a lit furnace retains station ownership');
+  f.blocks.set('2,1,0',f.block('chest'));
+  assert.equal(restored.check(options).allowed,false,'a replaced structural anchor is not owned');
+  restored.add({id:'foreign-region',dimension,min:target,max:target});
+  assert.equal(restored.check(options).allowed,false);
+});
+
+test('ownership restoration validates every record before replacing existing memory',()=>{
+  const policy=new OMProtection();policy.remember(dimension,{x:1,y:1,z:1},{name:'furnace',stateId:4});
+  const before=policy.exportMemory();
+  for(const memory of [{schemaVersion:2,owned:[]},{schemaVersion:1,owned:[{key:'invalid',name:'furnace'}]},{schemaVersion:1,owned:[...before.owned,...before.owned]}]){
+    assert.throws(()=>policy.restoreMemory(memory));assert.deepEqual(policy.exportMemory(),before);
+  }
+  const restored=new OMProtection();restored.restoreMemory(before);
+  const copy=restored.exportMemory();copy.owned[0].name='chest';assert.deepEqual(restored.exportMemory(),before);
+});
+
+test('duplicate server updates retain ownership; furnace lighting changes do not erase it',()=>{
+  const policy=new OMProtection(),p={x:2,y:1,z:0},unlit={name:'furnace',stateId:10,getProperties:()=>({facing:'north',lit:false})},lit={name:'furnace',stateId:11,getProperties:()=>({facing:'north',lit:true})};
+  policy.remember(dimension,p,unlit);const revision=policy.revision;
+  policy.observeBlockChange(dimension,p,unlit,{...unlit});assert.equal(policy.revision,revision);assert.equal(policy.exportMemory().owned.length,1);
+  policy.observeBlockChange(dimension,p,unlit,lit);assert.equal(policy.exportMemory().owned[0].stateId,11);
+  policy.observeBlockChange(dimension,p,lit,{name:'furnace',stateId:12,getProperties:()=>({facing:'east',lit:true})});assert.equal(policy.exportMemory().owned.length,0);
+  policy.remember(dimension,p,unlit);policy.observeBlockChange(dimension,p,unlit,{name:'air',stateId:0});assert.equal(policy.exportMemory().owned.length,0);
+});
+
+test('harvesting mature food near a structure preserves explicit farm ownership regions',()=>{
+  const f=fixture(),crop={x:1,y:1,z:0};
+  f.blocks.set('1,1,0',{...f.block('carrots'),getProperties:()=>({age:7})});f.blocks.set('2,1,0',f.block('crafting_table'));
+  const options={operation:'dig',dimension,position:crop,block:f.c.world.blockAt(crop),getBlock:f.c.world.blockAt};
+  assert.equal(f.c.protection.check(options).allowed,true);
+  f.c.protection.add({id:'owned-farm',dimension,min:crop,max:crop});assert.equal(f.c.protection.check(options).allowed,false);
+});
+
 test('side placement aims at the supporting face and sends the matching face cursor',async()=>{
   const f=fixture();f.c.state.position.y=101;f.blocks.set('0,100,0',f.block('stone'));
   f.c.inventory.slots[36]=readSlot({itemCount:2,itemId:f.c.registry.itemsByName.cobblestone.id,components:[],removeComponents:[]},f.c.registry,36);
@@ -57,6 +111,37 @@ test('side placement aims at the supporting face and sends the matching face cur
   const packet=f.packets.find(p=>p.name==='block_place').p;
   assert.equal(packet.direction,5);assert.equal(packet.cursorX,1);assert.equal(packet.cursorY,.5);assert.equal(packet.cursorZ,.5);
   assert.deepEqual(looked,{x:1,y:100.5,z:.5});
+});
+
+test('placing on an interactive support crouches before the click and restores controls',async()=>{
+  const f=fixture();f.c.state.entityId=1;f.blocks.set('1,0,0',f.block('furnace'));
+  f.c.inventory.slots[36]=readSlot({itemCount:1,itemId:f.c.registry.itemsByName.crafting_table.id,components:[],removeComponents:[]},f.c.registry,36);
+  f.c.lookAt=()=>{};
+  f.c.client.write=(name,p)=>{
+    f.packets.push({name,p});
+    if(name==='block_place'){
+      assert.equal(f.c.control.sneak,true);
+      assert.ok(f.packets.some(p=>p.name==='entity_action'&&p.p.actionId==='start_sneaking'));
+      f.blocks.set('1,1,0',f.block('crafting_table'));f.c.emit('block');
+    }
+  };
+  await f.c.execute({skill:'place',args:{x:1,y:1,z:0,block:'crafting_table'}});
+  assert.equal(f.c.control.sneak,false);
+  assert.equal(f.c.containers.current,null);
+});
+
+test('a failed placement closes its unexpected menu without leaving crouch enabled',async()=>{
+  const f=fixture();f.c.state.entityId=1;
+  f.c.inventory.slots[36]=readSlot({itemCount:1,itemId:f.c.registry.itemsByName.cobblestone.id,components:[],removeComponents:[]},f.c.registry,36);
+  f.c.lookAt=()=>{};
+  f.c.client.write=(name,p)=>{
+    f.packets.push({name,p});
+    if(name==='block_place')f.c.containers.open({windowId:7,inventoryType:14});
+  };
+  await assert.rejects(f.c.execute({skill:'place',args:{x:1,y:1,z:0,block:'cobblestone'}},{signal:AbortSignal.timeout(80)}));
+  assert.equal(f.c.containers.current,null);
+  assert.equal(f.c.control.sneak,false);
+  assert.ok(f.packets.some(p=>p.name==='close_window'&&p.p.windowId===7));
 });
 
 test('route excavation detours around a stone house and permits walking on protected floors',()=>{

@@ -52,5 +52,7 @@ export {createCpuPool} from './src/cpu-pool.js';
 export {createExplorationPlanner} from './src/exploration-planner.js';
 export {createMachineGraph,planMachineResources,executeMachinePlan,machineResourceKey} from './src/machines.js';
 export {createCampaignJournal} from './src/campaign-journal.js';
+export {expeditionLearningEvidence,assessExpeditionRelease} from './src/expedition-evidence.js';
+export {createNavigationRecoveryReactor} from './src/navigation-recovery.js';
 export {OMVECTORIZE,OMVectorize,volumeClearance,traceVolume,planSwimRoute,planSwimRouteAsync,predictElytraTick,planElytraFlight,elytraControl} from './packages/omconnect/src/vectorize.js';
 export {STORAGE_CATEGORIES,storageCategory,findLabelledStorage,storageForSign,sortStorage} from './src/storage.js';

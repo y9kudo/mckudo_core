@@ -3,12 +3,28 @@ import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createCpuPool } from '../src/cpu-pool.js';
 import { createExplorationPlanner } from '../src/exploration-planner.js';
+import {planExploration} from '../src/exploration.js';
 import { captureVoxels, readVoxelSnapshot } from '../src/voxel-snapshot.js';
 
 const air = { name:'air', boundingBox:'empty', shapes:[], stateId:0 };
 const stone = { name:'stone', boundingBox:'block', shapes:[[0,0,0,1,1,1]], stateId:1 };
 const position = {x:0,y:64,z:0};
 const world = () => ({ dimension:'minecraft:overworld',revision:0,blockAt:p=>p.y<64?stone:air });
+
+test('cave drop limits survive worker serialization and reject irreversible ledges',async()=>{
+  const getBlock=p=>p.y<(p.x<=0?64:61)?stone:air;
+  const options={position,mode:'ores',radius:8,maxNodes:3000,maxCandidates:24};
+  assert.equal(planExploration({...options,getBlock,maxDrop:3}).target.y,61);
+  const safe=planExploration({...options,getBlock,maxDrop:1});
+  assert.ok(!safe.target||safe.target.y>=64);
+  const pool=createCpuPool();
+  try{
+    const voxels=await captureVoxels({...options,getBlock});
+    const actual=await pool.run({type:'exploration',voxels,options:{...options,maxDrop:1},costs:[]});
+    assert.deepEqual(actual,planExploration({...options,getBlock:readVoxelSnapshot(voxels),maxDrop:1}));
+    assert.ok(!actual.target||actual.target.y>=64);
+  }finally{await pool.close();}
+});
 
 test('CPU exploration uses observed geometry, preserves unknowns and reuses a worker', async () => {
   const pool = createCpuPool(), voxels = await captureVoxels({ position, radius:8, getBlock:p=>p.x===5?null:p.y<64?stone:air });
@@ -65,4 +81,17 @@ test('copying the voxel snapshot yields to events and honours abort without trea
   const immediate=setImmediate(()=>{handled=true;abort.abort(new Error('urgent threat'));});
   try {await assert.rejects(captureVoxels({position,radius:24,getBlock:()=>null,signal:abort.signal}),/urgent threat/);assert.equal(handled,true);}
   finally{clearImmediate(immediate);}
+});
+
+test('independent cave and frontier requests share workers without cancelling each other',async()=>{
+  const pool=createCpuPool(),parent=createExplorationPlanner({world:world(),pool}),child=parent.fork();
+  const a={position,radius:8,context:'frontier'},b={...a,context:'cave'};
+  try{
+    assert.equal(parent.poll(a).status,'pending');assert.equal(child.poll(b).status,'pending');
+    for(let i=0;i<200;i++){await delay(10);if(parent.poll(a).status!=='pending'&&child.poll(b).status!=='pending')break;}
+    assert.equal(parent.poll(a).status,'planned');assert.equal(child.poll(b).status,'planned');
+    assert.equal(parent.snapshot().stale,0);assert.equal(child.snapshot().stale,0);
+    assert.equal(pool.snapshot().threads,1);
+    parent.close();assert.equal(child.poll(b).status,'blocked');assert.throws(()=>parent.fork(),/closed/);
+  }finally{parent.close();await pool.close();}
 });

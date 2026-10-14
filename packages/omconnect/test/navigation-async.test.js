@@ -49,7 +49,7 @@ test('changed world revision invalidates suspended routes rather than using stal
 
 test('navigation stops old input and refuses a route if the player moved during planning', async () => {
   let stopped = false;
-  const c = { state: { status: 'ready', health: 20, position: { x: .5, y: 1, z: .5 }, dimension: 'minecraft:overworld' },
+  const c = { state: { status: 'ready', health: 20,onGround:true,velocity:{x:0,y:0,z:0}, position: { x: .5, y: 1, z: .5 }, dimension: 'minecraft:overworld' },
     world: { blockAt: flat, revision: 1 }, metrics: { corrections: 0 }, entities: new Map(), stopMovement: () => { stopped = true; } };
   setImmediate(() => { c.state.position.x = 2.5; });
   await assert.rejects(executeNavigate(c, { x: 8, y: 1, z: 0, bridge: false }, new AbortController().signal), /Start position changed/);

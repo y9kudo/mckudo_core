@@ -24,12 +24,13 @@ export function explorationCandidates({ position, getBlock, mode = 'surface', vi
 }
 
 export function planExploration(options) {
-  const { position, getBlock, mode = 'surface', radius = 32, maxNodes = 1500 } = options;
+  const { position, getBlock, mode = 'surface', radius = 32, maxNodes = 1500, maxDrop = 3 } = options;
+  if (!Number.isInteger(maxDrop) || maxDrop < 1 || maxDrop > 32) throw new Error('Exploration maxDrop: an integer 1–32.');
   const start = Object.fromEntries(['x', 'y', 'z'].map(k => [k, Math.floor(position[k])])), unique = explorationCandidates(options);
   let attempts = 0;
   for (const c of unique) {
     attempts++;
-    const route = planRoute({ start, goal: c.p, getBlock, maxDistance: radius, maxNodes });
+    const route = planRoute({ start, goal: c.p, getBlock, maxDistance: radius, maxNodes, maxDrop });
     if (route.status === 'planned') return { status: 'planned', reason: mode === 'ores' ? "Research an accessible grove or a new area for ore exploration." : "Increase the observed area.", target: c.p, route, attempts };
   }
   return { status: 'blocked', reason: "No new, achievable observation point in the search budget.", target: null, attempts };

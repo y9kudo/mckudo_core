@@ -5,6 +5,7 @@ import {existsSync} from 'node:fs';
 import {setTimeout as delay} from 'node:timers/promises';
 import {dirname} from 'node:path';
 import {randomUUID} from 'node:crypto';
+import {expeditionLearningEvidence,assessExpeditionRelease} from '../src/expedition-evidence.js';
 
 const dragon=process.argv.includes('--dragon');
 const full=process.argv.includes('--full');
@@ -12,49 +13,62 @@ const scenario=validateScenario(full?fullExpeditionScenario():dragon?dragonExped
 const required=['dig','collect','craft','ensureStation','smelt','combat','navigate','place','ignitePortal','enterPortal','throwEye','fillEndFrame'];
 if(dragon)required.push('pillar','descendPillar','shoot','evade');
 if(full)required.push('barter','equipArmor','bridgeTo');
-if(required.some(s=>!OM_SKILLS.includes(s)))throw new Error("No expeditionaries.");
+if(required.some(s=>!OM_SKILLS.includes(s)))throw new Error('The transport is missing required expedition skills.');
 if(process.argv.includes('--check')){
   console.log(JSON.stringify({status:'configuration-valid',steps:scenario.steps.map(s=>s.id),skills:required,liveTest:false},null,2));
 }else{
   const minutes=Number(process.env.MC_TEST_MINUTES??120),port=Number(process.env.MC_PORT||25565);
-  if(!Number.isFinite(minutes)||minutes<0)throw new Error("MC_TEST_MINUTES: 0 (No term) or positive.");
+  if(!Number.isFinite(minutes)||minutes<0)throw new Error('MC_TEST_MINUTES must be 0 (unlimited) or a positive number.');
   const autoRespawn=process.env.MC_AUTO_RESPAWN==='1',maxDeaths=Number(process.env.MC_MAX_DEATHS??3);
   if(!Number.isInteger(maxDeaths)||maxDeaths<0||maxDeaths>1000)throw new Error("MC_MAX_DEATHS: an integer 0–1000.");
   const player=process.env.MC_NAME||'EndRunner',worldId=process.env.MC_WORLD_ID||'local-end-expedition',host=process.env.MC_HOST||'127.0.0.1',version=process.env.MC_VERSION||'1.21.1';
-  const client=createOMConnect({host,port,username:player,auth:'offline',version});
+  const nativeBackend=process.env.MC_NATIVE==='1'?(await import('../native/index.js')).createNativeNavigationBackend():null;
+  const nativeProtocol=process.env.MC_NATIVE==='1'?(await import('../native/index.js')).createNativeProtocolFactory():null;
+  const navigationLearning=process.env.MC_NAVIGATION_LEARNING!=='0';
+  const client=createOMConnect({host,port,username:player,auth:'offline',version},{navigationBackend:nativeBackend,...nativeProtocol?{createProtocolClient:nativeProtocol}:{}});
   const resumed=process.env.MC_RESUME==='1';
   const stop=new AbortController(),file=process.env.MC_REPORT||(dragon?'data/dragon-expedition.json':'data/end-expedition.json');let expedition;
   const eventsFile=process.env.MC_EVENTS||file.replace(/\.json$/i,'')+'.events.ndjson';
   const memoryFile=process.env.MC_MEMORY||file.replace(/\.json$/i,'')+'.memory.json';
+  const segmentsFile=file.replace(/\.json$/i,'')+'.segments.ndjson';
   const stopFile=process.env.MC_STOP_FILE||file.replace(/\.json$/i,'')+'.stop';
   let previous=null;
   if(resumed){previous=JSON.parse(await readFile(file,'utf8'));}
-  if(previous&&(previous.player!==player||previous.worldId!==worldId||previous.port!==port||previous.host!==host||previous.minecraftVersion!==version||previous.full!==full))throw new Error("The continuation report is from another player, peace, server, version or scenario.");
+  if(previous&&(previous.player!==player||previous.worldId!==worldId||previous.port!==port||previous.host!==host||previous.minecraftVersion!==version||previous.full!==full))throw new Error('The saved report belongs to a different player, world, server, version or scenario.');
   const report={version:OVERMIND.version,objective:dragon?'defeat-dragon':'enter-end',player,worldId,port,startedAt:new Date().toISOString(),status:'running',resumed,autoRespawn,maxDeaths,fromZero:false,originFromZero:previous?.originFromZero??previous?.fromZero??false,previousSegment:previous?{startedAt:previous.startedAt,finishedAt:previous.finishedAt,status:previous.status,stage:previous.expedition?.scenario?.current}:null,goalAchieved:false,playersObserved:[],actions:[],checkpoints:[],warnings:[],evidence:[],deaths:[],failureCounts:{}};
-  Object.assign(report,{segmentId:randomUUID(),host,minecraftVersion:version,full,releaseEligible:false,largeUnexplainedCorrections:previous?.largeUnexplainedCorrections||[],externalInterventions:previous?.externalInterventions||[]});
+  Object.assign(report,{segmentId:randomUUID(),host,minecraftVersion:version,full,releaseEligible:false,eventsFile,memoryFile,segmentsFile,totalDeaths:previous?.totalDeaths??previous?.deaths?.length??0,originInitial:previous?.originInitial??previous?.initial??null,largeUnexplainedCorrections:previous?.largeUnexplainedCorrections||[],externalInterventions:previous?.externalInterventions||[]});
+  Object.assign(report,{runStartedAt:previous?.runStartedAt??previous?.startedAt??report.startedAt,totalActions:previous?.totalActions??previous?.actions?.length??0,failureCounts:previous?.failureCounts??{},playersObserved:previous?.playersObserved??[],checkpoints:previous?.checkpoints??[],goalStages:scenario.steps.map(s=>({id:s.id,type:s.type}))});
   let journalWrites=Promise.resolve();
   const journal=entry=>{journalWrites=journalWrites.then(()=>appendFile(eventsFile,JSON.stringify({at:new Date().toISOString(),segmentId:report.segmentId,...entry})+'\n')).catch(error=>{report.journalError=error.message;});};
   process.once('SIGINT',()=>stop.abort(new Error("Stopped by the user.")));
   process.once('SIGTERM',()=>stop.abort(new Error("The process has been stopped.")));
   stop.signal.addEventListener('abort',()=>{client.pending?.abort.abort(stop.signal.reason);void expedition?.brain.pause();},{once:true});
   await mkdir('data',{recursive:true});
-  for(const path of [file,eventsFile,memoryFile])await mkdir(dirname(path),{recursive:true});
+  for(const path of [file,eventsFile,memoryFile,segmentsFile])await mkdir(dirname(path),{recursive:true});
+  if(previous?.status==='running'){
+    const interrupted={...previous,status:'interrupted',interruptionDetectedAt:report.startedAt,reason:'The previous process ended without a finish record; restored after restart.'};
+    await appendFile(segmentsFile,JSON.stringify(interrupted)+'\n');
+    report.recoveredInterruptedSegment=true;
+    journal({type:'restart-recovery',previousSegmentId:previous.segmentId,lastHeartbeatAt:previous.heartbeatAt,previousPosition:previous.final?.position});
+  }
   const atomic=async(path,value)=>{const temp=path+'.'+process.pid+'.tmp';await writeFile(temp,JSON.stringify(value,null,2));await rename(temp,path);};
-  const save=()=>atomic(file,report);
-  const saveMemory=()=>expedition?atomic(memoryFile,{worldId,player,host,port,minecraftVersion:version,cognition:expedition.brain.cognition?.export(),navigation:expedition.brain.neural?.export(),checkpoint:expedition.controller.exportMemory()}):Promise.resolve();
+  let reportWrites=Promise.resolve();
+  const save=()=>{reportWrites=reportWrites.then(()=>atomic(file,report));return reportWrites;};
+  const saveMemory=()=>expedition?atomic(memoryFile,{worldId,player,host,port,minecraftVersion:version,cognition:expedition.brain.cognition?.export(),navigation:expedition.brain.neural?.export(),protection:client.protection.exportMemory(),checkpoint:expedition.controller.exportMemory()}):Promise.resolve();
   const controlTimer=setInterval(()=>{if(existsSync(stopFile)&&!stop.signal.aborted){journal({type:'stop-request',file:stopFile});stop.abort(new Error("Stopped by control file."));}},1000);
   const respawn=async phase=>{
-    if(!autoRespawn||report.deaths.length>=maxDeaths)return false;
+    if(!autoRespawn||report.totalDeaths>=maxDeaths)return false;
     const death={at:new Date().toISOString(),phase,position:{...client.state.position},inventory:client.inventory.snapshot()};
-    report.deaths.push(death);journal({type:'death',...death});await save();
+    report.deaths.push(death);report.totalDeaths++;journal({type:'death',...death});await save();
     await client.respawn();expedition?.controller.restart();journal({type:'respawn',position:{...client.state.position},health:client.state.health});return true;
   };
+  let heartbeat;
   try{
     client.on('warning',e=>{const message=String(e.message).slice(0,300);report.warnings.push(message);journal({type:'warning',message});});
     client.on('correction',e=>{const d=Math.hypot(e.to.x-e.from.x,e.to.y-e.from.y,e.to.z-e.from.z);journal({type:'server-position-correction',...e,distance:d,dimension:client.state.dimension});if(d>32&&!client.dimensionRequested){report.largeUnexplainedCorrections.push({at:new Date().toISOString(),...e,distance:d});if(report.largeUnexplainedCorrections.length>128)report.largeUnexplainedCorrections.shift();}});
     client.on('attackSent',e=>journal({type:'attack-sent',...e,health:client.state.health}));
     client.on('damage',e=>journal({type:'damage',...e,health:client.state.health,position:client.state.position}));
-    for(const name of ['pillarStep','crystalDestroyed','dragonDefeated','barter'])client.on(name,e=>{report.evidence.push({event:name,...e});if(report.evidence.length>1000)report.evidence.shift();journal({type:'evidence',event:name,data:e});});
+    for(const name of ['placementConfirmed','pillarStep','crystalDestroyed','dragonDefeated','barter'])client.on(name,e=>{report.evidence.push({event:name,...e});if(report.evidence.length>1000)report.evidence.shift();journal({type:'evidence',event:name,data:e});});
     client.on('entity',e=>{if(e.kind==='player'&&!report.playersObserved.includes(e.username||e.id))report.playersObserved.push(e.username||e.id);});
     await client.connect();
     if(client.state.status==='dead'&&!await respawn('entry'))throw new Error("Agent is dead; for continuation with re-emerging MC_AUTO_RESPAWN=1.");
@@ -62,39 +76,74 @@ if(process.argv.includes('--check')){
     report.initial=client.snapshot();
     report.fromZero=Object.keys(report.initial.inventory).length===0&&Object.values(report.initial.equipment).every(i=>!i);
     if(!resumed)report.originFromZero=report.fromZero;
+    if(!resumed)report.originInitial=report.initial;
     if(!resumed&&(!report.fromZero||client.state.dimension!=='minecraft:overworld')||![0,'survival'].includes(client.state.gameMode)||client.state.status!=='ready')throw new Error("We need a new player alive Survival In a normal world with empty equipment and no armor. Use the new one MC_NAME. You need a previous report to continue, and MC_RESUME=1.");
     journal({type:'start',player,worldId,resumed,fromZero:report.fromZero,originFromZero:report.originFromZero,initial:report.initial});
     let memory;
     if(resumed){try{memory=JSON.parse(await readFile(memoryFile,'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}}
-    if(resumed&&!memory?.checkpoint)throw new Error("The scenario reference point is saved to continue.");
+    if(resumed&&!memory?.checkpoint)throw new Error('Resuming requires a saved scenario checkpoint.');
     if(memory&&(memory.worldId!==worldId||memory.player!==player||memory.host!==host||memory.port!==port||memory.minecraftVersion!==version))throw new Error("The Agent's Memory is from another world, player or server.");
+    if(memory?.protection)client.protection.restoreMemory(memory.protection);
     report.memoryRestored=!!memory;
     expedition=createEndExpedition({client,worldId,scenario,cognitionMemory:memory?.cognition,neuralMemory:memory?.navigation,checkpoint:memory?.checkpoint});
+    if(!navigationLearning)client.detachNeuralNavigation?.();
+    const learningModels={planner:expedition.brain.cognition,navigation:expedition.brain.neural};
+    report.segmentLearningBaseline=expeditionLearningEvidence(learningModels);
+    report.originLearningBaseline=previous?.originLearningBaseline??report.segmentLearningBaseline;
+    let cpuSample=process.cpuUsage(),cpuAt=performance.now();
+    const capture=()=>{
+      report.expedition=expedition.snapshot();report.computation=expedition.brain.computation?.snapshot();
+      report.final=client.snapshot();report.endgame=structuredClone(client.endgame);
+      report.learning=expeditionLearningEvidence({...learningModels,baseline:report.originLearningBaseline});
+      const state=expedition.brain.snapshot();
+      report.performance=state.performance;
+      report.nativeNavigation=nativeBackend?.snapshot()??null;
+      report.nativeProtocol=nativeProtocol?.snapshot()??null;
+      report.navigationLearning=navigationLearning;
+      const elapsed=performance.now()-cpuAt;
+      if(elapsed>=1000){const cpu=process.cpuUsage(cpuSample),memory=process.memoryUsage();report.runtime={rssMiB:memory.rss/1048576,heapUsedMiB:memory.heapUsed/1048576,cpuPercentOfOneCore:100*(cpu.user+cpu.system)/1000/elapsed,sampleWindowMs:elapsed};cpuSample=process.cpuUsage();cpuAt=performance.now();}
+      report.activeAction=startedAction;
+      report.interactionState={window:client.containers.current?{id:client.containers.current.id,kind:client.containers.current.kind}:null,cursor:client.inventory.cursor?{name:client.inventory.cursor.name,count:client.inventory.cursor.count}:null,controls:{...client.control},velocity:{...client.state.velocity},onGround:client.state.onGround};
+      const feet=Object.fromEntries(['x','y','z'].map(k=>[k,Math.floor(client.state.position[k])]));
+      report.localTerrain={origin:feet,columns:[]};
+      for(let z=-2;z<=2;z++)for(let x=-2;x<=2;x++)report.localTerrain.columns.push({x:feet.x+x,z:feet.z+z,blocks:Array.from({length:6},(_,i)=>client.world.blockAt({x:feet.x+x,y:feet.y-1+i,z:feet.z+z})?.name??null)});
+      report.observedResources=Object.fromEntries((state.observation?.world?.sampledBlocks??[]).reduce((counts,b)=>counts.set(b.name,(counts.get(b.name)||0)+1),new Map()));
+      report.releaseReadiness=assessExpeditionRelease(report,scenario);
+    };
+    heartbeat=setInterval(()=>{
+      if(report.status!=='running')return;
+      capture();report.heartbeatAt=new Date().toISOString();
+      save().catch(error=>{report.journalError=error.message;stop.abort(error);});
+    },5000);
     let startedAction=null,startedTarget=null;
     expedition.brain.on('action:start',e=>{startedAction=e.action;const target=client.entities.get(Number(e.action?.args?.entityId));startedTarget=target?{id:target.id,name:target.name,position:{...target.position}}:null;});
-    expedition.brain.on('action:finish',e=>{const entry={...e,action:startedAction,target:startedTarget,health:client.state.health,food:client.state.food,position:{...client.state.position},inventory:client.inventory.snapshot()};report.actions.push(entry);if(report.actions.length>5000)report.actions.shift();if(e.outcome==='failure'){const key=`${e.skill}: ${e.detail}`;report.failureCounts[key]=(report.failureCounts[key]||0)+1;}journal({type:'action',...entry});console.log(JSON.stringify(entry));startedAction=null;startedTarget=null;});
+    expedition.brain.on('action:finish',e=>{const entry={...e,action:startedAction,target:startedTarget,health:client.state.health,food:client.state.food,position:{...client.state.position},inventory:client.inventory.snapshot()};report.totalActions++;report.actions.push(entry);if(report.actions.length>5000)report.actions.shift();if(e.outcome==='failure'){const key=`${e.skill}: ${e.detail}`;report.failureCounts[key]=(report.failureCounts[key]||0)+1;}journal({type:'action',...entry});console.log(JSON.stringify(entry));startedAction=null;startedTarget=null;});
     const deadline=minutes===0?Infinity:Date.now()+minutes*60000;let previousStage,lastSave=0,lastMemorySave=0,lastStopCheck=0;
     while(Date.now()<deadline&&!stop.signal.aborted&&client.client?.state==='play'){
       if(Date.now()-lastStopCheck>=2000){lastStopCheck=Date.now();if(existsSync(stopFile)){stop.abort(new Error("Stopped by control file."));journal({type:'stop-request',file:stopFile});break;}}
       if(client.state.status==='dead'){if(await respawn('during-run'))continue;break;}
       if(client.connectionAbort.signal.aborted||client.state.status!=='ready')break;
       try{await expedition.brain.tick();}catch(error){if(client.state.status==='dead'&&autoRespawn)continue;throw error;}
-      report.expedition=expedition.snapshot();report.computation=expedition.brain.computation?.snapshot();report.final=client.snapshot();report.endgame=structuredClone(client.endgame);
+      capture();
       const stage=report.expedition.scenario;
-      if(previousStage!==stage.current){const checkpoint={at:new Date().toISOString(),...stage,dimension:client.state.dimension};report.checkpoints.push(checkpoint);journal({type:'checkpoint',checkpoint});previousStage=stage.current;console.log(JSON.stringify(stage));}
+      if(previousStage!==stage.current){const checkpoint={at:new Date().toISOString(),...stage,dimension:client.state.dimension,learning:report.learning};report.checkpoints.push(checkpoint);journal({type:'checkpoint',checkpoint});previousStage=stage.current;console.log(JSON.stringify(stage));}
       if(Date.now()-lastSave>=2000){await save();lastSave=Date.now();}
-      if(Date.now()-lastMemorySave>=30000){await saveMemory();lastMemorySave=Date.now();}
+      if(Date.now()-lastMemorySave>=30000){await saveMemory();journal({type:'learning',evidence:report.learning});lastMemorySave=Date.now();}
       if(stage.status==='completed'&&client.state.dimension==='minecraft:the_end'&&(!dragon||client.endgame.dragonDeath?.confirmed&&client.endgame.dragonDeath?.ownDamageConfirmed)){report.goalAchieved=true;break;}
       if(dragon&&stage.status==='completed'&&!client.endgame.dragonDeath?.ownDamageConfirmed){report.reason="The dragon died, But the damage to this agent is not confirmed.";break;}
       await delay(100,undefined,{signal:stop.signal});
     }
     report.status=report.goalAchieved?'passed':'incomplete';
-    if(!report.goalAchieved)report.reason??=stop.signal.aborted?"Stopped by the user.":client.connectionAbort.signal.aborted?client.connectionAbort.signal.reason.message:client.state.status!=='ready'?"Agent killed or lost connection.":"Test budget expired; Look at the current stage and errors.";
-  }catch(error){report.status=stop.signal.aborted?'interrupted':'failed';report.reason=error.message;}
+    if(!report.goalAchieved)report.reason??=stop.signal.aborted?stop.signal.reason?.message:client.connectionAbort.signal.aborted?client.connectionAbort.signal.reason.message:client.state.status!=='ready'?'The agent died or lost its connection.':'The test budget expired; inspect the current stage and failures.';
+  }catch(error){report.status=stop.signal.aborted?'interrupted':'failed';report.reason=stop.signal.aborted?stop.signal.reason?.message:error.message;}
   finally{
     clearInterval(controlTimer);
+    clearInterval(heartbeat);
     await expedition?.brain.stop();try{await saveMemory();}catch(error){report.memoryError=error.message;}report.computation=expedition?.brain.computation?.snapshot();report.final=client.snapshot();report.finishedAt=new Date().toISOString();
-    report.noOtherPlayersObserved=report.playersObserved.length===0;journal({type:'finish',status:report.status,reason:report.reason,goalAchieved:report.goalAchieved,final:report.final});await journalWrites;await client.close();await save();
+    if(expedition){report.expedition=expedition.snapshot();report.endgame=structuredClone(client.endgame);report.learning=expeditionLearningEvidence({planner:expedition.brain.cognition,navigation:expedition.brain.neural,baseline:report.originLearningBaseline});}
+    report.releaseReadiness=assessExpeditionRelease(report,scenario);
+    report.noOtherPlayersObserved=report.playersObserved.length===0;journal({type:'finish',status:report.status,reason:report.reason,goalAchieved:report.goalAchieved,final:report.final,learning:report.learning,releaseReadiness:report.releaseReadiness});await journalWrites;await client.close();await save();
+    await appendFile(segmentsFile,JSON.stringify(report)+'\n');
     console.log(JSON.stringify({status:report.status,goalAchieved:report.goalAchieved,fromZero:report.fromZero,report:file,reason:report.reason}));
     process.exitCode=report.goalAchieved?0:1;
   }

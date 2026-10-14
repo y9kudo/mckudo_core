@@ -24,6 +24,37 @@ const floor = p => ({ x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z)
 const validPoint = p => p && ['x', 'y', 'z'].every(k => Number.isFinite(p[k]) && Math.abs(p[k]) <= 30000000);
 export const wrapDegrees = angle => ((angle + 180) % 360 + 360) % 360 - 180;
 
+/** A grounded body can overlap a neighboring cube while its center is over air. */
+export function groundAnchor(position,getBlock){
+  const feet=floor(position),candidates=[];
+  for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){
+    const p={x:feet.x+dx,y:feet.y,z:feet.z+dz};
+    if(position.x+.3<=p.x||position.x-.3>=p.x+1||position.z+.3<=p.z||position.z-.3>=p.z+1)continue;
+    if(isFullBlock(getBlock({...p,y:p.y-1}))&&isAir(getBlock(p))&&isAir(getBlock({...p,y:p.y+1})))candidates.push(p);
+  }
+  return candidates.sort((a,b)=>Math.hypot(a.x+.5-position.x,a.z+.5-position.z)-Math.hypot(b.x+.5-position.x,b.z+.5-position.z))[0]??null;
+}
+
+/** Use the existing physics loop to settle and center on an intersecting support. */
+export async function settleGround(c,signal){
+  if(c.state.gameMode==='creative'&&c.state.allowFlying||c.state.environment?.medium==='water')return;
+  const alive=()=>{signal.throwIfAborted();if(c.state.health<=0||c.state.status!=='ready')throw new Error('Agent is unavailable.');};
+  alive();c.stopMovement();
+  if(!c.state.onGround||Math.hypot(c.state.velocity.x,c.state.velocity.z)>.04)await c.waitFor(()=>{alive();return c.state.onGround&&Math.hypot(c.state.velocity.x,c.state.velocity.z)<.04;},{signal,event:'physics',timeoutMs:2000});
+  const feet=floor(c.state.position);
+  if(isFullBlock(c.world.blockAt({...feet,y:feet.y-1})))return;
+  const anchor=groundAnchor(c.state.position,p=>c.world.blockAt(p));if(!anchor)return;
+  try{
+    await c.waitFor(()=>{
+      alive();
+      if(!c.state.onGround||!isFullBlock(c.world.blockAt({...anchor,y:anchor.y-1})))throw new OMActionError('SUPPORT_CHANGED','The grounding support changed.');
+      const dx=anchor.x+.5-c.state.position.x,dz=anchor.z+.5-c.state.position.z,d=Math.hypot(dx,dz);
+      c.control={x:dx*.7,z:dz*.7,jump:false,sprint:false};return d<.06;
+    },{signal,event:'physics',timeoutMs:2500});
+    c.stopMovement();await c.waitFor(()=>{alive();return c.state.onGround&&Math.hypot(c.state.velocity.x,c.state.velocity.z)<.04;},{signal,event:'physics',timeoutMs:1500});
+  }finally{c.stopMovement();}
+}
+
 /** Degrees and seconds; yaw follows the shortest arc, with bounded, eased rotation. */
 export function rotateToward(state, angles, { turnSpeed = 540, dt = .05 } = {}) {
   if (![state.yaw, state.pitch, angles.yaw, angles.pitch, turnSpeed, dt].every(Number.isFinite) || turnSpeed < 30 || turnSpeed > 1440 || dt < 0) throw new Error("Uncorrect Turnpoints.");
@@ -161,6 +192,7 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
   const alive = () => { signal.throwIfAborted(); if (c.state.health <= 0 || c.state.status !== 'ready') throw new Error("Agent is unavailable."); };
   alive();
   c.stopMovement();
+  await settleGround(c,signal);
   const start = floor(c.state.position), plannedCorrections = c.metrics.corrections;
   const materials = () => bridgeMaterials(c.registry, c.inventory.items(), { blockAtState: id => c.world.Block?.fromStateId(id, 0), itemValue: c.options?.bridgeItemValue || baseBridgeValue, reserve: c.options?.bridgeReserve ?? 0,dimension:c.state.dimension });
   const blocks = args.bridge === false ? [] : materials(), budget = Math.min(256, blocks.reduce((sum, b) => sum + b.count, 0));
@@ -169,7 +201,7 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
   const dimensionDrop=c.state.dimension==='minecraft:overworld'?16:3;
   const view = readRouteWorld(c.world);
   const search=(options,scheduling)=>c.vectorize?.planGroundAsync?c.vectorize.planGroundAsync(options,scheduling):planRouteAsync(options,scheduling);
-  const route = await search({ start, goal: floor(args), range, occupied, canDig:args.excavate===true?routeCanDig(c):()=>false, edgeCost:c.navigationPolicy?.cost, getBlock: view.getBlock, maxDistance: 128, maxNodes: 12000, maxDrop:args.maxDrop??c.options?.maxDrop??dimensionDrop,fallPolicy,
+  const route = await search({ start, goal: floor(args), range, occupied, staticGeometry:args.excavate!==true&&budget===0,canDig:args.excavate===true?routeCanDig(c):()=>false, edgeCost:c.navigationPolicy?.cost, getBlock: view.getBlock, maxDistance: 128, maxNodes: 12000, maxDrop:args.maxDrop??c.options?.maxDrop??dimensionDrop,fallPolicy,
     bridgeBudget: typeof place === 'function' ? budget : 0, bridgeBlock: blocks[0]?.block || 'minecraft:cobblestone', canPlace:p=>editDecision(c,'place',p).allowed, signal }, { getRevision: view.getRevision });
   alive();
   if (c.metrics.corrections !== plannedCorrections || ['x', 'y', 'z'].some(axis => Math.floor(c.state.position[axis]) !== start[axis])) throw new OMActionError('STALE_WORLD', "Start position changed during route search; replanning is required.");

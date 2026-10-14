@@ -78,6 +78,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
   if(preservePickaxeTier!==false&&(!Number.isInteger(preservePickaxeTier)||preservePickaxeTier<1||preservePickaxeTier>4))throw new Error("preservePickaxeTier: false or 1–4.");
   if (!['diamond_set', 'iron_pickaxe', 'stone_tools', 'wood'].includes(target) || !Number.isInteger(priority) || priority < -1000 || priority > 989 || !Number.isInteger(maxMemory) || maxMemory < 32 || maxMemory > 8192 || !Number.isInteger(maxRecipeNodes) || maxRecipeNodes < 32 || maxRecipeNodes > 20000) throw new Error("Uncorrect Survival Parameters.");
   const taxonomy = createBlockTaxonomy(catalog);
+  let cavePlanner=null;
   // Match the executor's usable-tool rule, not just the existence of a worn stack.
   // A fresh tool is crafted even if the inventory still contains its unusable predecessor.
   const countCache=new Map(),recipeCache=new Map(),blockCache=new Map();
@@ -131,7 +132,9 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
   const learnedCosts=new Map();
   const learnedCost = action => {if(!client?.planningPolicy)return 0;const id=actionKey(action);if(!learnedCosts.has(id))learnedCosts.set(id,client.planningPolicy.assess(o,action).cost);return learnedCosts.get(id);};
   const response = (skill, args, reason) => ({ priority, action: { skill, args:preservePickaxeTier!==false&&['dig','navigate'].includes(skill)?{...args,preservePickaxeTier}:args }, reason });
-  const station = item => (o.world?.sampledBlocks || []).some(b => b.name === item && distance(b.position, o.self.position) <= 32);
+  // A station in a different vertical part of a cave is an observation, not
+  // proof that a craft can use it. Finish the approach or prepare a local one.
+  const station = item => (o.world?.sampledBlocks || []).some(b => b.name === item && distance(b.position, o.self.position) <= 32 && Math.abs(b.position.y-o.self.position.y)<=4);
   const hasPickaxe = min => pickaxes.slice(min).some(n => count(o, n));
   const sourceCache = new Map(), observedByBlock = new Map();
   const sourceDistance=p=>distance(p,o.self.position)+Math.max(0,p.y-o.self.position.y-3)*4;
@@ -190,27 +193,40 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
     // Before opening a shaft, test a known, walkable descent into a cave.
     // This is based on observed blocks and a complete route, never on an assumed void.
     if (ore && !pendingStep && p.y > destinationY + 3) {
-      const cave = planExploration({position:p,getBlock,mode:'ores',visited,radius:32,maxNodes:1800,maxCandidates:24});
+      cavePlanner??=explorationPlanner?.fork?.()??false;
+      const buildingStone=/^minecraft:(?:cobblestone|cobbled_deepslate)$/.test(item);
+      const caveOptions={position:p,getBlock,mode:'ores',visited,radius:buildingStone?8:32,maxNodes:1800,maxCandidates:buildingStone?8:24,maxDrop:1,context:'cave-before-shaft'};
+      const cave=cavePlanner?cavePlanner.poll(caveOptions):planExploration(caveOptions);
+      if(cave.status==='pending')return {action:null,reason:cave.reason};
       if(cave.status==='planned' && cave.target.y <= p.y - 3){
-        const result=response('navigate',{...cave.target,range:0,bridge:false,excavate:false},"First, explore the available descent to the cave.");
+        const result=response('navigate',{...cave.target,range:0,bridge:false,excavate:false,maxDrop:1},'Explore a cave through steps that can also be climbed on the return trip.');
         if(!blocked(result.action))return result;
       }
     }
-    // A descending staircase removes only adjacent cells, never the supporting block under the bot.
-    if (ore && digStaircase && hasPickaxe(0)) {
+    // Reacquire surface resources after cave work using a supported ascending staircase.
+    const ascending=!ore&&preferred?.position.y>p.y+2;
+    // Staircases remove adjacent headroom, never the supporting block under the bot.
+    if ((ore || ascending) && digStaircase && hasPickaxe(0)) {
       const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
       if (!heading) heading = dirs[Math.abs([...String(client.options?.username || '')].reduce((a, c) => a + c.charCodeAt(0), 0)) % 4];
       const ranked = [heading, ...dirs.filter(d => d !== heading)].sort((a, b) => preferred ? distance({ x: p.x + a[0], y: p.y, z: p.z + a[1] }, preferred.position) - distance({ x: p.x + b[0], y: p.y, z: p.z + b[1] }, preferred.position) : 0);
       const candidates = pendingStep ? [pendingStep] : [
-        ...ranked.map(([dx, dz]) => ({ x: p.x + dx, y: p.y > destinationY ? p.y - 1 : p.y, z: p.z + dz })),
-        ...(p.y>destinationY?ranked.map(([dx,dz])=>({x:p.x+dx,y:p.y,z:p.z+dz})):[])
+        ...ranked.map(([dx, dz]) => ({ x: p.x + dx, y: ascending?p.y+1:p.y > destinationY ? p.y - 1 : p.y, z: p.z + dz })),
+        ...(!ascending&&p.y>destinationY?ranked.map(([dx,dz])=>({x:p.x+dx,y:p.y,z:p.z+dz})):[])
       ];
       for (const next of candidates) {
         if (!isFullBlock(getBlock({ ...next, y: next.y - 1 })) || visited.some(v => key(v) === key(next))) continue;
+        // A jump needs clearance above the current head as well as at its destination.
+        const overhead={...p,y:p.y+2};
+        if(ascending&&!isAir(getBlock(overhead))){
+          if(!safeDig(overhead))continue;
+          const opening=response('dig',{...overhead,block:rid(getBlock(overhead).name)},'Open safe overhead clearance before climbing toward surface resources.');
+          opening.priority=Math.max(priority,81);if(blocked(opening.action))continue;pendingStep=next;return opening;
+        }
         const cells = []; for (let y = Math.max(p.y + 1, next.y + 1); y >= next.y; y--) cells.push({ ...next, y });
         if (cells.some(c => !isAir(getBlock(c)) && !safeDig(c))) continue;
         const cell = cells.find(c => !isAir(getBlock(c)));
-        const result = cell ? response('dig', { ...cell, block: rid(getBlock(cell).name) }, `Secure search passage ${item}.`) : response('navigate', { ...next, range: 0 }, `Search the passage to level ${destinationY}.`);
+        const result = cell ? response('dig', { ...cell, block: rid(getBlock(cell).name) }, `Open a supported ${ascending?'ascending':'mining'} passage for ${item}.`) : response('navigate', { ...next, range: 0, maxDrop:1 }, `Follow the supported staircase toward ${ascending?preferred.position.y:destinationY}.`);
         // Finish opening and entering the step before collecting dirt above it.
         // Otherwise loot navigation stands on the unfinished support and makes
         // the final excavation an illegal "dig under yourself" operation.
@@ -234,11 +250,11 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
         result.priority=Math.max(priority,81);if(!blocked(result.action))return result;
       }
     }
-    const searchOptions = { position: p, getBlock, mode: ore ? 'ores' : 'surface', visited, radius: 24, maxNodes: 800, maxCandidates: 8, candidateCost: target => learnedCost({skill:'navigate',args:{...target,range:0}}) + (preferred ? Math.max(0, 24 + distance(target, preferred.position) - distance(p, preferred.position)) / 3 : 0) };
+    const searchOptions = { position: p, getBlock, mode: ore ? 'ores' : 'surface', visited, radius: 24, maxNodes: 800, maxCandidates: 8, maxDrop:1, candidateCost: target => learnedCost({skill:'navigate',args:{...target,range:0}}) + (preferred ? Math.max(0, 24 + distance(target, preferred.position) - distance(p, preferred.position)) / 3 : 0) };
     const search = explorationPlanner ? explorationPlanner.poll({ ...searchOptions, context: item + ':' + (preferred ? key(preferred.position) : '') }) : planExploration(searchOptions);
     if (search.status === 'pending') return { action: null, reason: search.reason };
     if (search.status === 'planned') {
-      const result = response('navigate', { ...search.target, range: 0 }, search.reason);
+      const result = response('navigate', { ...search.target, range: 0, maxDrop:1 }, search.reason);
       if (!blocked(result.action)) return result;
     }
     return { action: null, reason: `No safe source available ${item}; unknown cups and dangerous passageways are not considered as a route.` };
@@ -299,6 +315,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       // Prefer extending a local mine over chasing an exposed cave face many
       // levels below the surface, for which ordinary walking cannot find a path.
       if(exploration&&digStaircase&&client?.world&&minTier>=0&&sources.length&&sources.every(s=>s.position.y<o.self.position.y-4))return explore(item,sources[0]);
+      if(exploration&&digStaircase&&client?.world&&taxonomy.has(item,'logs')&&!ready.size&&sources.length&&sources.every(s=>s.position.y>o.self.position.y+2))return explore(item,sources[0]);
       // Basic building stone is under local soil: do not exhaust distant cave-face
       // candidates before opening a short, supported mining staircase.
       if(exploration&&digStaircase&&client?.world&&/^(minecraft:)?(cobblestone|cobbled_deepslate)$/.test(item)){
@@ -318,8 +335,9 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
           if(distance(eye,target)<=8.5){
             const ray=traceVisibility({origin:eye,target,maxDistance:8.5,getBlock:p=>key(p)===key(source.position)?{shapes:[]}:getBlock(p)});
             const p=ray.reason==='blocked'&&ray.position,b=p&&getBlock(p);
-            if(b&&taxonomy.has(rid(b.name),'leaves')&&safeDig(p)&&distance(eye,{x:p.x+.5,y:p.y+.5,z:p.z+.5})<=4.3){
-              const opening=response('dig',{...p,block:rid(b.name)},'Clear reachable leaves covering a nearby trunk.');
+            const leaves=b&&taxonomy.has(rid(b.name),'leaves'),surfaceSoil=b&&source.position.y>o.self.position.y&&/^(?:dirt|rooted_dirt|grass_block|podzol|mycelium)$/.test(b.name);
+            if(b&&(leaves||surfaceSoil)&&safeDig(p)&&distance(eye,{x:p.x+.5,y:p.y+.5,z:p.z+.5})<=4.3){
+              const opening=response('dig',{...p,block:rid(b.name)},leaves?'Clear reachable leaves covering a nearby trunk.':'Clear safe soil obstructing the final approach to a surface trunk.');
               if(!blocked(opening.action))return opening;
             }
           }
@@ -358,12 +376,12 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       const dependency = ensure(chosen.recipe.station, 1, next); if (dependency) return dependency;
       return response('ensureStation', { station: chosen.recipe.station.replace(/^minecraft:/, ''), gather: false }, "Set up the required workstation.");
     }
-    return response('craft', { item, count: Math.min(64, missing), recipeId: chosen.recipe.id }, `New ${item} of confirmed stocks.`);
+    return response('craft', { item, count: Math.min(64, missing), recipeId: chosen.recipe.id, gather:false }, `Craft ${item} from confirmed supplies and a usable workstation.`);
   }
 
   const reactor = { id: 'overmind:survival', apiVersion: 1, failureScope: 'action', managesRetries: Boolean(actionEvidence),
     react(observation) {
-      countCache.clear();recipeCache.clear();blockCache.clear();
+      countCache.clear();blockCache.clear();
       o = observation; selected = null;
       if (!finitePoint(o.self?.position) || o.self.health == null || o.self.health <= 0) return { action: null, reason: "Survival is waiting for a live bot and position." };
       evaluations = 0; estimates = new Map(); trace = []; learnedCosts.clear(); evidenceChecks.clear(); updateMemory();

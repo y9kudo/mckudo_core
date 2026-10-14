@@ -41,6 +41,28 @@ export class OMProtection {
     this.#revision++;
   }
   forget(dimension, position) { if (this.#own.delete(key(dimension, cell(position)))) this.#revision++; }
+  observeBlockChange(dimension,position,previous,current){
+    const own=this.#own.get(key(dimension,cell(position)));if(!own)return;
+    const sameName=own.name===name(previous)&&own.name===name(current);
+    const sameState=previous?.stateId===current?.stateId;
+    const properties=b=>Object.entries(b?.getProperties?.()??{}).filter(([k])=>k!=='lit').sort(([a],[b])=>a.localeCompare(b));
+    const lightingOnly=/^(?:furnace|smoker|blast_furnace)$/.test(own.name)&&typeof previous?.getProperties==='function'&&typeof current?.getProperties==='function'&&JSON.stringify(properties(previous))===JSON.stringify(properties(current));
+    if(sameName&&(own.stateId===undefined||own.stateId===previous?.stateId)&&(sameState||lightingOnly)){
+      if(!sameState)this.remember(dimension,position,current);return;
+    }
+    this.forget(dimension,position);
+  }
+  exportMemory(){return {schemaVersion:1,owned:[...this.#own].map(([key,b])=>({key,...b}))};}
+  restoreMemory(memory){
+    if(memory?.schemaVersion!==1||!Array.isArray(memory.owned)||memory.owned.length>4096)throw new Error('Invalid placement ownership memory.');
+    const owned=new Map();
+    for(const record of memory.owned){
+      if(!record||typeof record.key!=='string'||record.key.length>150||!(/^[a-z0-9_.-]+:[a-z0-9_./-]+\/-?\d+,-?\d+,-?\d+$/.test(record.key))||typeof record.name!=='string'||!(/^[a-z0-9_]+$/.test(record.name))||record.stateId!==undefined&&(!Number.isSafeInteger(record.stateId)||record.stateId<0))throw new Error('Invalid owned block record.');
+      if(record.key.slice(record.key.lastIndexOf('/')+1).split(',').some(n=>Math.abs(Number(n))>30000000)||owned.has(record.key))throw new Error('Invalid or duplicate owned block position.');
+      owned.set(record.key,{name:record.name,...(record.stateId===undefined?{}:{stateId:record.stateId})});
+    }
+    this.#own=owned;this.#revision++;
+  }
   check({ operation, dimension, position, block, getBlock }) {
     if (!['dig', 'place'].includes(operation) || !point(position) || typeof dimension !== 'string') throw new Error("Protection audit: operation dig/place, dimension, position.");
     const p = cell(position);
@@ -51,10 +73,17 @@ export class OMProtection {
     if (own && own.name === name(block) && (own.stateId === undefined || own.stateId === block?.stateId)) return { allowed: true, reason: "Self-confirmed block." };
     if (isStructureBlock(block)) return { allowed: false, reason: "Construction or functional unit.", evidence: p };
     if(name(block)==='nether_wart'&&Number(block.getProperties?.().age)===3)return {allowed:true,reason:"Collecting mature hell without destroying the building."};
+    const matureFood={wheat:7,carrots:7,potatoes:7,beetroots:3}[name(block)];
+    if(matureFood!==undefined&&Number(block.getProperties?.().age)>=matureFood)return {allowed:true,reason:'Harvesting mature food leaves the structural blocks and farmland intact.'};
     if (getBlock) for (let r = 1; r <= this.structureRadius; r++) for (let x = -r; x <= r; x++) for (let y = -r; y <= r; y++) for (let z = -r; z <= r; z++) {
       if (Math.max(Math.abs(x), Math.abs(y), Math.abs(z)) !== r) continue;
       const q = { x: p.x + x, y: p.y + y, z: p.z + z };
-      if (isStructureBlock(getBlock(q))) return { allowed: false, reason: "There's a building nearby; Production prohibited.", evidence: q };
+      const neighbor=getBlock(q),knownOwn=this.#own.get(key(dimension,q));
+      // An agent's confirmed workstation must not make its entire mine
+      // untouchable. Foreign or changed structural anchors remain protected.
+      // Lighting and inventory-driven station states do not change ownership.
+      const ownStation=knownOwn&&/^(crafting_table|furnace|smoker|blast_furnace|smithing_table|brewing_stand)$/.test(name(neighbor))&&knownOwn.name===name(neighbor);
+      if (isStructureBlock(neighbor)&&!ownStation) return { allowed: false, reason: "There's a building nearby; Production prohibited.", evidence: q };
     }
     return { allowed: true, reason: "No signs of construction found." };
   }
@@ -71,4 +100,8 @@ export function assertEdit(c, operation, position) {
   }
 }
 
-export const rememberPlacement = (c, position) => c.protection?.remember(c.state.dimension ?? c.world.dimension ?? 'minecraft:overworld', position, c.world.blockAt(position));
+export const rememberPlacement = (c, position) => {
+  const dimension=c.state.dimension??c.world.dimension??'minecraft:overworld',block=c.world.blockAt(position);
+  c.protection?.remember(dimension,position,block);
+  if(block)c.emit?.('placementConfirmed',{dimension,position:{...cell(position)},name:name(block),stateId:block.stateId,serverConfirmed:true});
+};

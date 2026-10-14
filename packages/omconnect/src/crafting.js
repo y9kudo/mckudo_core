@@ -1,4 +1,6 @@
 import { isAir, isFullBlock } from './navigation.js';
+import {routeCanDig} from './movement.js';
+import {workstationAlcoves} from './station-site.js';
 
 const EMPTY = { itemCount: 0 };
 const id = value => {
@@ -187,6 +189,7 @@ export async function ensureStation(c, args, signal, runtime) {
   live(c, signal);
   const found = await c.world.findBlocks({ names: [station], position: c.state.position, radius: 64, count: 12, signal });
   for (const candidate of found.blocks) {
+    if(Math.abs(candidate.position.y-c.state.position.y)>4)continue;
     try { await runtime.approach(c, candidate.position, signal); return { ok: true, station: 'minecraft:' + station, position: candidate.position, created: false }; }
     catch { signal?.throwIfAborted(); }
   }
@@ -217,6 +220,17 @@ export async function ensureStation(c, args, signal, runtime) {
       await runtime.run(c, { skill: 'place', args: { block: station, ...position } }, signal);
       return { ok: true, serverConfirmed: true, station: 'minecraft:' + station, position, created: true };
     } catch (error) { signal?.throwIfAborted(); lastError = error; if (!c.inventory.count(station)) throw error; }
+  }
+  // A staircase can have no free side cell at all. Open a verified natural
+  // alcove instead of requesting the same impossible placement indefinitely.
+  const alcoves=workstationAlcoves({position:c.state.position,getBlock:p=>c.world.blockAt(p),canDig:routeCanDig(c),
+    occupied:p=>[...c.entities.values()].some(e=>e.position&&distance(e.position,{x:p.x+.5,y:p.y,z:p.z+.5})<1.2)});
+  for(const site of alcoves){
+    try{
+      for(const position of site.dig){live(c,signal);await runtime.run(c,{skill:'dig',args:{...position}},signal);}
+      await runtime.run(c,{skill:'place',args:{block:station,...site.position}},signal);
+      return {ok:true,serverConfirmed:true,station:'minecraft:'+station,position:site.position,created:true};
+    }catch(error){signal?.throwIfAborted();lastError=error;if(!c.inventory.count(station))throw error;}
   }
   throw lastError || new Error("No free safe place for a workstation.");
 }

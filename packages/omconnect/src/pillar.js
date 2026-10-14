@@ -12,7 +12,7 @@ export async function pillar(c, args, signal, {select}) {
   const count = args.count ?? 1;
   if (!Number.isInteger(count) || count < 1 || count > 8) throw new Error("pillar.count: 1–8 for operation.");
   if (args.block !== undefined && typeof args.block !== 'string') throw new Error("pillar.block: ID Construction block.");
-  const start = cell(c.state.position), placed = [], corrections = c.metrics.corrections;
+  const start = cell(c.state.position), placed = [], corrections = c.metrics.corrections,windowBefore=c.containers.current;
   for (let i=0;i<count;i++) assertEdit(c,'place',{...start,y:start.y+i});
   const materials = () => bridgeMaterials(c.registry, c.inventory.items(), {blockAtState: id => c.world.Block.fromStateId(id, 0),dimension:c.state.dimension})
     .filter(m => args.block === undefined || m.name === args.block.replace(/^minecraft:/, ''));
@@ -53,6 +53,9 @@ export async function pillar(c, args, signal, {select}) {
       c.stopMovement();check();
       if (Math.abs(c.state.position.x-p.x-.5)>.19 || Math.abs(c.state.position.z-p.z-.5)>.19 || c.state.velocity.y <= 0) throw new Error("Couldn't catch a safe jump phase.");
       assertEdit(c,'place',p);
+      // Interactive supports (including the agent's own workstation) must
+      // receive a crouched placement click, not an open-menu interaction.
+      c.control={...c.control,sneak:true};c.state.sneaking=true;c.syncSneak?.();
       c.write('block_place',{hand:0,location:support,direction:1,cursorX:.5,cursorY:1,cursorZ:.5,insideBlock:false,sequence:++c.sequence});
       await c.waitFor(() => c.world.blockAt(p)?.name===material.name && c.inventory.count(material.name)<before,{signal,timeoutMs:2000});
       rememberPlacement(c,p);
@@ -65,7 +68,12 @@ export async function pillar(c, args, signal, {select}) {
       c.emit('pillarStep',{position:{...c.state.position},placed:placed.at(-1),serverConfirmed:true});
     }
     return {ok:true,serverConfirmed:true,placed,position:{...c.state.position}};
-  } finally { c.stopMovement(); }
+  } finally {
+    c.stopMovement();
+    if(c.containers.current&&c.containers.current!==windowBefore&&!c.containerRequest&&c.client?.state==='play'){
+      const window=c.containers.current;c.write('close_window',{windowId:window.id});c.containers.close(window.id);
+    }
+  }
 }
 
 /** Dismantle only this client's verified pillar, with a known one-block landing. */

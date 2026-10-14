@@ -120,9 +120,9 @@ export function predictElytraTick({position,velocity,yaw,pitch,rocket=false}){
 }
 
 export class OMVectorize {
-  constructor({getBlock,getRevision}={}){if(typeof getBlock!=='function')throw new Error("OMVectorize: requires getBlock.");this.getBlock=getBlock;this.getRevision=getRevision;}
+  constructor({getBlock,getRevision,groundBackend=null}={}){if(typeof getBlock!=='function')throw new Error("OMVectorize: requires getBlock.");if(groundBackend&&typeof groundBackend.planGroundAsync!=='function')throw new Error('A ground backend must implement planGroundAsync.');this.getBlock=getBlock;this.getRevision=getRevision;this.groundBackend=groundBackend;}
   planGround(options){return planRoute({...options,getBlock:options.getBlock||this.getBlock});}
-  planGroundAsync(options,scheduling={}){return planRouteAsync({...options,getBlock:options.getBlock||this.getBlock},{getRevision:this.getRevision,...scheduling});}
+  planGroundAsync(options,scheduling={}){const plan=this.groundBackend?this.groundBackend.planGroundAsync.bind(this.groundBackend):planRouteAsync;return plan({...options,getBlock:options.getBlock||this.getBlock},{getRevision:this.getRevision,...scheduling});}
   planSwim(options){return planSwimRoute({...options,getBlock:this.getBlock});}
   planSwimAsync(options){return planSwimRouteAsync({...options,getBlock:this.getBlock},{getRevision:this.getRevision});}
   plan(options){return planSwimRoute({...options,getBlock:this.getBlock});}

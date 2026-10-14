@@ -1,5 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { planRouteAsync, readRouteWorld, isAir, isFullBlock } from './navigation.js';
+import {settleGround} from './movement.js';
 
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 const floor = p => ({ x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) });
@@ -25,6 +26,7 @@ export async function executeCollect(c, args, signal, { navigate }) {
       signal.throwIfAborted();
       if (c.state.health <= 0 || c.state.status !== 'ready') throw new Error("Agent is unavailable.");
       if (gained() > 0) return confirmed();
+      if(c.state.onGround&&c.state.velocity)await settleGround(c,signal);
       const entities = [...c.entities.values()];
       if (args.entityId !== undefined && !entities.some(e => String(e.id) === String(args.entityId))) {
         missingSince ??= Date.now();

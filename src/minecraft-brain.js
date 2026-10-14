@@ -13,6 +13,7 @@ import {createSpatialMemory} from './spatial-memory.js';
 import {createExplorationPlanner} from './exploration-planner.js';
 import {createActionEvidenceMemory} from './action-evidence.js';
 import {NETHER_TRACKED_BLOCKS} from './nether.js';
+import {createNavigationRecoveryReactor} from './navigation-recovery.js';
 
 /** Policy belongs to OvermindMC; the transport only executes confirmed storage operations. */
 export function createStorageReactor({ radius = 16, recheckMs = 60000, maxStacks = 54, items, clock = Date.now } = {}) {
@@ -31,7 +32,7 @@ export function createStorageReactor({ radius = 16, recheckMs = 60000, maxStacks
 }
 
 /** Ready-to-use policy profile, still an ordinary extensible OvermindCore instance. */
-export function createMinecraftBrain({ client, worldId, actionEvidence = createActionEvidenceMemory({worldId}), config = {}, defense = {}, storage = {}, survival = {}, loot = {}, needs = {}, night = {}, hunting = {}, equipment = true, neural = {}, cognition = {}, spatial = {}, computation = {}, reactors = [], adapterOptions = {}, ...options } = {}) {
+export function createMinecraftBrain({ client, worldId, actionEvidence = createActionEvidenceMemory({worldId}), config = {}, defense = {}, storage = {}, survival = {}, loot = {}, needs = {}, night = {}, hunting = {}, recovery = {}, equipment = true, neural = {}, cognition = {}, spatial = {}, computation = {}, reactors = [], adapterOptions = {}, ...options } = {}) {
   if (!client || typeof worldId !== 'string' || !worldId.trim()) throw new Error("Need a client OMConnect and permanent worldId.");
   if(actionEvidence.worldId!==worldId)throw new Error("Failure memory belongs to another world.");
   if (storage !== false && (!storage || typeof storage !== 'object' || Array.isArray(storage))) throw new Error("storage: parameters or false.");
@@ -50,6 +51,8 @@ export function createMinecraftBrain({ client, worldId, actionEvidence = createA
   const lootReactor = loot===false ? null:createLootReactor({peer:survival?.peer,...loot});
   const nightReactor=night===false?null:createNightReactor(night);
   const huntingReactor=hunting===false?null:createHuntingReactor(hunting);
+  const recoveryReactor=recovery===false?null:createNavigationRecoveryReactor({client,...recovery});
+  const needsReactor=needs===false?null:createNeedsReactor({client,...needs});
   const adapter = createOMAdapter(client, { ...adapterOptions, trackedBlocks });
   const combatReactor=createCombatReactor({ attackPlayers: true, retaliationHits: 2, retaliationWindowMs: 10000, pathRetreat:client.describe?.().skills?.includes('evade')??false, ...defense });
   if (atlas) {
@@ -59,12 +62,14 @@ export function createMinecraftBrain({ client, worldId, actionEvidence = createA
   const brain = createCore({ ...options, learning,
     config: { schemaVersion: 4, name: client.options.username, tickIntervalMs: 100, actionTimeoutMs: 30000, ...config, worldId },
     adapter,
-    reactors: [combatReactor, ...(equipment?[createEquipmentReactor()]:[]), ...(nightReactor?[nightReactor]:[]),...(huntingReactor?[huntingReactor]:[]), ...(storage === false ? [] : [createStorageReactor(storage)]), ...(lootReactor?[lootReactor]:[]),...(needs===false?[]:[createNeedsReactor(needs)]),...(survivalReactor?[survivalReactor]:[]), ...reactors]
+    reactors: [combatReactor, ...(equipment?[createEquipmentReactor()]:[]), ...(nightReactor?[nightReactor]:[]),...(huntingReactor?[huntingReactor]:[]),...(recoveryReactor?[recoveryReactor]:[]), ...(storage === false ? [] : [createStorageReactor(storage)]), ...(lootReactor?[lootReactor]:[]),...(needsReactor?[needsReactor]:[]),...(survivalReactor?[survivalReactor]:[]), ...reactors]
   });
   combatReactor.attach(brain);
   survivalReactor?.attach(brain);lootReactor?.attach(brain);
   nightReactor?.attach(brain);
   huntingReactor?.attach(brain);
+  recoveryReactor?.attach(brain);
+  needsReactor?.attach(brain);
   if(neural!==false){
     const model=neural.model||createNeuralNavigator({worldId,memory:neural.memory});
     if(model.worldId!==worldId)throw new Error("Neirose is the property of another world.");

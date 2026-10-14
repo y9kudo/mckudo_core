@@ -22,12 +22,13 @@ function fixture({confirm=true,ceiling=false,crystal=false}={}) {
   c.timer=setInterval(()=>{c.tickLook();c.state=stepPhysics(c.state,c.control,c.world.blockAt);samples.push({...c.state.position});c.emit('physics');},5);
   return {c,packets,samples,stop:()=>clearInterval(c.timer)};
 }
-test('pillar jump-places three blocks with inventory and landing confirmation',async()=>{
+test('pillar jump-places three blocks with crouched clicks, inventory and landing confirmation',async()=>{
   const f=fixture();try{
+    const write=f.c.client.write;f.c.client.write=(name,p)=>{if(name==='block_place')assert.equal(f.c.state.sneaking,true);write(name,p);};
     const result=await f.c.execute({skill:'pillar',args:{count:3}},{signal:AbortSignal.timeout(7000)});
     assert.equal(result.serverConfirmed,true);assert.equal(result.placed.length,3);assert.equal(f.c.state.position.y,4);assert.equal(f.c.inventory.count('dirt'),1);
     assert.ok(f.samples.every((p,i)=>!i || Math.abs(p.y-f.samples[i-1].y)<=.421));
-    assert.equal(f.packets.filter(p=>p.name==='block_place').length,3);assert.equal(f.c.control.jump,false);
+    assert.equal(f.packets.filter(p=>p.name==='block_place').length,3);assert.equal(f.c.control.jump,false);assert.equal(f.c.control.sneak,false);
   }finally{f.stop();}
 });
 test('pillar refuses low ceilings and nearby crystals before consuming blocks',async()=>{
@@ -38,10 +39,26 @@ test('pillar refuses low ceilings and nearby crystals before consuming blocks',a
 });
 test('unconfirmed placement is not counted; cancellation releases jump input',async()=>{
   const f=fixture({confirm:false});try{
-    await assert.rejects(f.c.execute({skill:'pillar',args:{count:2}},{signal:AbortSignal.timeout(400)}));
+    const abort=new AbortController(),write=f.c.client.write;
+    f.c.client.write=(name,p)=>{write(name,p);if(name==='block_place')queueMicrotask(()=>abort.abort(new Error('Cancel unconfirmed placement.')));};
+    await assert.rejects(f.c.execute({skill:'pillar',args:{count:2}},{signal:abort.signal}),/Cancel unconfirmed/);
     assert.equal(f.c.inventory.count('dirt'),4);assert.equal(f.c.control.jump,false);
     assert.equal(f.packets.filter(p=>p.name==='block_place').length,1);
   }finally{f.stop();}
+});
+
+test('pillar closes an unexpected placement menu but preserves a pre-existing window',async()=>{
+  const f=fixture({confirm:false});try{
+    const abort=new AbortController(),write=f.c.client.write;
+    f.c.client.write=(name,p)=>{write(name,p);if(name==='block_place'){f.c.containers.open({windowId:9,inventoryType:12});abort.abort(new Error('Unexpected support menu.'));}};
+    await assert.rejects(f.c.execute({skill:'pillar',args:{count:1}},{signal:abort.signal}));
+    assert.equal(f.c.containers.current,null);assert.ok(f.packets.some(p=>p.name==='close_window'&&p.p.windowId===9));
+  }finally{f.stop();}
+  const g=fixture();try{
+    g.c.containers.open({windowId:10,inventoryType:12});const before=g.c.containers.current;
+    await assert.rejects(g.c.execute({skill:'pillar',args:{count:1}}),/close the window/);
+    assert.equal(g.c.containers.current,before);
+  }finally{g.stop();}
 });
 test('descent removes only verified own blocks, one landing at a time',async()=>{
   const f=fixture();try{

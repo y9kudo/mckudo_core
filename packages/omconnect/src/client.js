@@ -29,7 +29,7 @@ import {OMHumanize} from './humanize.js';
 
 export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-dev.1', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-dev.1', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
 export class OMConnect extends EventEmitter {
-  constructor(options = {}, { createProtocolClient, physics = stepPhysics, versionProfile = null } = {}) {
+  constructor(options = {}, { createProtocolClient, physics = stepPhysics, versionProfile = null,navigationBackend=null } = {}) {
     super();
     if (createProtocolClient!==undefined&&typeof createProtocolClient !== 'function' || typeof physics !== 'function') throw new Error("Components: createProtocolClient and physics must be functions.");
     this.createProtocolClient = createProtocolClient; this.physics = physics; this.skills = new Map(); this.trace = [];
@@ -54,7 +54,7 @@ export class OMConnect extends EventEmitter {
     const initialize=()=>{if(this.dataLoaded)return;const registry=(versionProfile?.loadRegistry||minecraftData)(o.version);if(!registry?.protocol||!registry.itemsArray||!registry.blocksArray)throw new Error(`No complete data for Java ${o.version}.`);const inventory=new OMInventory(registry);this._data={registry,inventory,world:new OMWorld(registry,{maxChunks:o.viewDistance>16?2048:1024,...versionProfile?.worldOptions}),recipeBook:new WorldRecipeBook(registry),containers:new OMContainers(inventory,registry)};this.dataLoaded=true;};
     for(const key of ['registry','world','inventory','recipeBook','containers'])Object.defineProperty(this,key,{get:()=>{initialize();return this._data[key];},set:value=>{initialize();this._data[key]=value;},configurable:true});
     this.containerRequest=false;this.flightRockets=new Set();this.flightEvidence={takeoffs:0,rockets:0};
-    this.vectorize = new OMVectorize({getBlock:p=>this.world.blockAt(p),getRevision:()=>this.world.revision});
+    this.vectorize = new OMVectorize({getBlock:p=>this.world.blockAt(p),getRevision:()=>this.world.revision,groundBackend:navigationBackend});
     this.entities = new Map(); this.state = { status: 'disconnected', entityId: null, position: null, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, onGround: false, health: null, food: null, dimension: null, gameMode: null, allowFlying:false, creativeFlying:false, flyingSpeed:.05 };
     this.time={timeOfDay:null,isDay:null,age:null};this.selfMetadata={};this.endgame={eyes:[]};this.dimensionRequested=null;
     installEndEvidence(this);
@@ -138,11 +138,11 @@ export class OMConnect extends EventEmitter {
     c.on('unload_chunk', p => this.world.unload(p.chunkX, p.chunkZ));
     c.on('tile_entity_data',p=>{this.world.setBlockEntity(p.location,p.nbtData);this.emit('blockEntity',p.location);});
     c.on('open_sign_entity',p=>{this.signEditor=structuredClone(p);this.emit('signEditor',this.signEditor);});
-    c.on('block_change', p => { const old = this.world.blockAt(p.location); this.protection.forget(this.state.dimension,p.location); this.world.update(p.location, p.type); this.emit('block', { position: p.location, old: old?.stateId, stateId: p.type }); });
+    c.on('block_change', p => { const old = this.world.blockAt(p.location); this.world.update(p.location, p.type); this.protection.observeBlockChange(this.state.dimension,p.location,old,this.world.blockAt(p.location)); this.emit('block', { position: p.location, old: old?.stateId, stateId: p.type }); });
     c.on('multi_block_change', p => {
       for (const record of p.records) {
         const position = { x: p.chunkCoordinates.x * 16 + (record >> 8 & 15), y: p.chunkCoordinates.y * 16 + (record & 15), z: p.chunkCoordinates.z * 16 + (record >> 4 & 15) }, stateId = Math.floor(record / 4096);
-        const old = this.world.stateAt(position); this.protection.forget(this.state.dimension,position); this.world.update(position, stateId); this.emit('block', { position, old, stateId });
+        const old = this.world.blockAt(position); this.world.update(position, stateId); this.protection.observeBlockChange(this.state.dimension,position,old,this.world.blockAt(position)); this.emit('block', { position, old:old?.stateId, stateId });
       }
     });
     c.on('chunk_batch_finished', () => this.write('chunk_batch_received', { chunksPerTick: 10 }));
@@ -355,4 +355,4 @@ export class OMConnect extends EventEmitter {
     clearTimeout(this.client?.closeTimer);
   }
 }
-export const createOMConnect = options => new OMConnect(options);
+export const createOMConnect = (options,components) => new OMConnect(options,components);

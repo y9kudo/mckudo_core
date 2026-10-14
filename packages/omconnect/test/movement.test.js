@@ -5,12 +5,29 @@ import blockLoader from 'prismarine-block';
 import { OMConnect } from '../src/client.js';
 import { stepPhysics } from '../src/physics.js';
 import { planRoute } from '../src/navigation.js';
-import { SmoothLook, rotateToward, bridgeMaterials, safeCorridor, travelControl, combatControl, executeNavigate,personalSpaceControl } from '../src/movement.js';
+import { SmoothLook, rotateToward, bridgeMaterials, safeCorridor, travelControl, combatControl, executeNavigate,personalSpaceControl,groundAnchor,settleGround } from '../src/movement.js';
 
 const air = { name: 'air', shapes: [], boundingBox: 'empty' }, stone = { name: 'stone', shapes: [[0, 0, 0, 1, 1, 1]], boundingBox: 'block' };
 const flat = p => Math.floor(p.y) < 1 ? stone : air;
 const registry = minecraftData('1.21.1'), Block = blockLoader(registry);
 const initial = () => ({ position: { x: .5, y: 1, z: .5 }, velocity: { x: 0, y: -.0784, z: 0 }, yaw: -90, pitch: 0, onGround: true, food: 20, health: 20, status: 'ready' });
+
+test('ground anchoring only uses known full supports that already intersect the player footprint',()=>{
+  const terrain=p=>p.y<1&&p.x>=0?stone:air;
+  assert.deepEqual(groundAnchor({x:-.2,y:1,z:.5},terrain),{x:0,y:1,z:0});
+  assert.equal(groundAnchor({x:-.31,y:1,z:.5},terrain),null);
+  assert.equal(groundAnchor({x:-.2,y:1,z:.5},()=>null),null);
+});
+
+test('a body grounded at a mined edge aligns through physics before route planning',async()=>{
+  const terrain=p=>p.y<1&&p.x>=0?stone:air;
+  const {c,cleanup}=simulatedClient(terrain,[]);c.state.position.x=-.2;
+  try{
+    await settleGround(c,AbortSignal.timeout(2000));
+    assert.ok(c.state.position.x>.4);assert.equal(c.state.onGround,true);
+    assert.equal(c.state.position.y,1);assert.equal(c.control.sprint,false);
+  }finally{cleanup();}
+});
 
 test('movement anticipates a crossing player and ignores non-colliding spectators',()=>{
   const control={x:1,z:0,sprint:true,jump:false},crossing={id:8,kind:'player',position:{x:1.5,y:1,z:2.3},velocity:{x:0,y:0,z:-.4}};

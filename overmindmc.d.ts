@@ -148,14 +148,14 @@ export interface RouteStep { kind: 'dig' | 'bridge' | 'walk' | 'jump' | 'drop'; 
 export interface RoutePlan { status: 'planned' | 'blocked'; reason: string; steps: RouteStep[]; visited: number; cost?: number; fallDamage?: number; bridgeUsed?: number; unknown: Position[]; partial?:boolean; target?:Position; }
 export declare function planRoute(options: { start: Position; goal: Position; getBlock(position: Position): NavigationBlock | null; occupied?(position:Position):boolean; edgeCost?(from:Position,to:Position,kind:RouteStep["kind"]):number; range?: number; maxNodes?: number; maxDistance?: number; maxDrop?: number; fallPolicy?: import('./omconnect/index.js').FallPolicy; bridgeBudget?: number; bridgeBlock?: string; canDig?(block: NavigationBlock, position: Position): boolean; canPlace?(position:Position):boolean; allowPartial?:boolean; signal?: AbortSignal }): RoutePlan;
 export declare function planRouteAsync(options: Parameters<typeof planRoute>[0], scheduling?: import('./omconnect/index.js').RouteScheduling): Promise<RoutePlan>;
-export interface ExplorationOptions { getBlock(position: Position): NavigationBlock | null; mode?: 'surface' | 'ores'; radius?: number; maxCandidates?: number; maxNodes?: number; }
+export interface ExplorationOptions { getBlock(position: Position): NavigationBlock | null; mode?: 'surface' | 'ores'; radius?: number; maxCandidates?: number; maxNodes?: number; maxDrop?: number; }
 export interface ExplorationPlan { status: 'planned' | 'blocked'; reason: string; target: Position | null; route?: RoutePlan; attempts: number; }
 export declare function planExploration(options: ExplorationOptions & { position: Position; visited?: Position[];candidateCost?:(target:Position)=>number }): ExplorationPlan;
 export interface CpuPoolSnapshot {completed:number;failed:number;cancelled:number;restarts:number;pending:number;threads:number;workers:number;maxQueue:number;memoryMb:number;timeoutMs:number;closed:boolean;}
 export interface CpuExplorationJob {type:'exploration';voxels:{min:Position;size:Position;ids:Uint16Array;palette:(NavigationBlock|null)[]};options:Omit<ExplorationOptions,'getBlock'> & {position:Position;visited?:Position[]};costs:[string,number][];}
 export interface CpuPool {run(input:CpuExplorationJob,options?:{signal?:AbortSignal}):Promise<ExplorationPlan>;snapshot():CpuPoolSnapshot;close():Promise<void>;}
 export declare function createCpuPool(options?:{workers?:number;maxQueue?:number;memoryMb?:number;timeoutMs?:number}):CpuPool;
-export interface ExplorationPlanner {poll(options:Omit<ExplorationOptions,'getBlock'> & {position:Position;visited?:Position[];candidateCost?:(target:Position)=>number;context?:string}):ExplorationPlan|{status:'pending'|'blocked';reason:string};invalidate():void;close():void;snapshot():{requested:number;completed:number;stale:number;failed:number;pending:boolean;cpu:CpuPoolSnapshot|null};}
+export interface ExplorationPlanner {poll(options:Omit<ExplorationOptions,'getBlock'> & {position:Position;visited?:Position[];candidateCost?:(target:Position)=>number;context?:string}):ExplorationPlan|{status:'pending'|'blocked';reason:string};fork():ExplorationPlanner;invalidate():void;close():void;snapshot():{requested:number;completed:number;stale:number;failed:number;pending:boolean;cpu:CpuPoolSnapshot|null};}
 export declare function createExplorationPlanner(options:{world:{dimension?:string;revision?:number;blockAt:ExplorationOptions['getBlock'];createReadView?():{blockAt:ExplorationOptions['getBlock'];isCurrent():boolean}};pool?:CpuPool;onReady?:()=>void;clock?:()=>number}):ExplorationPlanner;
 export declare function createResourceReactor(options: { catalog: Catalog; targets: Record<string, number>; taxonomy?: BlockTaxonomy; stations?: Record<string, true | Position>; priority?: number; exploration?: ExplorationOptions; maxNodes?: number }): Reactor;
 
@@ -202,10 +202,18 @@ export interface DragonPolicy {react(observation:Observation):Reaction|null;reco
 export declare function createDragonPolicy(options:{client:import('./omconnect/index.js').OMConnect;maxTowerHeight?:number}):DragonPolicy;
 export interface CampaignProgress {objective:'enter-end'|'defeat-dragon';stage:string|null;reason?:string;elapsedMs?:number;idleMs?:number;status?:'running'|'stalled'|'blocked'|'dead'|'completed'|'unverified';goalConfirmed?:boolean;entries:{at:number;stage:string|null;completed:string[];dimension:string}[];}
 export declare function createCampaignJournal(options?:{clock?:()=>number;stallAfterMs?:number;maxEntries?:number;objective?:'enter-end'|'defeat-dragon'}):{observe(input:{scenario:ScenarioState;self:{dimension:string;health:number};inventory?:Record<string,number>;endgame?:{crystals?:{entityId:string}[];dragonDeath?:{confirmed:boolean;ownDamageConfirmed:boolean}}}):CampaignProgress;snapshot():CampaignProgress};
+export interface ExpeditionModelEvidence {kind:string;architecture:string;samples:number;updates:number;loss:number;newSamples:number;newUpdates:number;weightsSha256:string|null;weightsChanged:boolean;rememberedFailures:number|null;recentExperience:unknown[];}
+export interface ExpeditionLearningEvidence {method:string;scope:string;planner:ExpeditionModelEvidence|null;navigation:ExpeditionModelEvidence|null;}
+export declare function expeditionLearningEvidence(options?:{planner?:NeuralPlanner|null;navigation?:NeuralNavigator|null;baseline?:ExpeditionLearningEvidence}):ExpeditionLearningEvidence;
+export interface ExpeditionReleaseReadiness {status:'in-progress'|'blocked'|'needs-review';checks:Record<string,boolean>;blockers:string[];releaseEligible:false;reviewRequired:string;deaths:number;otherPlayersObserved:number;}
+export declare function assessExpeditionRelease(report:Record<string,any>,scenario:Scenario):ExpeditionReleaseReadiness;
 export declare function createEndExpedition(options:{client:import('./omconnect/index.js').OMConnect;worldId:string;scenario?:Scenario;config?:Partial<Omit<AgentConfig,'worldId'>>;cognitionMemory?:unknown;neuralMemory?:unknown;checkpoint?:ScenarioMemory;clock?:()=>number}):{brain:MinecraftBrain;controller:ScenarioController;snapshot():{scenario:ScenarioState;progress:CampaignProgress;dragon:ReturnType<DragonPolicy['snapshot']>;failures:{action:Action;attempts:number;until:number;reason:string}[]}};
 export interface StorageOptions { radius?: number; recheckMs?: number; maxStacks?: number; items?: string[]; clock?: () => number; }
+export interface NavigationRecoveryOptions {failuresRequired?:number;clock?:()=>number;}
+export declare function createNavigationRecoveryReactor(options:NavigationRecoveryOptions&{client:import('./omconnect/index.js').OMConnect}):StatefulReactor;
 export declare function createStorageReactor(options?: StorageOptions): Reactor;
 export interface MinecraftBrainOptions extends Omit<CoreOptions, 'config' | 'adapter'> {
+  recovery?:false|NavigationRecoveryOptions;
   actionEvidence?:ActionEvidenceMemory;
   client: import('./omconnect/index.js').OMConnect;
   worldId: string;

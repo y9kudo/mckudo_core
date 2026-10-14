@@ -24,6 +24,49 @@ const p = { x: 0, y: 64, z: 0 };
 const observation = (inventory = {}, sampledBlocks = []) => ({ dimension: 'minecraft:overworld', self: { position: p, health: 20, food: 20, freeInventorySlots: 36 }, inventory, world: { sampledBlocks }, drops: [] });
 const block = (name, position) => ({ ...registry.blocksByName[name], position });
 
+test('cave reconnaissance yields to its worker before excavating a new shaft',()=>{
+  let forks=0,polls=0;
+  const world={minY:-64,blockAt:q=>({...block(q.y<64?'stone':'air',q),boundingBox:q.y<64?'block':'empty',shapes:q.y<64?[[0,0,0,1,1,1]]:[]})};
+  const planner={fork(){forks++;return {poll(options){polls++;assert.equal(options.context,'cave-before-shaft');return {status:'pending',reason:'Worker is checking the cave route.'};}};}};
+  const reactor=createSurvivalReactor({catalog,client:{registry,world},targets:{raw_iron:1},explorationPlanner:planner});
+  const o=observation({'minecraft:stone_pickaxe':1});
+  assert.equal(reactor.react(o).action,null);assert.equal(reactor.react(o).action,null);
+  assert.equal(forks,1);assert.equal(polls,2);
+});
+
+test('starter stone reconnaissance keeps a small radius and reversible drops',()=>{
+  const world={minY:-64,blockAt:q=>({...block(q.y<60?'stone':q.y<64?'dirt':'air',q),boundingBox:q.y<64?'block':'empty'})};
+  let options;
+  const planner={fork:()=>({poll:o=>{options=o;return {status:'planned',target:{x:4,y:60,z:0}};}})};
+  const r=createSurvivalReactor({catalog,client:{world},targets:{cobblestone:3},explorationPlanner:planner});
+  const result=r.react(observation({'minecraft:wooden_pickaxe':1}));
+  assert.equal(options.radius,8);assert.equal(options.maxDrop,1);
+  assert.equal(result.action.skill,'navigate');assert.equal(result.action.args.maxDrop,1);
+});
+
+test('underground wood acquisition opens an ascending staircase and preserves its support',()=>{
+  const cells=new Map(),trunk={x:6,y:72,z:0};
+  const world={blockAt:q=>({...block(cells.get(key(q))??(key(q)===key(trunk)?'birch_log':q.x===0&&q.z===0&&[64,65].includes(q.y)?'air':q.y<72?'stone':'air'),q),boundingBox:cells.get(key(q))==='air'||q.x===0&&q.z===0&&[64,65].includes(q.y)||q.y>=72&&key(q)!==key(trunk)?'empty':'block'})};
+  const r=createSurvivalReactor({catalog,client:{world},targets:{birch_log:1}});
+  const o=observation({'minecraft:wooden_pickaxe':1},[{name:rid('birch_log'),position:trunk}]);
+  const overhead=r.react(o);assert.equal(overhead.action.skill,'dig');assert.deepEqual([overhead.action.args.x,overhead.action.args.y,overhead.action.args.z],[0,66,0]);
+  cells.set('0,66,0','air');
+  const head=r.react(o);assert.equal(head.action.skill,'dig');assert.equal(head.action.args.y,66);assert.notEqual(head.action.args.x,0);
+  const support=world.blockAt({x:head.action.args.x,y:64,z:head.action.args.z});assert.equal(support.name,'stone');
+  cells.delete('0,66,0');
+  const protectedReactor=createSurvivalReactor({catalog,client:{world,protection:new OMProtection({regions:[{id:'roof',dimension:o.dimension,min:{x:0,y:66,z:0},max:{x:0,y:66,z:0}}]})},targets:{birch_log:1}});
+  const protectedResult=protectedReactor.react(o).action;
+  assert.ok(!protectedResult||protectedResult.skill!=='dig'||protectedResult.args.x!==0||protectedResult.args.y!==66||protectedResult.args.z!==0);
+});
+
+test('a workstation high above the cave does not bypass local crafting prerequisites',()=>{
+  const world={blockAt:q=>({...block(q.y<64?'stone':'air',q),boundingBox:q.y<64?'block':'empty'})};
+  const r=createSurvivalReactor({catalog,client:{world},targets:{stone_pickaxe:1},exploration:false});
+  const result=r.react(observation({'minecraft:cobblestone':3,'minecraft:stick':2},[{name:rid('crafting_table'),position:{x:2,y:85,z:0}}]));
+  assert.notEqual(result.action?.args.item,rid('stone_pickaxe'));
+  assert.ok(r.snapshot().plan.some(step=>step.item===rid('crafting_table')));
+});
+
 test('a leaf-covered birch trunk opens a reachable leaf face before mining the log',()=>{
   const trunk={x:3,y:65,z:0},leaf={x:2,y:65,z:0};let cleared=false;
   const world={blockAt:q=>({...block(q.x===3&&q.y===65&&q.z===0?'birch_log':!cleared&&q.x===2&&q.y===65&&q.z===0?'birch_leaves':q.y<64?'stone':'air',q),boundingBox:q.y<64||q.x===3&&q.y===65||!cleared&&q.x===2&&q.y===65?'block':'empty'})};

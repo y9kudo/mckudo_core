@@ -5,7 +5,7 @@ import { weaponProfile, chooseWeapon, combatDecision, shieldFaces } from './comb
 import { solveAim } from './projectiles.js';
 import { miningTime, chooseMiningTool, remainingDurability } from './equipment.js';
 import { isStorageBlock, storageIdentity } from './containers.js';
-import { executeNavigate, combatControl, wrapDegrees, safeCorridor, routeCanDig } from './movement.js';
+import { executeNavigate, combatControl, wrapDegrees, safeCorridor, routeCanDig,settleGround } from './movement.js';
 import { craft, ensureStation, smelt, smith } from './crafting.js';
 import { prepareBed, sleep } from './rest.js';
 import { ignitePortal, fillEndFrame, throwEye, enterPortal } from './portals.js';
@@ -89,6 +89,7 @@ async function emptyHand(c, signal) {
   c.nextAttackAt = performance.now() + 250;
 }
 async function approach(c, position, signal, {forPlacement=false,preferFlight=false,preferBelow=false}={}) {
+  await settleGround(c,signal);
   const aim = center(position), eye = () => ({ ...c.state.position, y: c.state.position.y + 1.62 });
   const occupying=()=>forPlacement&&Math.abs(c.state.position.x-aim.x)<.8&&Math.abs(c.state.position.z-aim.z)<.8&&position.y>=Math.floor(c.state.position.y)&&position.y<=Math.floor(c.state.position.y)+1;
   if (!occupying()&&distance(eye(), aim) <= 4.3 && visible(c, aim)&&(!preferFlight||c.state.creativeFlying)&&(!preferBelow||eye().y<aim.y)) return;
@@ -111,7 +112,10 @@ async function approach(c, position, signal, {forPlacement=false,preferFlight=fa
   for (let dy = -4; dy <= 2; dy++) for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
     const p = { x: position.x + dx, y: position.y + dy, z: position.z + dz };
     if(forPlacement&&p.x===position.x&&p.z===position.z&&Math.abs(p.y-position.y)<2)continue;
-    if (distance({x:p.x+.5,y:p.y+1.62,z:p.z+.5},aim)>4.3) continue;
+    const candidateEye={x:p.x+.5,y:p.y+1.62,z:p.z+.5};
+    if (distance(candidateEye,aim)>4.3) continue;
+    // Reject blind ledges before walking there. The target itself is the ray endpoint.
+    if(!traceVisibility({origin:candidateEye,target:aim,maxDistance:4.3,getBlock:q=>q.x===position.x&&q.y===position.y&&q.z===position.z?{shapes:[]}:c.world.blockAt(q)}).visible)continue;
     if (isAir(c.world.blockAt(p)) && isAir(c.world.blockAt({ ...p, y: p.y + 1 })) && isFullBlock(c.world.blockAt({ ...p, y: p.y - 1 }))) candidates.push(p);
   }
   candidates.sort((a, b) => distance(a, c.state.position) - distance(b, c.state.position));
@@ -348,8 +352,20 @@ export async function runAction(c, action, signal) {
     assertEdit(c,'place',p);
     if (!isAir(c.world.blockAt(p)) || !anchor(c.world.blockAt(ref))) throw new Error("Position or support changed during rotation.");
     if(c.listenerCount?.('placementAttempt'))c.emit('placementAttempt',{target:p,reference:ref,direction:face[3],cursor,position:{...c.state.position},support:c.world.blockAt(ref)?.name});
-    c.write('block_place', { hand: 0, location: ref, direction: face[3], cursorX: cursor.x, cursorY: cursor.y, cursorZ: cursor.z, insideBlock: false, sequence: ++c.sequence });
-    await c.waitFor(() => c.world.blockAt(p)?.name === blockName, { signal, event: 'block', timeoutMs: 3000 });
+    // Crouching suppresses the support block's interaction: placing on a
+    // furnace or table must not open its menu instead of placing the block.
+    const previousSneak=Boolean(c.control?.sneak),previousWindow=c.containers.current;
+    c.stopMovement({sneak:true});
+    try{
+      c.write('block_place', { hand: 0, location: ref, direction: face[3], cursorX: cursor.x, cursorY: cursor.y, cursorZ: cursor.z, insideBlock: false, sequence: ++c.sequence });
+      await c.waitFor(() => c.world.blockAt(p)?.name === blockName, { signal, event: 'block', timeoutMs: 3000 });
+    }finally{
+      c.stopMovement({sneak:previousSneak});
+      const unexpected=c.containers.current;
+      if(unexpected&&unexpected!==previousWindow){
+        c.write('close_window',{windowId:unexpected.id});c.containers.close(unexpected.id);
+      }
+    }
     if(args.properties&&Object.entries(args.properties).some(([key,value])=>String(c.world.blockAt(p)?.getProperties?.()[key])!==value))throw new Error(`Status ${blockName} After installation did not coincide with the pattern.`);
     rememberPlacement(c,p); return { ok: true, serverConfirmed: true };
   }

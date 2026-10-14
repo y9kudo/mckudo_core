@@ -38,7 +38,7 @@ export declare class OMVectorize {
   planGroundAsync(options:Omit<Parameters<typeof planRoute>[0],'getBlock'>&{getBlock?:Parameters<typeof planRoute>[0]['getBlock']},scheduling?:RouteScheduling):Promise<RoutePlan>;
   planSwim(options:Omit<SwimRouteOptions,'getBlock'>):SwimRouteResult;
   planSwimAsync(options:Omit<SwimRouteOptions,'getBlock'>):Promise<SwimRouteResult>;
-  constructor(options:{getBlock:SwimRouteOptions['getBlock'];getRevision?:()=>unknown});
+  constructor(options:{getBlock:SwimRouteOptions['getBlock'];getRevision?:()=>unknown;groundBackend?:GroundNavigationBackend|null});
   plan(options:Omit<SwimRouteOptions,'getBlock'>):SwimRouteResult;
   planAsync(options:Omit<SwimRouteOptions,'getBlock'>):Promise<SwimRouteResult>;
   clearance(position:Position):VolumeResult;
@@ -56,6 +56,7 @@ export declare function traceVisibility(options:{origin:Position;target:Position
 export interface ProtectedRegion {id:string;dimension:string;min:Position;max:Position;}
 export interface ProtectionOptions {regions?:ProtectedRegion[];structures?:boolean;structureRadius?:number;}
 export interface EditDecision {allowed:boolean;reason:string;regionId?:string;evidence?:Position;}
+export interface PlacementOwnershipMemory {schemaVersion:1;owned:{key:string;name:string;stateId?:number}[];}
 export declare function isStructureBlock(block:NavigationBlock|null):boolean;
 export declare class OMProtection {
   constructor(options?:ProtectionOptions);
@@ -65,6 +66,9 @@ export declare class OMProtection {
   remove(id:string):boolean;
   remember(dimension:string,position:Position,block:NavigationBlock & {stateId?:number}):void;
   forget(dimension:string,position:Position):void;
+  observeBlockChange(dimension:string,position:Position,previous:(NavigationBlock & {stateId?:number;getProperties?():Record<string,unknown>})|null,current:(NavigationBlock & {stateId?:number;getProperties?():Record<string,unknown>})|null):void;
+  exportMemory():PlacementOwnershipMemory;
+  restoreMemory(memory:PlacementOwnershipMemory):void;
   check(options:{operation:'dig'|'place';dimension:string;position:Position;block?:NavigationBlock|null;getBlock?:(position:Position)=>NavigationBlock|null}):EditDecision;
 }
 export interface AuthCode {user_code:string;verification_uri:string;expires_in:number;}
@@ -88,11 +92,12 @@ export interface RouteStep {kind:'dig'|'bridge'|'walk'|'jump'|'drop';position:Po
 export interface RoutePlan {status:'planned'|'blocked';reason:string;steps:RouteStep[];visited:number;unknown:Position[];cost?:number;bridgeUsed?:number;fallDamage?:number;partial?:boolean;target?:Position;failure?:ActionFailure;}
 export declare function planRoute(options:{start:Position;goal:Position;getBlock:(position:Position)=>NavigationBlock|null;occupied?:(position:Position)=>boolean;edgeCost?:(from:Position,to:Position,kind:RouteStep["kind"])=>number;range?:number;maxNodes?:number;maxDistance?:number;maxDrop?:number;fallPolicy?:FallPolicy;bridgeBudget?:number;bridgeBlock?:string;canDig?:(block:NavigationBlock,position:Position)=>boolean;canPlace?:(position:Position)=>boolean;allowPartial?:boolean;signal?:AbortSignal}):RoutePlan;
 export interface RouteScheduling {sliceMs?:number;nodesPerSlice?:number;getRevision?:()=>unknown;scheduler?:WorkScheduler;}
+export interface GroundNavigationBackend {planGroundAsync(options:Parameters<typeof planRoute>[0]&{staticGeometry?:boolean},scheduling?:RouteScheduling):Promise<RoutePlan>;}
 export declare function planRouteAsync(options: Parameters<typeof planRoute>[0], scheduling?: RouteScheduling): Promise<RoutePlan>;
 export interface OMVersionProfile {version:string;experimental?:boolean;loadRegistry:(version:string)=>any;createProtocolClient:(options:Record<string,unknown>)=>any;worldOptions?:{chunkFactory?:(registry:any)=>any;blockFactory?:(registry:any)=>any};normalizeIncoming?:(name:string,packet:any,client:OMConnect)=>void;encodePacket?:(name:string,packet:any,client:OMConnect)=>{name?:string;packet?:any;skip?:boolean};install?:(client:OMConnect,transport:any)=>void;readRecipes?:(client:OMConnect,packet:any)=>void;afterTick?:(client:OMConnect)=>void;}
 export declare function createJava263Profile(options:{loadRegistry:OMVersionProfile['loadRegistry'];createProtocolClient:OMVersionProfile['createProtocolClient'];chunkFactory:(registry:any)=>any;blockFactory?:(registry:any)=>any}):OMVersionProfile;
 export declare class OMConnect {
-  constructor(options?: OMOptions, components?: { createProtocolClient?: (options: Record<string, unknown>) => any; physics?: typeof stepPhysics;versionProfile?:OMVersionProfile });
+  constructor(options?: OMOptions, components?: { createProtocolClient?: (options: Record<string, unknown>) => any; physics?: typeof stepPhysics;versionProfile?:OMVersionProfile;navigationBackend?:GroundNavigationBackend|null });
   readonly options: Required<OMOptions>;
   readonly registry: any;
   readonly dataLoaded: boolean;
@@ -132,7 +137,7 @@ export declare class OMConnect {
   snapshot(): OMSnapshot;
   close(): Promise<void>;
 }
-export declare function createOMConnect(options?: OMOptions): OMConnect;
+export declare function createOMConnect(options?: OMOptions,components?:ConstructorParameters<typeof OMConnect>[1]): OMConnect;
 export interface FoundBlock { name: string; position: Position; stateId: number; distance: number; properties: Record<string, unknown>; }
 export declare class OMWorld {
   constructor(registry: any, options?: { maxChunks?: number;chunkFactory?:(registry:any)=>any;blockFactory?:(registry:any)=>any });

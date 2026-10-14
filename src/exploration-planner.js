@@ -6,14 +6,16 @@ import { explorationCandidates } from './exploration.js';
 export function createExplorationPlanner({ world, pool = explorationCpu, onReady = () => {}, clock = Date.now } = {}) {
   if (!world || typeof world.blockAt !== 'function' || !pool || typeof pool.run !== 'function') throw new Error("Research needed world and CPU pool.");
   let job = null, closed = false;
+  const children=new Set();
   const stats = { requested: 0, completed: 0, stale: 0, failed: 0 };
   const reset = () => { job?.abort.abort(new Error("Request for study replaced.")); job = null; };
   return {
     poll(options) {
       if (closed) return { status: 'blocked', reason: "The research planner is closed." };
-      const { position, mode = 'surface', radius = 24, maxNodes = 800, maxCandidates = 8, visited = [], candidateCost = () => 0, context = '' } = options;
+      const { position, mode = 'surface', radius = 24, maxNodes = 800, maxCandidates = 8, maxDrop = 3, visited = [], candidateCost = () => 0, context = '' } = options;
+      if (!Number.isInteger(maxDrop) || maxDrop < 1 || maxDrop > 32) throw new Error('Exploration maxDrop: an integer 1–32.');
       const p = Object.fromEntries(['x', 'y', 'z'].map(k => [k, Math.floor(position[k])]));
-      const key = JSON.stringify([world.dimension, p, mode, radius, maxNodes, maxCandidates, context]);
+      const key = JSON.stringify([world.dimension, p, mode, radius, maxNodes, maxCandidates, maxDrop, context]);
       if (job && (job.key !== key || !job.isCurrent())) { stats.stale++; reset(); }
       // Cache a blocked answer briefly, allowing changed chunks/conditions to trigger a new search.
       if (job?.result && (job.result.status === 'planned' || clock() - job.finishedAt < 1000)) return job.result;
@@ -22,7 +24,7 @@ export function createExplorationPlanner({ world, pool = explorationCpu, onReady
         const view = world.createReadView?.(), revision = world.revision;
         const isCurrent = view ? view.isCurrent : () => world.revision === revision;
         const current = job = { key, abort: new AbortController(), isCurrent, result: null }; stats.requested++;
-        const base = { position: p, mode, radius, maxNodes, maxCandidates, visited: structuredClone(visited) };
+        const base = { position: p, mode, radius, maxNodes, maxCandidates, maxDrop, visited: structuredClone(visited) };
         current.promise = (async () => {
           const voxels = await captureVoxels({ ...base, getBlock: view ? view.blockAt : q => world.blockAt(q), signal: current.abort.signal, isCurrent });
           const costs = new Map();
@@ -42,7 +44,12 @@ export function createExplorationPlanner({ world, pool = explorationCpu, onReady
       return { status: 'pending', reason: "CPU computes a safe research point; Protection and physics continue to work." };
     },
     invalidate: reset,
+    fork(){
+      if(closed||children.size>=64)throw new Error('The exploration planner is closed or its child limit was reached.');
+      const child=createExplorationPlanner({world,pool,onReady,clock}),close=child.close;
+      child.close=()=>{close();children.delete(child);};children.add(child);return child;
+    },
     snapshot: () => ({ ...stats, pending: Boolean(job && !job.result), cpu: pool.snapshot?.() ?? null }),
-    close() { closed = true; reset(); }
+    close() { closed = true; reset();for(const child of children)child.close();children.clear(); }
   };
 }

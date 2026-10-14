@@ -15,6 +15,7 @@ coverage/
 # Local runs and scratch files are not release sources.
 bot-log.txt
 work/
+native/build/
 outputs/
 *.tmp
 examples/follow-test.js
