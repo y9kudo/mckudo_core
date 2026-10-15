@@ -13,9 +13,9 @@ export function createCombatReactor(options = {}) {
       for(const [id,block] of retreatBlocked)if(clock()>=block.until||block.dimension!==observation.dimension||distance(block.self,observation.self?.position)>=3)retreatBlocked.delete(id);
       const entities=observation.entities?.filter(e=>{
         if(ignoredEntities.includes(e.name))return false;
-        // A failed turn/path must never hide an immediately reachable hostile mob.
-        if(e.kind!=='player'&&e.hostile===true&&e.visible===true&&distance(e.position,observation.self?.position)<=3.5)return true;
+        // A transient aim failure must not hide an immediately reachable hostile mob.
         const f=failed.get(String(e.id));if(!f)return true;
+        if(e.kind!=='player'&&e.hostile===true&&e.visible===true&&distance(e.position,observation.self?.position)<=3.5&&f.transientAim)return true;
         const newHit=(observation.combat?.attackers||[]).some(a=>String(a.entityId)===String(e.id)&&a.lastHitAt>f.at);
         if(clock()>=f.until||f.dimension!==observation.dimension||newHit||distance(f.target,e.position)>=2||distance(f.self,observation.self?.position)>=2){failed.delete(String(e.id));return true;}
         return observation.self?.health==null||observation.self.health<=(options.retreatHealth??8)||e.name==='creeper';
@@ -43,7 +43,7 @@ export function createCombatReactor(options = {}) {
       if(!action||!['combat','evade','shoot'].includes(action.skill)||result.outcome!=='failure')return;
       if(action.skill==='evade'&&/No route|No known safe route found|Start position changed|route|path/i.test(result.detail||''))retreatBlocked.set(String(action.args.entityId),{until:clock()+1500,dimension:latest?.dimension,self:latest?.self?.position?{...latest.self.position}:null});
       const entity=latest?.entities?.find(e=>String(e.id)===String(action.args.entityId));
-      failed.set(String(action.args.entityId),{at:clock(),until:clock()+5000,dimension:latest?.dimension,self:latest?.self?.position?{...latest.self.position}:null,target:entity?.position?{...entity.position}:null});
+      failed.set(String(action.args.entityId),{at:clock(),until:clock()+5000,transientAim:/aim|turn|target moved/i.test(result.detail||''),dimension:latest?.dimension,self:latest?.self?.position?{...latest.self.position}:null,target:entity?.position?{...entity.position}:null});
       while(failed.size>64)failed.delete(failed.keys().next().value);
     },
     attach(core){

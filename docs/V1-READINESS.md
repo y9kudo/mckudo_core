@@ -1,5 +1,7 @@
 # Stable 1.0 readiness
 
+Current beta: **1.0.0-Arthas-beta1**. See the [current navigation/combat audit](BETA1-NAVIGATION-COMBAT.md) and [beta verification evidence](results/arthas-beta1-validation-2026-10-15.md). Earlier counts and findings below are historical snapshots, not the current test total. An independently verified empty-inventory Dragon victory is still required before declaring stable 1.0.0.
+
 Current development evidence (October 14): 527 automated tests, a bounded live PPO transfer and a six-stage empty-inventory survival run passed. Native high-level actions remain verified on Java 1.21.1. Full autonomous Dragon completion and a comparative platform benchmark remain unconfirmed, so stable 1.0.0 is not declared. [Current results](results/overmind-migration-2026-10-14.md).
 
 The audit below is the historical October 13 baseline.

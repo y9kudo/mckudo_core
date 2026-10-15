@@ -1,6 +1,6 @@
 import {assessFall} from './fall.js';
 import { navigationScheduler } from './scheduler.js';
-import { blockEvidenceValue } from './failures.js';
+import { blockEvidenceValue, OMActionError } from './failures.js';
 const key = p => `${p.x},${p.y},${p.z}`;
 const point = p => p && ['x', 'y', 'z'].every(k => Number.isInteger(p[k]) && Math.abs(p[k]) <= 30000000);
 const directions = [[1, 0], [-1, 0], [0, 1], [0, -1], [1,1], [1,-1], [-1,1], [-1,-1]];
@@ -119,6 +119,6 @@ export async function planRouteAsync(options, { sliceMs = 2, nodesPerSlice = 64,
   if (!scheduler || typeof scheduler.submit !== 'function') throw new Error("Requires scheduler with submit().");
   const revision = getRevision?.();
   return scheduler.submit(routeSearch(options), { signal: options.signal, sliceMs, nodesPerSlice,
-    validate() { if (getRevision && getRevision() !== revision) throw new Error("The world changed in the search for a route; replanning is required."); }
+    validate() { if (getRevision && getRevision() !== revision) throw new OMActionError('STALE_WORLD', "The world changed in the search for a route; replanning is required."); }
   });
 }

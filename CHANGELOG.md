@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0-Arthas-beta1 · 2026-10-15 · beta
+
+- Continuous supported walking with bounded lookahead, optional clear-corner shortcuts and immediate route invalidation after a server correction.
+- Validated, expiring kernel-to-client route handoff to avoid a duplicate search.
+- Dedicated reactive combat controller: nonblocking aim/guard decisions, body-volume reach, voxel occlusion, shield direction, weapon selection and safe critical opportunities.
+- Combat pursuit distinguishes sent attacks from attributed damage; transient stale searches can replan without suppressing defense.
+- Directed navigation failure memory, schema-one migration and exclusion of transient occupancy/correction failures.
+- Common configuration/play ping responses fix a LAN login stall. New automated regressions and a bounded live navigation probe.
+- Core, standalone OMConnect, OMVectorize identities and declarations use `1.0.0-Arthas-beta1`. YourMind remains `alpha1.0`.
+
+See [beta1 details](docs/releases/1.0.0-Arthas-beta1.md) and the [engineering audit](docs/BETA1-NAVIGATION-COMBAT.md).
+
 ## 1.0.0-Arthas-dev.3 · 2026-10-15 · development preview
 
 - Added a focused fresh-spawn Nether visit profile, persistent exploration-distance completion, and a documented live-trial launcher.

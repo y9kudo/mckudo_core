@@ -1,5 +1,14 @@
 # OMConnect changelog
 
+## 1.0.0-Arthas-beta1 · 2026-10-15 · beta
+
+- Continuous compatible ground spans and footprint-checked lookahead retain movement velocity.
+- Internal one-use route handoff validates state before avoiding a repeated search.
+- Reactive combat reassesses aim, shields, weapon choice, reach, occlusion and safe movement; temporary controls are released on cancellation.
+- Pursuit requires observed damage to extend its encounter budget. Unrelated chunk updates no longer invalidate a cached combat route read view.
+- Configuration and play common ping packets now receive pong, including id zero.
+- Added cancellation, cadence, terrain, reach, route-handoff and protocol regression tests.
+
 ## 1.0.0-Arthas-dev.3 · 2026-10-15 · development preview
 
 - Added bounded navigation debug snapshots for live 3D route visualization in OvermindMC.

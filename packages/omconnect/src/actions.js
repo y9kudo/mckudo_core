@@ -1,7 +1,8 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { performance } from 'node:perf_hooks';
 import { planRouteAsync, readRouteWorld, isAir, isFullBlock, isHazard } from './navigation.js';
-import { weaponProfile, chooseWeapon, combatDecision, shieldFaces } from './combat.js';
+import { weaponProfile } from './combat.js';
+import {executeCombat,combatGeometry} from './combat-runtime.js';
 import { solveAim } from './projectiles.js';
 import { miningTime, chooseMiningTool, remainingDurability } from './equipment.js';
 import { isStorageBlock, storageIdentity } from './containers.js';
@@ -12,7 +13,6 @@ import { ignitePortal, fillEndFrame, throwEye, enterPortal } from './portals.js'
 import { pillar, descendPillar } from './pillar.js';
 import { executeCollect } from './collection.js';
 import {assertEdit, editDecision, rememberPlacement} from './protection.js';
-import {CombatPursuit, combatApproach} from './combat-navigation.js';
 import { executeSwim } from './swimming.js';
 import { clickMenu } from './menus.js';
 import { mountVehicle, dismountVehicle } from './transport.js';
@@ -371,10 +371,10 @@ export async function runAction(c, action, signal) {
   }
   if (skill === 'attack') {
     const e = c.entities.get(Number(args.entityId)); if (!e || e.kind === 'player' && args.allowPlayer !== true) throw new Error("Unaffordable Target; PvP requires allowPlayer.");
-    if (distance(e.position, c.state.position) > 3 || !visible(c, { ...e.position, y: e.position.y + 0.8 })) throw new Error("Target outside impact distance or behind the barrier.");
+    if (!combatGeometry(c,e).inReach || !visible(c, combatGeometry(c,e).aim)) throw new Error("Target outside impact distance or behind the barrier.");
     if (performance.now() < (c.nextAttackAt || 0)) throw new Error("Weapons are still recovering.");
-    c.lookAt({ ...e.position, y: e.position.y + 0.8 },{signal,turnSpeed:720}); await c.waitForLook?.({ signal }); const at = performance.now();
-    if(c.entities.get(Number(e.id))!==e||distance(e.position,c.state.position)>3||!visible(c,{...e.position,y:e.position.y+.8})){const error=new Error("Target moved while aiming; a new approach is required.");error.code='KUDO_TARGET_MOVED';throw error;}
+    c.lookAt(combatGeometry(c,e).aim,{signal,turnSpeed:720}); await c.waitForLook?.({ signal }); const at = performance.now();
+    if(c.entities.get(Number(e.id))!==e||!combatGeometry(c,e).inReach||!visible(c,combatGeometry(c,e).aim)){const error=new Error("Target moved while aiming; a new approach is required.");error.code='KUDO_TARGET_MOVED';throw error;}
     c.write('use_entity', { target: Number(e.id), mouse: 1, sneaking: false }); c.write('arm_animation', { hand: 0 });
     c.emit?.('attackSent',{entityId:String(e.id),name:e.name,weapon:c.inventory.held()?.name||'hand',at:Date.now()});
     c.nextAttackAt = at + weaponProfile(c.inventory.held()?.name).cooldownMs;
@@ -467,50 +467,7 @@ export async function runAction(c, action, signal) {
     }
     throw new Error("The emergency water installation budget has expired.");
   }
-  if (skill === 'combat') {
-    const duration = args.durationMs ?? 400, maxDistance = args.maxDistance ?? 12;
-    if (!Number.isInteger(duration) || duration < 50 || duration > 2000 || !Number.isFinite(maxDistance) || maxDistance < 1 || maxDistance > 32) throw new Error("combat: Wrong budget.");
-    const target = c.entities.get(Number(args.entityId));
-    if (!target || target.kind === 'player' && args.allowPlayer !== true) throw new Error("No authorized target.");
-    const shieldedTarget = shieldFaces(target,c.state.position);
-    const avoidSweep=[...c.entities.values()].some(e=>e.kind==='player'&&e.gameMode!==3&&e!==target&&String(e.id)!==String(c.state.entityId)&&distance(e.position,target.position)<2);
-    if(c.inventory.items().some(i=>i.name==='shield'&&remainingDurability(i,c.registry)>0))await prepareShield(c,signal);
-    const weapon = chooseWeapon(c.inventory.items().filter(i => remainingDurability(i, c.registry) > 0), { shieldedTarget, avoidSweep });
-    if (weapon && c.inventory.held()?.slot !== weapon.slot) await select(c, weapon, signal);
-    else if (!weapon) await emptyHand(c, signal);
-    c.combatPursuit ??= new CombatPursuit();
-    const until = Date.now() + duration;
-    while (Date.now() < until) {
-      alive(c, signal); if (c.entities.get(Number(target.id)) !== target) return { ok: true, targetGone: true, deathConfirmed: false };
-      if (distance(c.state.position, target.position) > maxDistance) throw new Error("Target moved beyond pursuit range.");
-      const now=performance.now(),shield=c.inventory.slots[45]?.name==='shield'&&remainingDurability(c.inventory.slots[45],c.registry)>0;
-      if(c.combatJump){if(!c.state.onGround)c.combatJump.airborne=true;if(c.combatJump.target!==target.id||now>c.combatJump.until||c.combatJump.airborne&&c.state.onGround)c.combatJump=null;}
-      const jumpKey=String(target.id)+'/'+(c.nextAttackAt||0),nearby=[...c.entities.values()].filter(e=>e!==target&&e.kind==='player'&&distance(e.position,c.state.position)<3).length;
-      const safeJump=args.critical!==false&&weapon&&c.state.health>12&&c.state.food>6&&!nearby&&!c.guarding&&c.state.onGround&&c.criticalAttempt!==jumpKey&&['x','z'].every(axis=>[-1,1].every(sign=>safeCorridor(c.state.position,{x:axis==='x'?sign:0,z:axis==='z'?sign:0},1,p=>c.world.blockAt(p),{headroom:4})));
-      let tactic = combatDecision({ self: { ...c.state, shield,shieldDisabledUntil:c.shieldDisabledUntil }, target: { ...target,blocking:shieldFaces(target,c.state.position), charging: target.name === 'blaze' && Boolean(target.metadata.flags & 1) },
-        projectiles: [...c.entities.values()].filter(e => ['arrow', 'small_fireball', 'fireball', 'trident'].includes(e.name)), nextAttackAt: c.nextAttackAt || 0, now, retreatHealth: args.retreatHealth ?? 8,criticalPending:Boolean(c.combatJump),canCriticalJump:safeJump });
-      if(target.name==='enderman'&&c.world.blockAt(floor(c.state.position))?.name==='water'&&['approach','strafe','jump'].includes(tactic.mode))tactic={...tactic,mode:'hold'};
-      if(tactic.mode!=='retreat'){
-        const pursuit=c.combatPursuit.observe({target,position:c.state.position,dimension:c.state.dimension,now,maxDistance});
-        if(!pursuit.allowed){c.stopMovement();throw new Error(pursuit.reason);}
-      }
-      if (!['approach', 'retreat', 'strafe'].includes(tactic.mode)) c.stopMovement();
-      c.lookAt({ ...target.position, y: target.position.y + 1 }, { signal, turnSpeed: 720 });
-      if (tactic.mode === 'block') {c.combatJump=null;return runAction(c, { skill: 'guard', args: { entityId:target.id,durationMs: Math.max(250, Math.min(600, until - Date.now())) } }, signal);}
-      if (tactic.mode === 'jump') {c.combatJump||={target:target.id,until:now+1500,airborne:false};c.criticalAttempt=jumpKey;c.control={x:0,z:0,jump:true,sprint:false};}
-      if (tactic.mode === 'strike') {
-        if(avoidSweep&&weaponProfile(c.inventory.held()?.name).kind==='sword'&&!tactic.critical)throw new Error("A foreign player is in the vicinity: A mass strike by a sword is unsafe.");
-        try{await runAction(c,{skill:'attack',args:{entityId:target.id,allowPlayer:args.allowPlayer===true}},signal);c.combatPursuit.attackSent(performance.now());}
-        catch(error){signal.throwIfAborted();if(error.code!=='KUDO_TARGET_MOVED')throw error;c.combatRoute=null;}
-        c.combatJump=null;
-      }
-      if (['approach', 'retreat', 'strafe'].includes(tactic.mode)) {
-        c.control = tactic.mode==='approach'?await combatApproach(c,target,signal):combatControl(c.state, target.position, tactic.mode, p => c.world.blockAt(p), { guarding: c.guarding, strafeSide: Math.floor(Date.now() / 1800) % 2 ? -1 : 1 });
-      }
-      await delay(25, undefined, { signal });
-    }
-    return { ok: true, frameFinished: true };
-  }
+  if (skill === 'combat') return executeCombat(c,args,signal,{select,emptyHand,prepareShield});
   if (skill === 'guard') {
     const duration = args.durationMs ?? 400; if (!Number.isInteger(duration) || duration < 50 || duration > 2000) throw new Error('guard.durationMs: 50–2000.');
     if(performance.now()<(c.shieldDisabledUntil||0))throw new Error("The server temporarily disabled the shield.");

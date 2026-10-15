@@ -15,7 +15,7 @@ export declare function findMenuSlot(menu:MenuObservation,selector:{item?:string
 export interface SwimRouteOptions {start:Position;goal:Position;getBlock:(p:Position)=>NavigationBlock|null;signal?:AbortSignal;maxNodes?:number;maxDistance?:number;airTicks?:number;airReserveTicks?:number;ticksPerBlock?:number;waterBreathing?:boolean;}
 export interface SwimRouteResult {status:'planned'|'blocked';reason:string;mode?:'swim';waypoints:Position[];visited:number;cost?:number;airRemainingTicks?:number;}
 export interface VolumeResult {clear:boolean;reason:string;position?:Position;water?:boolean;submerged?:boolean;fraction?:number;submergedSamples?:number;samples?:number;}
-export declare const OMVECTORIZE:Readonly<{name:'OMVectorize';author:'y9kudo';version:string;versionName:'Version Arthas';displayVersion:'v1.0.0Arthas-dev.3';modes:readonly string[];predictions:readonly string[]}>;
+export declare const OMVECTORIZE:Readonly<{name:'OMVectorize';author:'y9kudo';version:string;versionName:'Version Arthas';displayVersion:'v1.0.0Arthas-beta1';modes:readonly string[];predictions:readonly string[]}>;
 export declare function volumeClearance(options:{position:Position;getBlock:SwimRouteOptions['getBlock'];height?:number;radius?:number}):VolumeResult;
 export declare function traceVolume(options:{from:Position;to:Position;getBlock:SwimRouteOptions['getBlock'];height?:number;radius?:number}):VolumeResult;
 export declare function planSwimRoute(options:SwimRouteOptions):SwimRouteResult;
@@ -83,7 +83,7 @@ export interface EndEvidence {eyes:EyeFlight[];crystals:{entityId:string;positio
 export interface PillarArgs {count?:number;block?:string;}
 export interface PillarResult {ok:true;serverConfirmed:true;placed:(Position & {block:string})[];position:Position;}
 export interface OMSnapshot extends OMState { authentication:AuthenticationState; time:OMTime; equipment:ReturnType<OMInventory["equipment"]>; identity: typeof OMCONNECT; inventory: Record<string, number>; loadedChunks: number; metrics: OMMetrics; }
-export declare const OMCONNECT: Readonly<{ name: 'OMConnect'; version: '1.0.0-Arthas-dev.3'; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-dev.3'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
+export declare const OMCONNECT: Readonly<{ name: 'OMConnect'; version: '1.0.0-Arthas-beta1'; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-beta1'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
 export declare const OM_SKILLS: readonly string[];
 export interface FallPolicy { health?:number; minHealthAfter?:number; maxDamage?:number; slowFalling?:boolean; sneaking?:boolean; }
 export interface FallAssessment { height:number; landing:string|null; estimatedDamage:number|null; healthAfter:number|null; survivable:boolean; allowed:boolean; reason:string; }
@@ -236,7 +236,7 @@ export declare function smeltingRecipe(registry:any,item:string):{item:string;in
 export declare function fuelItems(item:string):number;
 export declare function rotateToward(state:{yaw:number;pitch:number},angles:{yaw:number;pitch:number},options?:{turnSpeed?:number;dt?:number}):{yaw:number;pitch:number};
 export interface MovementControl { x:number;z:number;jump:boolean;sprint:boolean;sneak?:boolean; }
-export declare function travelControl(state:OMState&{position:Position},target:Position,getBlock:(p:Position)=>NavigationBlock|null,options?:{sprint?:boolean;sprintJump?:boolean;guarding?:boolean;longDistance?:number}):MovementControl;
+export declare function travelControl(state:OMState&{position:Position},target:Position,getBlock:(p:Position)=>NavigationBlock|null,options?:{sprint?:boolean;sprintJump?:boolean;guarding?:boolean;longDistance?:number;brake?:boolean}):MovementControl;
 export declare function combatControl(state:OMState&{position:Position},target:Position,mode:string,getBlock:(p:Position)=>NavigationBlock|null,options?:{guarding?:boolean;strafeSide?:number}):MovementControl;
 export declare function bridgeMaterials(registry:any,items:OMItem[],options?:{blockAtState?:(stateId:number)=>NavigationBlock;itemValue?:(name:string,item:OMItem)=>number;reserve?:number;dimension?:string}):{name:string;block:string;count:number;value:number;slot:number}[];
 export interface RecipeBookSnapshot {source:'server'|'waiting'|'version-catalog';revision:number;announced:number;indexedOutputs:number;}

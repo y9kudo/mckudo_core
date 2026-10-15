@@ -27,7 +27,7 @@ import {safeEndermanAngles,safeLookTarget} from './enderman-gaze.js';
 import {decideFallRescue} from './fall-safety.js';
 import {OMHumanize} from './humanize.js';
 
-export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-dev.3', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-dev.3', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
+export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-beta1', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-beta1', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
 export class OMConnect extends EventEmitter {
   constructor(options = {}, { createProtocolClient, physics = stepPhysics, versionProfile = null,navigationBackend=null } = {}) {
     super();
@@ -74,6 +74,12 @@ export class OMConnect extends EventEmitter {
     try { c = this.client = this.createProtocolClient(protocolOptions); }
     catch (error) { this.state.status = 'disconnected'; this.connectionAbort.abort(error); throw error; }
     this.versionProfile?.install?.(this,c);
+    // Common ping is distinct from keep_alive. A LAN server can wait for this
+    // pong before sending registries and finish_configuration (including id 0).
+    c.on('ping',packet=>{
+      if(this.connectionAbort.signal.aborted||!['configuration','play'].includes(c.state)||!Number.isInteger(packet.id))return;
+      c.write('pong',{id:packet.id});this.metrics.packetsSent++;
+    });
     if(this.versionProfile?.normalizeIncoming)c.prependListener('packet',(packet,meta)=>this.versionProfile.normalizeIncoming(meta.name,packet,this));
     if (this.options.auth === 'microsoft') {
       // Auth may complete after close()/timeout. Prevent a delayed TCP connection.

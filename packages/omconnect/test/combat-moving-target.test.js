@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {OMConnect} from '../src/client.js';
 import {runAction} from '../src/actions.js';
+import {gazeAngles} from '../src/players.js';
 const air={name:'air',boundingBox:'empty',shapes:[]},stone={name:'stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]};
 const flat=p=>p.y<64?stone:air;
 function fixture(){
@@ -13,9 +14,10 @@ function fixture(){
 }
 test('moving out of reach during aiming replans inside a combat frame rather than dropping defense',async()=>{
   const {c,target}=fixture();let turns=0,attacks=0;
-  c.write=n=>{if(n==='use_entity')attacks++;};
-  c.waitForLook=async()=>{if(++turns===1){target.position.x=4;setTimeout(()=>target.position.x=2,15);}};
-  const result=await runAction(c,{skill:'combat',args:{entityId:'2',durationMs:150,critical:false}},AbortSignal.timeout(2000));
+  c.write=n=>{if(n==='use_entity'){assert.equal(target.position.x,2);attacks++;}};
+  c.lookAt=p=>{if(++turns===1){target.position.x=4;setTimeout(()=>target.position.x=2,40);}else Object.assign(c.state,gazeAngles({...c.state.position,y:c.state.position.y+1.62},p));};
+  c.waitForLook=()=>assert.fail('Continuous combat must not wait for smooth-look completion');
+  const result=await runAction(c,{skill:'combat',args:{entityId:'2',durationMs:250,critical:false}},AbortSignal.timeout(2000));
   assert.equal(result.ok,true);assert.equal(attacks,1);assert.ok(turns>=2);
 });
 test('a close zombie triggers a safe immediate retreat before expensive route planning',async()=>{

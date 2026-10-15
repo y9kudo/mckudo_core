@@ -14,7 +14,7 @@ import {createLootReactor,createSurvivalReactor,validateScenario,catalogFromMine
 import {OMConnect} from '../omconnect/index.js';
 
 test('Version Arthas supplies a valid package version and the requested display name',async()=>{
-  const {default:semver}=await import('semver');assert.equal(semver.valid(OVERMIND.version),'1.0.0-Arthas-dev.3');assert.equal(OVERMIND.displayVersion,'v1.0.0Arthas-dev.3');assert.equal(OVERMIND.versionName,'Version Arthas');
+  const {default:semver}=await import('semver');assert.equal(semver.valid(OVERMIND.version),'1.0.0-Arthas-beta1');assert.equal(OVERMIND.displayVersion,'v1.0.0Arthas-beta1');assert.equal(OVERMIND.versionName,'Version Arthas');
 });
 
 test('20 curriculum stages are independent valid environments and all ten tasks are attainable',()=>{

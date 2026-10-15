@@ -1,6 +1,6 @@
 # OMConnect
 
-**Independent Minecraft Java client · Version Arthas · `1.0.0-Arthas-dev.3` · Created by y9kudo · MIT.**
+**Independent Minecraft Java client · Version Arthas · `1.0.0-Arthas-beta1` · Created by y9kudo · MIT.**
 
 This checkout is the Arthas dev.3 development build. Build its independent installation archive with `npm.cmd pack --ignore-scripts` from this directory.
 
@@ -10,10 +10,10 @@ OMVectorize supplies ground routes, swimming, body clearance and elytra trajecto
 
 ## Install a local build
 
-Use Node.js 24. Build `omconnect-1.0.0-Arthas-dev.3.tgz`, copy it to your application's folder and run:
+Use Node.js 24. Build `omconnect-1.0.0-Arthas-beta1.tgz`, copy it to your application's folder and run:
 
 ```powershell
-npm.cmd install .\omconnect-1.0.0-Arthas-dev.3.tgz
+npm.cmd install .\omconnect-1.0.0-Arthas-beta1.tgz
 ```
 
 Installation resolves dependencies through npm. Publication of this development build is separate from building the archive; the package is not published to the npm registry.
