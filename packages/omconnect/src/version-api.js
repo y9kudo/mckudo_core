@@ -11,7 +11,7 @@ export function createVersionAPI(version){
   let registry;const data=()=>{registry??=profile?profile.loadRegistry(version):minecraftData(version);if(!registry?.protocol?.play)throw new Error(`Missing Java wire schema for ${version}`);return registry;};
   const hasPacket=(name,direction='toServer')=>Boolean(data().protocol.play?.[direction]?.types?.['packet_'+name]);
   return {version,support,loadRegistry:data,hasPacket,
-    capabilities(){return {transport:true,worldCatalog:Boolean(data().itemsArray&&data().blocksArray&&data().recipes),nativeActions:support.native,profile:Boolean(profile),teleportConfirmation:hasPacket('teleport_confirm'),modernInventory:hasPacket('window_click')&&data().version.version>=755,configuration:!!data().protocol.configuration,signedChat:hasPacket('chat_message'),movement:hasPacket('position_look')};},
+    capabilities(){return {transport:true,worldCatalog:Boolean(data().itemsArray&&data().blocksArray&&data().recipes),nativeActions:support.native,profile:Boolean(profile),teleportConfirmation:hasPacket('teleport_confirm'),modernInventory:hasPacket('window_click')&&data().version.version>=755,configuration:!!data().protocol.configuration,signedChat:hasPacket('chat_message'),movement:hasPacket('position_look'),blockDigging:hasPacket('block_dig')};},
     normalize(name,packet){
       const p=structuredClone(packet);
       if(name==='login'||name==='respawn'){
@@ -29,6 +29,16 @@ export function createVersionAPI(version){
       if(fields.some(f=>f.name==='stance')){const eyeHeight=state.eyeHeight??1.62;if(!Number.isFinite(eyeHeight)||eyeHeight<=0||eyeHeight>3)throw new Error('eyeHeight: 0..3');p.stance=state.position.y+eyeHeight;}
       if(fields.some(f=>f.name==='flags'))p.flags={onGround:Boolean(state.onGround),hasHorizontalCollision:Boolean(state.horizontalCollision)};
       return {name:'position_look',params:p};
+    },
+    digging({position,phase,face=1,sequence=0}){
+      const phases={start:0,cancel:1,finish:2};
+      if(!hasPacket('block_dig'))throw new Error(`No block digging packet for Java ${version}`);
+      if(!position||!['x','y','z'].every(key=>Number.isInteger(position[key])&&Math.abs(position[key])<=30000000))throw new Error('Digging requires integer block coordinates.');
+      if(!Object.hasOwn(phases,phase)||!Number.isInteger(face)||face<0||face>5||!Number.isInteger(sequence)||sequence<0||sequence>2147483647)throw new Error('Invalid digging phase, face or sequence.');
+      const fields=data().protocol.play.toServer.types.packet_block_dig[1];
+      const params={status:phases[phase],location:{...position},face};
+      if(fields.some(field=>field.name==='sequence'))params.sequence=sequence;
+      return {name:'block_dig',params};
     },
     createTransport(options={}){const factory=profile?.createProtocolClient||protocol.createClient;return factory({...options,...authenticationOptions({auth:'offline',...options}),version});}
   };

@@ -2,7 +2,9 @@ import chunkLoader from 'prismarine-chunk';
 import blockLoader from 'prismarine-block';
 import { setImmediate as yieldLoop } from 'node:timers/promises';
 import { EventEmitter } from 'node:events';
+import vec3 from 'vec3';
 import {OMSectionIndex,sectionSelectorSignature} from './section-index.js';
+const {Vec3}=vec3;
 
 /** Authoritative, bounded world cache. Unknown chunks stay unknown. */
 export class OMWorld extends EventEmitter {
@@ -51,7 +53,7 @@ export class OMWorld extends EventEmitter {
   columnAt(p) { return this.columns.get(`${Math.floor(p.x / 16)},${Math.floor(p.z / 16)}`); }
   stateAt(p) {
     if (p.y < this.minY || p.y >= this.minY + this.height) return null;
-    const column = this.columnAt(p); return column ? column.getBlockStateId({ x: Math.floor(p.x) & 15, y: Math.floor(p.y), z: Math.floor(p.z) & 15 }) : null;
+    const column = this.columnAt(p); return column ? column.getBlockStateId(new Vec3(Math.floor(p.x) & 15, Math.floor(p.y), Math.floor(p.z) & 15)) : null;
   }
   blockAt(p) {
     const stateId = this.stateAt(p); if (stateId === null) return null;
@@ -76,7 +78,7 @@ export class OMWorld extends EventEmitter {
     const column = this.columnAt(p); if (!column) return false;
     const previous = this.stateAt(p);
     if(previous!==stateId)this.blockEntities.delete(`${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`);
-    column.setBlockStateId({ x: Math.floor(p.x) & 15, y: Math.floor(p.y), z: Math.floor(p.z) & 15 }, stateId); this.revision++;
+    column.setBlockStateId(new Vec3(Math.floor(p.x) & 15, Math.floor(p.y), Math.floor(p.z) & 15), stateId); this.revision++;
     this.columnRevisions.set(column, (this.columnRevisions.get(column) || 0) + 1);
     this.emit('blockUpdate', { position: { ...p }, previous, stateId }); return true;
   }
@@ -117,7 +119,7 @@ export class OMWorld extends EventEmitter {
         if (++visited > maxVisited) { truncated = true; break outer; }
         if (visited % 4096 === 0) { signal?.throwIfAborted(); await yieldLoop(); }
         const distance = Math.hypot(x + 0.5 - position.x, y + 0.5 - position.y, z + 0.5 - position.z); if (distance > radius) continue;
-        const id = column.getBlockStateId({ x: x & 15, y, z: z & 15 });stateReads++;consider(x,y,z,id);
+        const id = column.getBlockStateId(new Vec3(x & 15, y, z & 15));stateReads++;consider(x,y,z,id);
       }
       }
       found.sort((a, b) => a.distance - b.distance); found.length = Math.min(found.length, count);

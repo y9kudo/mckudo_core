@@ -15,7 +15,7 @@ export declare function findMenuSlot(menu:MenuObservation,selector:{item?:string
 export interface SwimRouteOptions {start:Position;goal:Position;getBlock:(p:Position)=>NavigationBlock|null;signal?:AbortSignal;maxNodes?:number;maxDistance?:number;airTicks?:number;airReserveTicks?:number;ticksPerBlock?:number;waterBreathing?:boolean;}
 export interface SwimRouteResult {status:'planned'|'blocked';reason:string;mode?:'swim';waypoints:Position[];visited:number;cost?:number;airRemainingTicks?:number;}
 export interface VolumeResult {clear:boolean;reason:string;position?:Position;water?:boolean;submerged?:boolean;fraction?:number;submergedSamples?:number;samples?:number;}
-export declare const OMVECTORIZE:Readonly<{name:'OMVectorize';author:'y9kudo';version:string;versionName:'Version Arthas';displayVersion:'v1.0.0Arthas-dev.2';modes:readonly string[];predictions:readonly string[]}>;
+export declare const OMVECTORIZE:Readonly<{name:'OMVectorize';author:'y9kudo';version:string;versionName:'Version Arthas';displayVersion:'v1.0.0Arthas-dev.3';modes:readonly string[];predictions:readonly string[]}>;
 export declare function volumeClearance(options:{position:Position;getBlock:SwimRouteOptions['getBlock'];height?:number;radius?:number}):VolumeResult;
 export declare function traceVolume(options:{from:Position;to:Position;getBlock:SwimRouteOptions['getBlock'];height?:number;radius?:number}):VolumeResult;
 export declare function planSwimRoute(options:SwimRouteOptions):SwimRouteResult;
@@ -73,7 +73,7 @@ export declare class OMProtection {
 }
 export interface AuthCode {user_code:string;verification_uri:string;expires_in:number;}
 export interface AuthenticationState {mode:'offline'|'microsoft';status:'offline'|'pending'|'device-code'|'authenticated';profile:{name:string;uuid:string}|null;}
-export interface OMOptions { host?: string; port?: number; username?: string; version?: '1.21' | '1.21.1'; auth?: 'offline'|'microsoft'; profilesFolder?:string;authTimeoutMs?:number;onMsaCode?:(code:AuthCode)=>void;realms?:{realmId:number}; viewDistance?: number; humanizeMode?:boolean; connectTimeoutMs?: number; fallSafety?:boolean; maxDrop?: number; fallHealthReserve?: number; maxFallDamage?: number; bridgeReserve?: number; bridgeItemValue?: (name: string,item: OMItem) => number; protection?:ProtectionOptions; }
+export interface OMOptions { host?: string; port?: number; username?: string; version?: string; auth?: 'offline'|'microsoft'; profilesFolder?:string;authTimeoutMs?:number;onMsaCode?:(code:AuthCode)=>void;realms?:{realmId:number}; viewDistance?: number; humanizeMode?:boolean; connectTimeoutMs?: number; fallSafety?:boolean; maxDrop?: number; fallHealthReserve?: number; maxFallDamage?: number; bridgeReserve?: number; bridgeItemValue?: (name: string,item: OMItem) => number; protection?:ProtectionOptions; }
 export interface OMState { status: 'disconnected' | 'connecting' | 'ready' | 'dead'; entityId: number | null; position: Position | null; velocity: Position; yaw: number; pitch: number; onGround: boolean; health: number | null; food: number | null; dimension: string | null; gameMode: string | number | null; allowFlying?:boolean; creativeFlying?:boolean; flyingSpeed?:number; environment?: Environment; sleeping?: boolean; sprinting?: boolean; sneaking?:boolean; frozen?: boolean; horizontalCollision?: boolean; }
 export interface OMMetrics { packetsSent: number; corrections: number; actions: number; failures: number; maxTickMs: number; timing?: TickTimingSnapshot; navigation?: WorkSchedulerSnapshot; decoderWarnings: { message: string; at: number }[]; reactions: unknown[]; }
 export interface OMItem { name: string; item: string; type: number; count: number; slot: number; raw: any; }
@@ -83,7 +83,7 @@ export interface EndEvidence {eyes:EyeFlight[];crystals:{entityId:string;positio
 export interface PillarArgs {count?:number;block?:string;}
 export interface PillarResult {ok:true;serverConfirmed:true;placed:(Position & {block:string})[];position:Position;}
 export interface OMSnapshot extends OMState { authentication:AuthenticationState; time:OMTime; equipment:ReturnType<OMInventory["equipment"]>; identity: typeof OMCONNECT; inventory: Record<string, number>; loadedChunks: number; metrics: OMMetrics; }
-export declare const OMCONNECT: Readonly<{ name: 'OMConnect'; version: '1.0.0-Arthas-dev.2'; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-dev.2'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
+export declare const OMCONNECT: Readonly<{ name: 'OMConnect'; version: '1.0.0-Arthas-dev.3'; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-dev.3'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
 export declare const OM_SKILLS: readonly string[];
 export interface FallPolicy { health?:number; minHealthAfter?:number; maxDamage?:number; slowFalling?:boolean; sneaking?:boolean; }
 export interface FallAssessment { height:number; landing:string|null; estimatedDamage:number|null; healthAfter:number|null; survivable:boolean; allowed:boolean; reason:string; }
@@ -96,6 +96,7 @@ export interface GroundNavigationBackend {planGroundAsync(options:Parameters<typ
 export declare function planRouteAsync(options: Parameters<typeof planRoute>[0], scheduling?: RouteScheduling): Promise<RoutePlan>;
 export interface OMVersionProfile {version:string;experimental?:boolean;loadRegistry:(version:string)=>any;createProtocolClient:(options:Record<string,unknown>)=>any;worldOptions?:{chunkFactory?:(registry:any)=>any;blockFactory?:(registry:any)=>any};normalizeIncoming?:(name:string,packet:any,client:OMConnect)=>void;encodePacket?:(name:string,packet:any,client:OMConnect)=>{name?:string;packet?:any;skip?:boolean};install?:(client:OMConnect,transport:any)=>void;readRecipes?:(client:OMConnect,packet:any)=>void;afterTick?:(client:OMConnect)=>void;}
 export declare function createJava263Profile(options:{loadRegistry:OMVersionProfile['loadRegistry'];createProtocolClient:OMVersionProfile['createProtocolClient'];chunkFactory:(registry:any)=>any;blockFactory?:(registry:any)=>any}):OMVersionProfile;
+export declare function createVanillaCompatibilityProfile(version:string):OMVersionProfile;
 export declare class OMConnect {
   constructor(options?: OMOptions, components?: { createProtocolClient?: (options: Record<string, unknown>) => any; physics?: typeof stepPhysics;versionProfile?:OMVersionProfile;navigationBackend?:GroundNavigationBackend|null });
   readonly options: Required<OMOptions>;
@@ -244,13 +245,18 @@ export declare class WorldRecipeBook {constructor(registry:any);readonly receive
 export declare const NATIVE_VERSIONS:readonly string[];
 export interface VersionSupport {version:string;known:boolean;protocol:number|null;catalog:boolean;transport:boolean;native:boolean;liveTested:boolean;}
 export declare function versionSupport(version:string):VersionSupport;
-export interface VersionAPI {version:string;support:VersionSupport;loadRegistry:()=>any;hasPacket:(name:string,direction?:'toServer'|'toClient')=>boolean;capabilities:()=>Record<string,boolean>;normalize:(name:string,packet:any)=>any;movement:(state:{position:Position;yaw:number;pitch:number;onGround:boolean;horizontalCollision?:boolean;eyeHeight?:number})=>{name:string;params:any};createTransport:(options:Record<string,unknown>)=>any}
+export interface VersionAPI {version:string;support:VersionSupport;loadRegistry:()=>any;hasPacket:(name:string,direction?:'toServer'|'toClient')=>boolean;capabilities:()=>Record<string,boolean>;normalize:(name:string,packet:any)=>any;movement:(state:{position:Position;yaw:number;pitch:number;onGround:boolean;horizontalCollision?:boolean;eyeHeight?:number})=>{name:string;params:any};digging:(options:{position:Position;phase:'start'|'cancel'|'finish';face?:number;sequence?:number})=>{name:'block_dig';params:{status:number;location:Position;face:number;sequence?:number}};createTransport:(options:Record<string,unknown>)=>any}
 export declare function createVersionAPI(version:string):VersionAPI;
 export declare function normalizeSlot(raw:any):any;
 export declare function registerVersionProfile(profile:OMVersionProfile):()=>boolean;
 export declare function resolveVersionProfile(version:string):OMVersionProfile|null;
 export declare function detectServerVersion(options?:{host?:string;port?:number;timeoutMs?:number}):Promise<{version:string;protocol:number;serverName:string;support:VersionSupport}>;
 export declare function listVersionSupport():Pick<VersionSupport,'version'|'native'|'liveTested'|'transport'>[];
+export declare const OFFICIAL_VERSION_MANIFEST:'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
+export interface OfficialJavaVersion extends VersionSupport {type:'release'|'old_beta'|'old_alpha'|'snapshot';releaseTime:string|null;}
+export declare function discoverOfficialJavaVersions(options?:{fetchImpl?:typeof fetch;includeLegacy?:boolean;includeSnapshots?:boolean}):Promise<OfficialJavaVersion[]>;
+export declare function inspectOfficialJavaVersion(version:string,options?:{fetchImpl?:typeof fetch}):Promise<{version:string;type:OfficialJavaVersion['type'];releaseTime:string|null;officialServer:boolean;serverDownload:{url:string;sha1:string;size:number|null}|null;support:VersionSupport}>;
+export declare function createVanillaCompatibilityProfile(version:string):OMVersionProfile;
 
 export interface TickTimingSnapshot {ticks:number;samples:number;meanIntervalMs:number|null;p95IntervalMs:number|null;maxIntervalMs:number|null;delayedTicks:number;effectiveHz:number|null;}
 

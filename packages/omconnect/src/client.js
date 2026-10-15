@@ -27,7 +27,7 @@ import {safeEndermanAngles,safeLookTarget} from './enderman-gaze.js';
 import {decideFallRescue} from './fall-safety.js';
 import {OMHumanize} from './humanize.js';
 
-export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-dev.2', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-dev.2', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
+export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-dev.3', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-dev.3', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
 export class OMConnect extends EventEmitter {
   constructor(options = {}, { createProtocolClient, physics = stepPhysics, versionProfile = null,navigationBackend=null } = {}) {
     super();
@@ -140,6 +140,15 @@ export class OMConnect extends EventEmitter {
     c.on('open_sign_entity',p=>{this.signEditor=structuredClone(p);this.emit('signEditor',this.signEditor);});
     c.on('block_change', p => { const old = this.world.blockAt(p.location); this.world.update(p.location, p.type); this.protection.observeBlockChange(this.state.dimension,p.location,old,this.world.blockAt(p.location)); this.emit('block', { position: p.location, old: old?.stateId, stateId: p.type }); });
     c.on('multi_block_change', p => {
+      if(Number.isInteger(p.chunkX)&&Number.isInteger(p.chunkZ)&&Array.isArray(p.records)){
+        for(const record of p.records){
+          const position={x:p.chunkX*16+(record.horizontalPos>>4&15),y:record.y,z:p.chunkZ*16+(record.horizontalPos&15)},stateId=record.blockId;
+          if(!Number.isInteger(stateId))continue;
+          const old=this.world.blockAt(position);this.world.update(position,stateId);
+          this.protection.observeBlockChange(this.state.dimension,position,old,this.world.blockAt(position));this.emit('block',{position,old:old?.stateId,stateId});
+        }
+        return;
+      }
       for (const record of p.records) {
         const position = { x: p.chunkCoordinates.x * 16 + (record >> 8 & 15), y: p.chunkCoordinates.y * 16 + (record & 15), z: p.chunkCoordinates.z * 16 + (record >> 4 & 15) }, stateId = Math.floor(record / 4096);
         const old = this.world.blockAt(position); this.world.update(position, stateId); this.protection.observeBlockChange(this.state.dimension,position,old,this.world.blockAt(position)); this.emit('block', { position, old:old?.stateId, stateId });
@@ -163,15 +172,16 @@ export class OMConnect extends EventEmitter {
     c.on('animation',p=>{if(p.entityId===this.state.entityId&&p.animation===2){this.state.sleeping=false;this.selfMetadata={};this.emit('wake');}});
     c.on('player_info', p => this.players.update(p));
     c.on('player_remove', p => this.players.remove(p));
-    c.on('spawn_entity', p => { const type = this.registry.entities[p.type]; const e = { id: String(p.entityId), uuid: p.objectUUID, name: type?.name || 'unknown', kind: type?.name === 'player' ? 'player' : 'entity', yaw: p.yaw * 360 / 256, pitch: p.pitch * 360 / 256, headYaw: p.headPitch * 360 / 256, ownerId: ['arrow', 'spectral_arrow', 'trident'].includes(type?.name) ? p.objectData - 1 : null, position: { x: p.x, y: p.y, z: p.z }, velocity: this.packetVelocity(p.velocity), metadata: {} }; this.players.enrich(e); this.entities.set(p.entityId, e); this.emit('entity', e); });
+    c.on('spawn_entity', p => { const type = this.registry.entities[p.type],name=type?.name?.replace(/([a-z])([A-Z])/g,'$1_$2').toLowerCase()||'unknown'; const e = { id: String(p.entityId), uuid: p.objectUUID, name, kind: name === 'player' ? 'player' : 'entity', yaw: p.yaw * 360 / 256, pitch: p.pitch * 360 / 256, headYaw: p.headPitch * 360 / 256, ownerId: ['arrow', 'spectral_arrow', 'trident'].includes(name) ? p.objectData - 1 : null, position: { x: p.x, y: p.y, z: p.z }, velocity: this.packetVelocity(p.velocity), metadata: {} }; this.players.enrich(e); this.entities.set(p.entityId, e); this.emit('entity', e); });
     c.on('entity_metadata', p => {
-      if(p.entityId===this.state.entityId){const keys=this.registry.entitiesByName.player.metadataKeys||[];for(const m of p.metadata)this.selfMetadata[keys[m.key]||m.key]=m.value;
+      if(p.entityId===this.state.entityId){const keys=this.registry.entitiesByName?.player?.metadataKeys||[];for(const m of p.metadata)this.selfMetadata[keys[m.key]||m.key]=m.value;
         if(p.metadata.some(m=>keys[m.key]==='shared_flags')){const flying=Boolean(this.selfMetadata.shared_flags&128);if(flying&&!this.state.gliding)this.flightEvidence.takeoffs++;this.state.gliding=flying;if(!flying)this.flightRockets.clear();}
         const sleeping=this.selfMetadata.pose===2||Boolean(this.selfMetadata.sleeping_pos);if(sleeping!==Boolean(this.state.sleeping)){this.state.sleeping=sleeping;this.stopMovement();this.emit(sleeping?'sleep':'wake');}this.emit('selfMetadata');return;}
-      const e = this.entities.get(p.entityId); if (!e) return; const keys = this.registry.entitiesByName[e.name]?.metadataKeys || []; for (const m of p.metadata) e.metadata[keys[m.key] || m.key] = m.value;
+      const e = this.entities.get(p.entityId); if (!e) return; const keys = this.registry.entitiesByName?.[e.name]?.metadataKeys || []; for (const m of p.metadata) e.metadata[keys[m.key] || m.key] = m.value;
       if(e.name==='firework_rocket'&&e.metadata.attached_to_target===this.state.entityId+1&&!this.flightRockets.has(p.entityId)){this.flightRockets.add(p.entityId);this.flightEvidence.rockets++;this.emit('rocket',e);}
       if (e.kind === 'player') e.eyeHeight = ({ 1: .4, 2: .2, 3: .4, 4: .4, 5: 1.27, fall_flying: .4, sleeping: .2, swimming: .4, crouching: 1.27 })[e.metadata.pose] ?? 1.62;
-      if (e.name === 'item' && e.metadata.item) { try { const item = readSlot(e.metadata.item, this.registry); e.item = item ? { name: item.name, item: item.item, count: item.count } : null; this.emit('drop', e); } catch (err) { warn(err); } }
+      const rawItem=e.metadata.item??((this.registry.version?.version??999)>=393?null:e.metadata[10]);
+      if (e.name === 'item' && rawItem) { try { const item = readSlot(rawItem, this.registry); e.item = item ? { name: item.name, item: item.item, count: item.count } : null; this.emit('drop', e); } catch (err) { warn(err); } }
       this.emit('entity', e);
     });
     const rotate = p => { const e = this.entities.get(p.entityId); if (e) { if (p.yaw !== undefined) e.yaw = p.yaw * 360 / 256; if (p.pitch !== undefined) e.pitch = p.pitch * 360 / 256; } };
@@ -329,7 +339,7 @@ export class OMConnect extends EventEmitter {
     }
     const abort = new AbortController(), started = performance.now();
     const combined = AbortSignal.any([abort.signal, this.connectionAbort.signal, ...(signal ? [signal] : [])]);
-    const job = { abort, priority, skill: action.skill, signal:combined, promise: null };
+    const job = { abort, priority, skill: action.skill,action, signal:combined, promise: null };
     this.pending = job;
     let outcome = 'success', detail = '';
     job.promise = Promise.resolve().then(() => this.skills.has(action.skill) ? this.skills.get(action.skill)(action.args || {}, { client: this, signal: combined }) : runAction(this, action, combined))

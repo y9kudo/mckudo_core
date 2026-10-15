@@ -1,7 +1,8 @@
 export function readSlot(raw, registry, slot = -1) {
   if (!raw || !raw.itemCount) return null;
-  const item = registry.items[raw.itemId]; if (!item) throw new Error(`Unknown item ID ${raw.itemId}.`);
-  return { name: item.name, item: 'minecraft:' + item.name, type: raw.itemId, count: raw.itemCount, slot, raw: structuredClone(raw) };
+  const itemId=raw.itemId??raw.blockId;
+  const item = registry.items[itemId]; if (!item) throw new Error(`Unknown item ID ${itemId}.`);
+  return { name: item.name, item: 'minecraft:' + item.name, type: itemId, count: raw.itemCount, slot, raw: structuredClone(raw) };
 }
 export class OMInventory {
   constructor(registry) { this.registry = registry; this.slots = Array(46).fill(null); this.stateId = 0; this.revision = 0; this.cursor = null; this.selected = 0; }

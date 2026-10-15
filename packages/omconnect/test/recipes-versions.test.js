@@ -25,6 +25,16 @@ test('non-square shaped recipes retain row-major coordinates through the wire re
   book.ingest(parser.parsePacketBuffer(serializer.createPacketBuffer({name:'declare_recipes',params:{recipes:[r]}})).data.params);
   const recipe=book.recipesFor('stick')[0];assert.deepEqual(recipe.cells.map(c=>[c.x,c.y]),[[0,0],[0,1]]);assert.equal(recipe.station,null);
 });
+test('Java 1.20.4 recipe packets use width and height while preserving executable grid cells',()=>{
+  const data=md('1.20.4'),item=n=>({present:true,itemId:data.itemsByName[n].id,itemCount:1});
+  const alternatives=[item('oak_planks'),item('birch_planks')];
+  const book=new WorldRecipeBook(data);
+  book.ingest({recipes:[{recipeId:'minecraft:crafting_table',type:'minecraft:crafting_shaped',data:{width:2,height:2,ingredients:[[alternatives,alternatives],[alternatives,alternatives]],result:item('crafting_table')}}]});
+  const recipe=book.recipesFor('crafting_table')[0];
+  assert.equal(recipe.id,'minecraft:crafting_table');
+  assert.deepEqual(recipe.cells.map(cell=>[cell.x,cell.y]),[[0,0],[1,0],[0,1],[1,1]]);
+  assert.equal(chooseCraftingRecipe(data,'crafting_table',{oak_planks:4},{recipeBook:book})?.cells.length,4);
+});
 test('version capabilities distinguish catalog, transport and native executor; client is lazy',async()=>{
   const c=new OMConnect({version:'1.21'});assert.equal(c.dataLoaded,false);c.snapshot();assert.equal(c.dataLoaded,false);
   assert.equal(versionSupport('1.21').native,true);assert.equal(versionSupport('1.7.10').native,false);assert.equal(versionSupport('26.3').native,false);assert.equal(versionSupport('definitely-unknown').known,false);

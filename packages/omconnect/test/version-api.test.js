@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import protocol from 'minecraft-protocol';
 import data from 'minecraft-data';
-import {createVersionAPI,versionSupport,normalizeSlot,registerVersionProfile,resolveVersionProfile} from '../index.js';
+import {createVersionAPI,versionSupport,normalizeSlot,registerVersionProfile,resolveVersionProfile,discoverOfficialJavaVersions,inspectOfficialJavaVersion,OFFICIAL_VERSION_MANIFEST,createVanillaCompatibilityProfile} from '../index.js';
 import {routeFacingTarget} from '../src/route-facing.js';
 import {gazeAngles} from '../src/players.js';
 
@@ -19,6 +19,45 @@ test('version API shares wire-compatible patch releases and separates catalog/tr
   for(const v of ['1.8','1.16.5','1.18.2','1.19.4','1.20.4','1.21.1'])assert.equal(versionSupport(v).transport,true,v);
   assert.equal(versionSupport('1.16.5').native,false);assert.equal(createVersionAPI('1.8').capabilities().teleportConfirmation,false);assert.equal(createVersionAPI('1.20.4').capabilities().teleportConfirmation,true);
   assert.throws(()=>createVersionAPI('not-a-version'));assert.equal(versionSupport('26.3').liveTested,false);
+});
+test('every installed transport encodes block digging with its own sequence format',()=>{
+  for(const version of protocol.supportedVersions){
+    const api=createVersionAPI(version),packet=api.digging({position:{x:5,y:64,z:-3},phase:'start',face:1,sequence:42});
+    const buffer=protocol.createSerializer({state:'play',isServer:false,version}).createPacketBuffer(packet);
+    const decoded=protocol.createDeserializer({state:'play',isServer:true,version}).parsePacketBuffer(buffer).data;
+    assert.equal(decoded.name,'block_dig',version);
+    assert.equal(decoded.params.status,0,version);
+    assert.deepEqual(decoded.params.location,{x:5,y:64,z:-3},version);
+    assert.equal(decoded.params.sequence,api.loadRegistry().protocol.play.toServer.types.packet_block_dig[1].some(field=>field.name==='sequence')?42:undefined,version);
+  }
+  assert.throws(()=>createVersionAPI('1.20.4').digging({position:{x:0.5,y:64,z:0},phase:'start'}));
+  assert.throws(()=>createVersionAPI('1.20.4').digging({position:{x:0,y:64,z:0},phase:'invalid'}));
+});
+test('official discovery includes historical releases while keeping unsupported protocols explicit',async()=>{
+  const versions=await discoverOfficialJavaVersions({fetchImpl:async url=>{
+    assert.equal(url,OFFICIAL_VERSION_MANIFEST);
+    return {ok:true,json:async()=>({versions:[
+      {id:'26.3',type:'release',releaseTime:'2026-09-15T00:00:00Z'},
+      {id:'1.0.0',type:'release',releaseTime:'2011-11-18T00:00:00Z'},
+      {id:'b1.8.1',type:'old_beta',releaseTime:'2011-09-19T00:00:00Z'},
+      {id:'26.4-snapshot-1',type:'snapshot'}
+    ]})};
+  }});
+  assert.equal(versions.length,3);
+  assert.equal(versions[0].transport,false);
+  assert.equal(versions[1].known,true);
+  assert.equal(versions[2].transport,false);
+  assert.deepEqual((await discoverOfficialJavaVersions({includeLegacy:false,fetchImpl:async()=>({ok:true,json:async()=>({versions:[{id:'1.0.0',type:'release'},{id:'b1.8.1',type:'old_beta'}]})})})).map(v=>v.version),['1.0.0']);
+});
+test('official server inspection distinguishes a downloadable server from gameplay support',async()=>{
+  const metadata='https://piston-meta.mojang.com/v1/packages/example/1.20.4.json';
+  const fetchImpl=async url=>({ok:true,json:async()=>url===OFFICIAL_VERSION_MANIFEST?{versions:[{id:'1.20.4',type:'release',url:metadata}]}:{downloads:{server:{url:'https://piston-data.mojang.com/v1/objects/example/server.jar',sha1:'0123456789abcdef',size:123}}}});
+  const result=await inspectOfficialJavaVersion('1.20.4',{fetchImpl});
+  assert.equal(result.officialServer,true);
+  assert.equal(result.support.transport,true);
+  assert.equal(result.support.native,false);
+  assert.equal(result.serverDownload.size,123);
+  assert.throws(()=>createVanillaCompatibilityProfile('26.3'),/transport/);
 });
 test('legacy login dimensions and slots are normalized without mutating authoritative packets',()=>{
   const api=createVersionAPI('1.16.5'),packet={entityId:1,gameMode:0,dimension:-1};assert.equal(api.normalize('login',packet).worldState.name,'minecraft:the_nether');assert.equal(packet.worldState,undefined);

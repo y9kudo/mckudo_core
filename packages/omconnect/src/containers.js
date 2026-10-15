@@ -36,6 +36,7 @@ export class OMContainers {
     this.current = { id: packet.windowId, type: packet.inventoryType, title:structuredClone(packet.windowTitle??''), kind:station?.kind || (rows?'storage':'unsupported'), storageSlots: station?.slots ?? (rows ? rows * 9 : null), slots: [], stateId: null, ready: false }; this.revision++;
   }
   acceptState(next) {
+    if(next===undefined&&this.current?.stateId===null)return true;
     const previous = this.current?.stateId;
     if (!Number.isInteger(next) || next < 0 || next > 32767 || previous !== null && ((next - previous + 32768) % 32768) > 16384) return false;
     this.current.stateId = next; return true;

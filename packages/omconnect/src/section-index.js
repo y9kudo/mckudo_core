@@ -1,5 +1,7 @@
 /** Bounded LRU of authoritative voxel states; selectors share a section read. */
 import {createHash} from 'node:crypto';
+import vec3 from 'vec3';
+const {Vec3}=vec3;
 export function sectionSelectorSignature(ids){return createHash('sha256').update(Buffer.from(Uint32Array.from([...ids].sort((a,b)=>a-b)).buffer)).digest('hex');}
 export class OMSectionIndex {
   constructor({maxSections=256,maxSelectors=8}={}){
@@ -11,7 +13,7 @@ export class OMSectionIndex {
     if(!this.columns.has(column))this.columns.set(column,++this.sequence);
     const key=`${this.columns.get(column)}/${base.y}`,old=this.entries.get(key);let entry=old,stateReads=0;
     if(!entry||entry.revision!==revision){
-      const states=new Uint32Array(4096);for(let i=0;i<4096;i++)states[i]=column.getBlockStateId({x:i&15,y:base.y+(i>>8),z:(i>>4)&15});
+      const states=new Uint32Array(4096);for(let i=0;i<4096;i++)states[i]=column.getBlockStateId(new Vec3(i&15,base.y+(i>>8),(i>>4)&15));
       entry={column,revision,states,selectors:new Map()};this.misses++;this.cellsRead+=4096;stateReads=4096;
     }else this.hits++;
     this.entries.delete(key);this.entries.set(key,entry);if(this.entries.size>this.maxSections)this.entries.delete(this.entries.keys().next().value);

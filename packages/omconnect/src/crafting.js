@@ -145,6 +145,7 @@ export async function craft(c, args, signal, runtime) {
         window = await openStation(c, 'crafting_table', station.position, signal, runtime);
       }
       const m = menu(c, window), gridSize = window ? 9 : 4, width = window ? 3 : 2;
+      if(c.versionProfile?.experimental&&c.registry.version.version<755)c.legacyCraftExpectation={item,recipe,windowId:m.id};
       if (m.slots().slice(0, gridSize + 1).some(Boolean)) throw new Error("Craft grid's busy; No other items are spent.");
       const expected = { name: item, count: recipe.count, raw: { components: [], removeComponents: [] } };
       if (c.containers.capacity(expected) < recipe.count) throw new Error("Not enough space for craft result.");
@@ -157,9 +158,11 @@ export async function craft(c, args, signal, runtime) {
       const before = c.inventory.count(item);
       await click(c, m, 0, 0, 1, signal, () => c.inventory.count(item) >= before + recipe.count && m.slots().slice(0, gridSize + 1).every(s => !s) && !c.inventory.cursor);
       produced += c.inventory.count(item) - before; completed++;
+      c.legacyCraftExpectation=null;
     }
     return { ok: true, serverConfirmed: true, item: 'minecraft:' + item, produced, times: completed };
   } finally {
+    c.legacyCraftExpectation=null;
     if (window) await closeMenu(c, window, signal);
     else if (c.client?.state === 'play' && (c.inventory.cursor || c.inventory.slots.slice(1, 5).some(Boolean))) {
       // Vanilla closing inventory zero returns its grid/cursor without discards.

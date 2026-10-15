@@ -23,7 +23,7 @@ export class WorldRecipeBook {
       const d=r.data;if(!d?.result||resource(items[d.result.itemId]?.name)!==item)continue;
       let groups=[],cells=[],station=null,executable=false;
       if(r.type==='minecraft:crafting_shaped'||r.type==='minecraft:crafting_shapeless'){
-        const shaped=r.type.endsWith('_shaped'),raw=shaped?d.ingredients.flat():d.ingredients,width=shaped?d.gridWidth:raw.length<=4?2:3,height=shaped?d.gridHeight:Math.ceil(raw.length/width);
+        const shaped=r.type.endsWith('_shaped'),raw=shaped?d.ingredients.flat():d.ingredients,width=shaped?(d.gridWidth??d.width):raw.length<=4?2:3,height=shaped?(d.gridHeight??d.height):Math.ceil(raw.length/width);
         if(width<1||width>3||height<1||height>3)continue;
         cells=raw.map((v,i)=>({x:i%width,y:Math.floor(i/width),choices:ingredient(v)})).filter(c=>c.choices.length);
         groups=cells.map(c=>({choices:c.choices,count:1}));station=width>2||height>2?'minecraft:crafting_table':null;executable=cells.length>0&&!cells.some(c=>c.choices.some(n=>/_bucket$|:honey_bottle$/.test(n)));
@@ -32,7 +32,7 @@ export class WorldRecipeBook {
       }else if(r.type==='minecraft:smithing_transform'){groups=['template','base','addition'].map(k=>({choices:ingredient(d[k]),count:1}));station='minecraft:smithing_table';}
       if(!groups.length||groups.some(g=>!g.choices.length))continue;
       const grouped=new Map();for(const g of groups){const key=[...g.choices].sort().join('|');if(!grouped.has(key))grouped.set(key,{choices:g.choices,count:0});grouped.get(key).count+=g.count;}groups=[...grouped.values()];
-      results.push({id:r.name,type:r.type,output:{item,count:d.result.itemCount},ingredients:groups,station,executable,cells,reason:executable?'':"We need a worker on the station."});
+      results.push({id:r.name??r.recipeId,type:r.type,output:{item,count:d.result.itemCount},ingredients:groups,station,executable,cells,reason:executable?'':"We need a worker on the station."});
     }
     this.cache.set(item,results);return structuredClone(results);
   }

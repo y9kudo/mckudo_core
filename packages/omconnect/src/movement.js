@@ -206,9 +206,11 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
   alive();
   if (c.metrics.corrections !== plannedCorrections || ['x', 'y', 'z'].some(axis => Math.floor(c.state.position[axis]) !== start[axis])) throw new OMActionError('STALE_WORLD', "Start position changed during route search; replanning is required.");
   if (route.status !== 'planned') throw new OMActionError(route.failure?.code || 'NO_PATH', route.reason, route.failure?.evidence);
+  c.navigationDebug={dimension:c.state.dimension,status:'running',startedAt:Date.now(),goal:floor(args),index:0,steps:route.steps.slice(0,512).map(step=>({kind:step.kind,position:{...step.position}})),truncated:route.steps.length>512};
   const corrections = c.metrics.corrections;let segment=null, bridgeWalk=false;
   try {
     for (let i = 0; i < route.steps.length; i++) {
+      c.navigationDebug.index=i;
       alive(); const step = route.steps[i];
       if (step.kind === 'bridge') {
         bridgeWalk=true; c.stopMovement({ sneak:true });
@@ -283,7 +285,8 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
       for(let learned=i;learned<=last;learned++){const current=route.steps[learned];c.emit('navigationStep',{...segment,from:previous,to:current.position,kind:current.kind,outcome:'success',healthAfter:learned===last?c.state.health:segment.health});previous=current.position;}segment=null;
       i = last;
     }
-  } catch(error){if(segment)c.emit('navigationStep',{...segment,outcome:signal.aborted?'cancelled':'failure',healthAfter:c.state.health,reason:error.message});throw error;
+    c.navigationDebug.status='completed';c.navigationDebug.index=route.steps.length;
+  } catch(error){c.navigationDebug.status=signal.aborted?'cancelled':'failed';c.navigationDebug.reason=error.message;if(segment)c.emit('navigationStep',{...segment,outcome:signal.aborted?'cancelled':'failure',healthAfter:c.state.health,reason:error.message});throw error;
   } finally { c.stopMovement(); }
   return { ok: true, position: { ...c.state.position }, steps: route.steps.length, bridgeUsed: route.bridgeUsed || 0,estimatedFallDamage:route.fallDamage||0 };
 }
