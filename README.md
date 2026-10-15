@@ -8,14 +8,15 @@
 
 OvermindMC is a reusable library for building Minecraft agents. Give an agent a resource goal, a sequence of tasks or a conditional program. The kernel plans prerequisites, reads the connected world and asks its client to execute actions. You can build programs in the local web dashboard or write JavaScript using the same public API.
 
-This is a development preview. An independently verified autonomous run from an empty inventory to an own Ender Dragon victory remains a requirement for stable 1.0.0. [Current development notes](docs/releases/1.0.0-Arthas-beta1.md) · [Changelog](CHANGELOG.md) · [Readiness criteria](docs/V1-READINESS.md).
+This is a public beta. An independently verified autonomous run from an empty inventory to an own Ender Dragon victory remains a requirement for stable 1.0.0. [Download beta1](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-beta1) · [Release notes](docs/releases/1.0.0-Arthas-beta1.md) · [Changelog](CHANGELOG.md) · [Readiness criteria](docs/V1-READINESS.md).
 
 **Start small:** ask for `#logs`, then a stone pickaxe and a furnace. Inspect what the agent observes, how it chooses actions and which outcomes the server confirms. Build a larger program from those same blocks.
 
 ## New in Arthas beta1
 
+- **Goal-driven elevated mining:** a diamond inventory goal can plan tool and smelting prerequisites, gather building stock, jump-place a side column and attach a platform below floating ore. A prepared Survival trial finished with an iron pickaxe, 11 pillar placements and one collected diamond. [Evidence and restart details](docs/results/sky-diamond-2026-10-15.md) · [Run the trial](docs/SKY-DIAMOND-TRIAL.md).
 - **Continuous ground steering:** bounded lookahead, verified corner shortcuts and velocity retained between compatible walking spans. Server corrections invalidate the old route immediately.
-- **Reactive combat:** aiming, shield use, spacing, weapon selection and critical opportunities are reassessed inside a short combat frame. Melee checks eye-to-entity reach and voxel occlusion.
+- **Reactive combat:** measured target motion, bow/crossbow tracking during charging, shield-aware weapon commitment, directional flanks and safe spacing. An independent projectile guard can interrupt ordinary work or a bow draw; terrain, reach and occlusion checks remain active.
 - **More precise experience:** failed transitions no longer penalize every entrance to a destination. Temporary occupancy and server corrections do not become training failures.
 - **Planner handoff:** the kernel can pass a short-lived, validated route to OMConnect without running the same search twice. LAN configuration ping/pong now completes before world readiness.
 
@@ -131,7 +132,7 @@ npm.cmd run release:check
 npm.cmd run test:package -- --offline
 ```
 
-The package smoke test installs both archives into a clean consumer; offline mode needs populated npm caches. [Current validation evidence](docs/results/arthas-dev3-validation-2026-10-15.md) separates automated checks, browser tests and live Minecraft trials. Local worlds, logs, auth caches, texture archives and runtime reports belong in ignored data directories. [Contributing](CONTRIBUTING.md) · [Full expedition instructions](docs/FULL-EXPEDITION.md) · [Roadmap](ROADMAP.md) · [License](LICENSE).
+The package smoke test installs both archives into a clean consumer; offline mode needs populated npm caches. The beta1 local suite passes **623 tests**. [Navigation evidence](docs/results/arthas-beta1-validation-2026-10-15.md), [combat follow-up](docs/results/arthas-beta1-pvp-tracking-2026-10-15.md) and [sky-diamond trial](docs/results/sky-diamond-2026-10-15.md) distinguish automated coverage from live outcomes. Local worlds, logs, auth caches, texture archives and runtime reports belong in ignored data directories. [Contributing](CONTRIBUTING.md) · [Full expedition instructions](docs/FULL-EXPEDITION.md) · [Roadmap](ROADMAP.md) · [License](LICENSE).
 
 ## Help build the platform
 
