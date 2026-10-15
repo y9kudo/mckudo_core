@@ -1,0 +1,38 @@
+name: YourMind Fabric
+on:
+  push:
+    paths: ['mods/yourmind/**', '.github/workflows/yourmind.yml', 'LICENSE']
+  pull_request:
+    paths: ['mods/yourmind/**', '.github/workflows/yourmind.yml', 'LICENSE']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fabric:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.12.1'
+      - name: Compile, test and remap Minecraft 1.21.1 client mod
+        run: gradle -p mods/yourmind --no-daemon --console=plain build
+      - name: Verify installable mod and record checksums
+        run: |
+          cd mods/yourmind/build/install
+          jar tf yourmind.jar | grep -q '^fabric.mod.json$'
+          sha256sum yourmind.jar > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yourmind-fabric-1.21.1
+          path: |
+            mods/yourmind/build/install/yourmind.jar
+            mods/yourmind/build/install/SHA256SUMS.txt
+            mods/yourmind/build/test-results/test/*.xml
+          if-no-files-found: error
+          retention-days: 14

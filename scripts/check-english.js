@@ -1,11 +1,11 @@
 import {readdir,readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 
-const ignored=new Set(['.git','node_modules','.cache','data','work','dist','coverage']);let files=0;const failures=[];
+const ignored=new Set(['.git','node_modules','.cache','data','work','dist','coverage','.gradle','build','run']);let files=0;const failures=[];
 async function visit(directory){for(const entry of await readdir(directory,{withFileTypes:true})){
   if(ignored.has(entry.name))continue;
   const path=join(directory,entry.name);if(entry.isDirectory())await visit(path);
-  else if(/\.(?:js|ts|mts|json|md|html|yml|c|h|py)$/.test(path)){
+  else if(/\.(?:js|ts|mts|json|md|html|yml|c|h|py|java|gradle|properties)$/.test(path)){
     files++;const lines=(await readFile(path,'utf8')).split(/\r?\n/);lines.forEach((text,i)=>{if(/[\u0400-\u04ff]/.test(text))failures.push(`${path}:${i+1}`);});
   }
 }}

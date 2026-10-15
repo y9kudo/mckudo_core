@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "yourmind",
+  "version": "${version}",
+  "name": "YourMind",
+  "description": "OvermindMC client automation: bounded OMVectorize routes, resource jobs and crop harvesting.",
+  "authors": ["y9kudo"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": { "client": ["dev.y9kudo.yourmind.YourMindClient"] },
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "minecraft": "1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
