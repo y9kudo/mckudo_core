@@ -3,7 +3,7 @@
   "id": "yourmind",
   "version": "${version}",
   "name": "YourMind",
-  "description": "OvermindMC client automation: bounded OMVectorize routes, resource jobs and crop harvesting.",
+  "description": "OvermindMC client automation with visible routes, goals, block targets, waypoints, task queues and 56 local commands.",
   "authors": ["y9kudo"],
   "license": "MIT",
   "environment": "client",

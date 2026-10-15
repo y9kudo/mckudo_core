@@ -1,6 +1,6 @@
 # YourMind for Fabric 1.21.1
 
-**By y9kudo · MIT · client mod `0.1.0-dev.1` · part of the OvermindMC repository**
+**By y9kudo · MIT · client mod `alpha1.0` · part of the OvermindMC repository**
 
 YourMind controls your existing Minecraft player through normal movement keys and vanilla interactions. It runs inside the Minecraft Java client. It does not log in a second account, start an OMConnect bot, or require a Node.js process. Single-player and multiplayer use the same commands. Install the mod on the client, not a dedicated server.
 
@@ -16,7 +16,29 @@ This is the first Java implementation of the platform's client-side execution co
 
 The mod operates the player you are logged in as. Press **End** at any time to stop its current job; rebind this in Minecraft Controls. `#pause` releases movement and mining controls. Open a normal game menu to suspend execution while you inspect things.
 
+## World overlays and HUD
+
+World overlays are enabled by default. **Cyan** lines and node boxes show the planned ground route; **green** segments climb and **gold** segments descend. A **red** outline selects the next mining block, while **orange** outlines show other matching candidates. Candidates are observations, not a promise that every highlighted block will be mined. The **gold goal** has a vertical marker and coordinates. Named waypoints are **purple**, selections are **white**, and protected regions are **red** with their names.
+
+The HUD shows the active command, paused state, reason, route progress, queued tasks, mined blocks, search duration and node count. It also shows a color legend. The renderer reads a cached immutable debug frame; it never starts pathfinding or scans the world. Render distance, geometry counts and label counts are bounded.
+
+```text
+#waypoint add home
+#goal 24 64 -12
+#path
+#find #minecraft:logs
+#render off
+#render on
+#hud off
+#set targets off
+#set xray true
+```
+
+`xray` defaults to **false**. Enabling it draws these debug markers through terrain; it does not load unknown blocks. Use `#set labels off` to reduce clutter. Minecraft's F1 hides the HUD and world debug overlays together.
+
 ## Commands
+
+There are **56 canonical commands**, plus the aliases `#cancel`, `#continue`, `#wp` and `#inv`. Use `#help 1`, `#help 2`, and so on for eight entries per page. `/yourmind ` has command-name suggestions. The [complete command reference](COMMANDS.md) lists every syntax and behavior.
 
 | Command | Meaning |
 | --- | --- |
@@ -31,11 +53,29 @@ The mod operates the player you are logged in as. Press **End** at any time to s
 | `#stop` | Cancel the job and pending route calculation |
 | `#help` | Display the command reference |
 
-Counts are bounded to 1–4096. Farm radius is 2–24. A job has a ten-minute budget and pauses on low health, repeated movement failures or missing confirmation. A death or dimension change stops the job. Resource collection never counts an action timer as proof that an item was obtained.
+Additional groups include player following, relative destinations, exploration, patrols, crafting-only jobs, dropped-item collection, equipment, food, explicit item dropping, recipe/block queries, a bounded FIFO task queue, world-scoped waypoints/home, selections, edit protection, rendering settings and local configuration save/load.
 
-`#mine` selects blocks you explicitly request; it does not craft a missing mining tool. `#get` recursively plans **crafting-table and inventory recipes** supplied by the joined server. Observed natural sources determine which wood species can be collected. It does not currently execute furnace, brewing, smithing or mod-machine recipes. A locked recipe, unavailable dependency or unsupported machine produces an explicit paused state.
+```text
+#queue mine #logs 8
+#queue get minecraft:stone_pickaxe 1
+#queue goto home
+#tasks
+#follow Alex 4
+#pos1 0 64 0
+#pos2 12 72 12
+#protect house
+#save
+```
 
-Farming needs a walkable approach and an existing seed for each crop before harvesting. It does not create new farmland or animal farms. Protected claims and permissions are ultimately enforced by the server. Ground routes do not excavate buildings or place bridges automatically. Explicit mining commands can modify blocks matching your selector, so use a dedicated test area.
+The queue holds at most 16 waiting jobs. A failure pauses the current job; it does not silently skip to the next. `#skip` advances manually, `#clearqueue` keeps the current task, and `#stop` or End cancels everything. A successful finite job starts the next queued job. Follow and patrol are continuous until stopped or their time budget expires. `#find` pauses for inspection after highlighting its results; use `#skip` to continue a queue after inspection.
+
+`#save` stores validated settings, named waypoints/home and protected regions in `config/yourmind.json`. `#load` validates the full file before replacing live configuration. Single-player folders and multiplayer server addresses are scoped separately, and dimensions have separate workspaces. Selections, temporary goal markers and task queues are not persisted. If a different multiplayer world replaces an existing world at the same address, clear or replace its saved markers explicitly.
+
+Resource counts are bounded to 1–4096; explicit drop commands allow at most 64 items. Farm radius is 2–48. A job has a configurable time budget (default ten minutes) and pauses on low health, repeated movement failures or missing confirmation. The eating command remains available at low health. A death or dimension change stops the task and queue. Resource collection never counts an action timer as proof that an item was obtained.
+
+`#mine` selects blocks you explicitly request; it does not craft a missing mining tool. `#get` recursively plans **crafting-table and inventory recipes** supplied by the joined server. `#craft` uses existing materials and pauses if collection would be required; its amount is additional output, while `#get` uses a total inventory target. Observed natural sources determine which wood species can be collected. Neither command currently executes furnace, brewing, smithing or mod-machine recipes. A locked recipe, unavailable dependency or unsupported machine produces an explicit paused state.
+
+Farming needs a walkable approach and an existing seed for each crop before harvesting; its search area stays anchored at the starting position. It does not create new farmland or animal farms. Named protection prevents mining, harvesting and crafting-table placement in selected blocks. Server claims and permissions remain authoritative. Ground routes do not excavate buildings or place bridges automatically. Relative up/down commands route over existing supported terrain; they do not fly or build a pillar.
 
 ## Open and build in VS Code
 
@@ -59,7 +99,7 @@ The wrapper uses Gradle 8.12.1 with a pinned distribution SHA-256. JDK 8 cannot 
 Outputs:
 
 - `build/install/yourmind.jar`: remapped installable mod.
-- `build/libs/yourmind-0.1.0-dev.1.jar`: the same remapped mod with a versioned filename.
+- `build/libs/yourmind-alpha1.0.jar`: the same remapped mod with a versioned filename.
 - `build/libs/*-dev.jar`: development mappings; **do not install this file** into a normal Minecraft profile.
 - `build/reports/tests/test/index.html`: Java unit-test report.
 
@@ -76,12 +116,15 @@ MCreator is a different project format with loader generators. This folder is a 
 | `TerrainCapture.java` | Main-thread world reads, bounded two-millisecond slices, collision classification |
 | `MotionController.java` | Smooth view changes and ordinary movement/sprint/jump inputs |
 | `RecipeCatalog.java` | Server recipe import and natural resource-to-block associations |
+| `DebugRenderer.java` / `core/OverlayGeometry.java` | Bounded world-space routes, markers, labels and status HUD |
+| `ConfigurationStore.java` / `core/WorldWorkspace.java` | Validated local config, dimension-scoped waypoints and edit protection |
+| `core/TaskQueue.java` / `core/AgentSettings.java` | FIFO scheduling, queue limits and shared execution/render settings |
 | `core/RoutePlanner.java` | Standalone Java A*, diagonals, headroom, steps, safe descents and useful partial segments |
 | `core/VoxelGrid.java` | Immutable compact collision grid for worker input |
 | `core/ResourcePlanner.java` | Bounded recursive crafting dependencies and ingredient alternatives |
 | `core/Command.java` | Validated commands usable by chat or Java integrations |
 
-Route work uses one daemon worker and at most one pending search. Game objects never enter that worker. World reads and interaction calls remain on Minecraft's client thread. Route terrain is checked again before each movement step. Cancelled tasks discard their route future; disconnected worlds discard their recipes and terrain.
+Route work uses one daemon worker and at most one pending search. Game objects never enter that worker. World reads and interaction calls remain on Minecraft's client thread. Route terrain is checked again before each movement step. Cancelled tasks discard their route future; disconnected worlds discard their recipes and terrain. Disabling `jump` removes jump edges from planning as well as the jump input from execution.
 
 The current ground model supports known, dry full-block surfaces, one-block jumps, conservative descents of at most three blocks and diagonals with corner clearance. It treats unknown space, fluids, hazards and unsupported partial-block geometry as non-traversable. It does not yet perform swimming, creative flight, elytra flight, parkour gaps, excavation, bridge placement or Nether/End expedition planning inside the Java mod. These are explicit extension points, not commands silently delegated to a nonexistent backend.
 

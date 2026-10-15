@@ -1,13 +1,15 @@
 package dev.y9kudo.yourmind;
 
 import dev.y9kudo.yourmind.core.Point;
+import dev.y9kudo.yourmind.core.AgentSettings;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.*;
 
 /** Drives ordinary input keys. Vanilla owns physics, collisions and network packets. */
 final class MotionController {
     private final MinecraftClient client;
-    MotionController(MinecraftClient client) { this.client = client; }
+    private final AgentSettings settings;
+    MotionController(MinecraftClient client, AgentSettings settings) { this.client = client; this.settings = settings; }
     void release() {
         client.options.forwardKey.setPressed(false); client.options.backKey.setPressed(false);
         client.options.leftKey.setPressed(false); client.options.rightKey.setPressed(false);
@@ -19,7 +21,8 @@ final class MotionController {
         Vec3d delta = target.subtract(player.getEyePos());
         float yaw = (float) (Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90);
         float pitch = (float) -Math.toDegrees(Math.atan2(delta.y, Math.hypot(delta.x, delta.z)));
-        player.setYaw(player.getYaw() + MathHelper.clamp(MathHelper.wrapDegrees(yaw - player.getYaw()), -14, 14));
+        int turn = settings.integer("turnspeed");
+        player.setYaw(player.getYaw() + MathHelper.clamp(MathHelper.wrapDegrees(yaw - player.getYaw()), -turn, turn));
         player.setPitch(player.getPitch() + MathHelper.clamp(pitch - player.getPitch(), -10, 10));
     }
     boolean step(Point point, boolean nextIsStraight) {
@@ -40,9 +43,9 @@ final class MotionController {
         boolean aligned = Math.abs(angle) < 38;
         client.options.forwardKey.setPressed(aligned);
         client.options.leftKey.setPressed(false); client.options.rightKey.setPressed(false);
-        boolean sprint = aligned && nextIsStraight && player.getHungerManager().getFoodLevel() > 6 && point.y() >= player.getY() - .1;
+        boolean sprint = settings.enabled("sprint") && aligned && nextIsStraight && player.getHungerManager().getFoodLevel() > 6 && point.y() >= player.getY() - .1;
         client.options.sprintKey.setPressed(sprint); player.setSprinting(sprint);
-        client.options.jumpKey.setPressed(aligned && player.isOnGround() && point.y() > player.getY() + .4);
+        client.options.jumpKey.setPressed(settings.enabled("jump") && aligned && player.isOnGround() && point.y() > player.getY() + .4);
         return false;
     }
 }

@@ -72,4 +72,10 @@ class RoutePlannerTest {
         assertThrows(IllegalArgumentException.class, () -> planner.plan(grid, new Point(1, 1, 1), new Point(4, 1, 4), 0, 100_001, 20));
         assertThrows(IllegalArgumentException.class, () -> planner.plan(grid, new Point(1, 1, 1), new Point(4, 1, 4), 0, 100, Double.NaN));
     }
+    @Test void disablingJumpRemovesJumpEdgesInsteadOfLeavingTheExecutorStuck() {
+        var grid = grid(6, 6, 5, p -> p.y() == 0 || p.x() == 3 && p.y() == 1 ? VoxelGrid.SOLID : VoxelGrid.AIR);
+        var start=new Point(2,1,2);var goal=new Point(4,1,2);
+        assertEquals(RoutePlanner.Status.COMPLETE,planner.plan(grid,start,goal,0,5000,20,true).status());
+        assertNotEquals(RoutePlanner.Status.COMPLETE,planner.plan(grid,start,goal,0,5000,20,false).status());
+    }
 }

@@ -3,6 +3,7 @@ package dev.y9kudo.yourmind;
 import dev.y9kudo.yourmind.core.*;
 import net.minecraft.block.*;
 import net.minecraft.client.MinecraftClient;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.*;
@@ -15,6 +16,8 @@ import net.minecraft.util.*;
 import net.minecraft.util.hit.*;
 import net.minecraft.util.math.*;
 import net.minecraft.world.RaycastContext;
+import net.minecraft.component.DataComponentTypes;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -22,6 +25,14 @@ import java.util.concurrent.*;
 public final class AgentController {
     private final MinecraftClient client;
     private final MotionController motion;
+    private final AgentSettings settings = new AgentSettings();
+    private final TaskQueue queue = new TaskQueue();
+    private final Map<String, WorldWorkspace> workspaces = new LinkedHashMap<>();
+    private final ConfigurationStore configuration = new ConfigurationStore(FabricLoader.getInstance().getConfigDir().resolve("yourmind.json"));
+    private List<Point> candidates = List.of();
+    private Point jobGoal, farmOrigin;
+    private int patrolIndex, operationBefore, operationFood, operationAt, dropIssued;
+    private boolean usingFood;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "YourMind-OMVectorize"); t.setDaemon(true); return t;
     });
@@ -49,24 +60,234 @@ public final class AgentController {
     private int lastProgress;
     private volatile long routeNanos;
     private int visited;
+    private DebugFrame debugCache;
+    private int debugAt = -1;
 
-    AgentController(MinecraftClient client) { this.client = client; this.motion = new MotionController(client); }
+    AgentController(MinecraftClient client) {
+        this.client = client; this.motion = new MotionController(client, settings);
+        try { loadConfiguration(); } catch (IOException error) { status = error.getMessage(); }
+    }
+    public AgentSettings settings() { return settings; }
+    private void connected() { if (client.player == null || client.world == null) throw new IllegalArgumentException("Join a Minecraft world first."); }
+    private Point position() { connected(); return TerrainCapture.point(client.player.getBlockPos()); }
+    WorldWorkspace workspace() {
+        connected();
+        String server = client.getServer() != null ? client.getServer().getSavePath(WorldSavePath.ROOT).toAbsolutePath().normalize().toString()
+                : client.getCurrentServerEntry() != null ? client.getCurrentServerEntry().address : "unknown-server";
+        String key = server + "|" + client.world.getRegistryKey().getValue();
+        if (!workspaces.containsKey(key) && workspaces.size() >= 64) throw new IllegalArgumentException("World workspace limit reached; back up and edit config/yourmind.json");
+        return workspaces.computeIfAbsent(key, ignored -> new WorldWorkspace());
+    }
+    private void loadConfiguration() throws IOException {
+        var restored = configuration.load(); settings.restore(restored.settings().snapshot()); workspaces.clear(); workspaces.putAll(restored.worlds());
+    }
+    public DebugFrame debugFrame() {
+        if (debugCache != null && debugAt == tick) return debugCache;
+        WorldWorkspace world;
+        try { world = client.world == null || client.player == null ? new WorldWorkspace() : workspace(); }
+        catch (IllegalArgumentException error) { world = new WorldWorkspace(); }
+        debugAt = tick;
+        return debugCache = new DebugFrame(status, job == null ? "idle" : job.name() + (job.selector().isEmpty() ? "" : " " + job.selector()), paused,
+                jobGoal != null ? jobGoal : routeGoal != null ? routeGoal : world.goal(), route, routeIndex,
+                target == null ? null : TerrainCapture.point(target), candidates, world.waypoints(), world.selection(), world.regions(),
+                queue.snapshot().stream().map(c -> c.name() + " " + c.selector()).toList(), mined, visited, routeNanos / 1e6);
+    }
     public void submit(Command command) {
-        switch (command.name()) {
-            case "help" -> { YourMindClient.message("#goto x y z | #mine <block|#tag> [count] | #get <item> [total] | #farm [radius] | #pause | #resume | #stop | #status. End stops instantly. /yourmind <command> is also supported."); return; }
-            case "status" -> { YourMindClient.message(status()); return; }
-            case "stop" -> { stop("Stopped"); return; }
-            case "pause" -> { paused = true; cancelRoute(); release(); status = "Paused"; return; }
-            case "resume" -> { paused = false; failures = 0; startedAt = tick; grid = null; avoided.clear(); status = "Resuming"; return; }
-        }
-        if (client.player == null || client.world == null) throw new IllegalArgumentException("Join a Minecraft world first.");
-        stop("Replaced task");
-        if (command.name().equals("mine")) validateSelector(command.selector());
-        if (command.name().equals("get") && !Registries.ITEM.containsId(identifier(command.selector())))
+        debugAt = -1;
+        if (localCommand(command)) return;
+        connected();
+        if (Set.of("mine", "find").contains(command.name())) validateSelector(command.selector());
+        if (Set.of("get", "craft", "drop", "equip").contains(command.name()) && !Registries.ITEM.containsId(identifier(command.selector())))
             throw new IllegalArgumentException("Unknown item: " + command.selector());
+        if (command.name().equals("collect") && !command.selector().equals("all") && !Registries.ITEM.containsId(identifier(command.selector())))
+            throw new IllegalArgumentException("Unknown item: " + command.selector());
+        Point destination = resolveGoal(command);
+        if (destination != null) workspace().goal(destination);
+        if (command.name().equals("patrol")) command.arguments().forEach(name -> workspace().waypoint(name));
+        clearCurrent("Replaced task");
         job = command; paused = false; startedAt = tick; mined = 0; failures = 0;
+        jobGoal = destination; farmOrigin = position(); patrolIndex = 0; operationAt = 0;
+        operationBefore = Set.of("craft", "drop", "collect").contains(command.name()) && !command.selector().equals("all")
+                ? inventory().getOrDefault(identifier(command.selector()).toString(), 0) : 0;
+        dropIssued = 0;
+        if (command.name().equals("collect") && command.selector().equals("all")) operationBefore = inventory().values().stream().mapToInt(Integer::intValue).sum();
+        if (command.name().equals("craft")) job = new Command("craft", command.selector(), operationBefore + command.count(), null, command.arguments());
         dimension = client.world.getRegistryKey().getValue().toString();
         status = "Starting " + command.name(); YourMindClient.message(status);
+    }
+    private Point resolveGoal(Command c) {
+        Point p = position();
+        return switch (c.name()) {
+            case "goto" -> c.target() == null ? workspace().waypoint(c.selector()) : c.target();
+            case "home" -> workspace().waypoint("home");
+            case "path" -> { if (workspace().goal() == null) throw new IllegalArgumentException("Set #goal first"); yield workspace().goal(); }
+            case "offset" -> p.add(c.target().x(), c.target().y(), c.target().z());
+            case "up" -> p.add(0, c.count(), 0);
+            case "down" -> p.add(0, -c.count(), 0);
+            case "forward", "back", "left", "right", "explore" -> {
+                double yaw = Math.toRadians(client.player.getYaw() + (c.name().equals("back") ? 180 : c.name().equals("left") ? -90 : c.name().equals("right") ? 90 : 0));
+                yield p.add((int)Math.round(-Math.sin(yaw) * c.count()), 0, (int)Math.round(Math.cos(yaw) * c.count()));
+            }
+            case "look" -> c.target();
+            default -> null;
+        };
+    }
+    private boolean localCommand(Command c) {
+        switch (c.name()) {
+            case "help" -> {
+                int pages = (Command.HELP.size() + 7) / 8, page = Math.min(c.count(), pages);
+                YourMindClient.message("YourMind " + YourMindClient.VERSION + " | help " + page + "/" + pages + " | " + Command.HELP.size() + " commands | End stops immediately");
+                Command.HELP.entrySet().stream().skip((page - 1L) * 8).limit(8).forEach(e -> YourMindClient.message("#" + e.getKey() + " " + e.getValue())); return true;
+            }
+            case "version" -> { YourMindClient.message("YourMind " + YourMindClient.VERSION + " | Fabric 1.21.1 | developed by y9kudo"); return true; }
+            case "status" -> { YourMindClient.message(status()); return true; }
+            case "stop" -> { stop("Stopped"); return true; }
+            case "pause" -> { if (job != null) pause("Paused"); return true; }
+            case "resume", "retry" -> {
+                if (job == null) throw new IllegalArgumentException("There is no current task");
+                paused = false; failures = 0; startedAt = tick; avoided.clear(); refreshRoute();
+                if (job.name().equals("eat")) operationAt = 0;
+                if (c.name().equals("retry")) { target = null; pickupUntil = 0; craftPending = false; toolGoals.clear(); }
+                status = "Resuming " + job.name(); return true;
+            }
+            case "repath" -> { refreshRoute(); status = "Route refresh requested"; return true; }
+            case "skip" -> { clearCurrent("Skipped task"); nextQueued(); return true; }
+            case "clearqueue" -> { queue.clear(); YourMindClient.message("Waiting tasks cleared"); return true; }
+            case "queue", "repeat" -> {
+                connected(); queue.add(Command.parse(c.selector()), c.count());
+                YourMindClient.message("Waiting tasks: " + queue.size()); if (job == null) nextQueued(); return true;
+            }
+            case "tasks" -> {
+                YourMindClient.message(status()); int n = 1;
+                for (Command task : queue.snapshot()) YourMindClient.message((n++) + ". " + task.name() + " " + task.selector() + " " + (task.target() == null ? "" : task.target())); return true;
+            }
+            case "settings" -> { settings.snapshot().forEach((k,v) -> YourMindClient.message(k + " = " + v)); return true; }
+            case "set" -> { settings.set(c.selector(), c.arguments().get(1)); if (Set.of("radius", "nodes").contains(c.selector().toLowerCase(Locale.ROOT))) refreshRoute(); YourMindClient.message(c.selector() + " = " + settings.snapshot().get(c.selector().toLowerCase(Locale.ROOT))); return true; }
+            case "resetsettings" -> { settings.reset(); refreshRoute(); YourMindClient.message("Default settings restored"); return true; }
+            case "render", "hud" -> { settings.set(c.name(), c.selector().equals("toggle") ? Boolean.toString(!settings.enabled(c.name())) : c.selector()); YourMindClient.message(c.name() + " = " + settings.enabled(c.name())); return true; }
+            case "save", "load" -> {
+                try { if (c.name().equals("save")) configuration.save(settings, workspaces); else { loadConfiguration(); refreshRoute(); } }
+                catch (IOException error) { throw new IllegalArgumentException(error.getMessage()); }
+                YourMindClient.message("Configuration " + (c.name().equals("save") ? "saved to" : "loaded from") + " config/yourmind.json"); return true;
+            }
+        }
+        if (Command.isJob(c.name())) return false;
+        connected();
+        switch (c.name()) {
+            case "pos" -> YourMindClient.message(position() + " | " + client.world.getRegistryKey().getValue());
+            case "inventory" -> {
+                var entries = inventory().entrySet().stream().filter(e -> e.getKey().contains(c.selector())).sorted(Map.Entry.comparingByKey()).toList();
+                YourMindClient.message("Inventory: " + entries.size() + " item types"); entries.stream().limit(16).forEach(e -> YourMindClient.message(e.getKey() + " x" + e.getValue()));
+            }
+            case "blocks" -> Registries.BLOCK.getIds().stream().filter(id -> id.toString().contains(c.selector())).sorted(Comparator.comparing(Identifier::toString)).limit(16).forEach(id -> YourMindClient.message(id.toString()));
+            case "recipes" -> {
+                if (catalog == null) catalog = new RecipeCatalog(client);
+                YourMindClient.message("Crafting recipes from server: " + catalog.recipes.size());
+                catalog.recipes.stream().filter(r -> r.output().contains(c.selector())).limit(8).forEach(r -> YourMindClient.message(r.id() + " -> " + r.output() + " x" + r.count() + " | " + r.ingredients()));
+            }
+            case "goal" -> {
+                if (c.target() != null) workspace().goal(c.target());
+                else if (c.selector().equalsIgnoreCase("clear")) workspace().goal(null);
+                else if (c.selector().equalsIgnoreCase("here")) workspace().goal(position());
+                else if (!c.selector().isEmpty()) workspace().goal(workspace().waypoint(c.selector()));
+                YourMindClient.message("Goal: " + workspace().goal() + " | use #path to move");
+            }
+            case "sethome" -> { workspace().waypoint("home", position()); YourMindClient.message("Home saved; #save persists it"); }
+            case "waypoint" -> {
+                String action = c.arguments().getFirst().toLowerCase(Locale.ROOT);
+                switch (action) {
+                    case "add" -> { workspace().waypoint(c.arguments().get(1), c.target() == null ? position() : c.target()); YourMindClient.message("Waypoint added; #save persists it"); }
+                    case "remove" -> workspace().removeWaypoint(c.arguments().get(1));
+                    case "clear" -> workspace().clearWaypoints();
+                    case "goto" -> submit(new Command("goto", "", 0, workspace().waypoint(c.arguments().get(1))));
+                    case "list" -> workspace().waypoints().forEach((k,p) -> YourMindClient.message(k + " = " + p));
+                }
+            }
+            case "pos1", "pos2" -> {
+                Point p = c.target() != null ? c.target() : client.crosshairTarget instanceof BlockHitResult block && block.getType() == HitResult.Type.BLOCK ? TerrainCapture.point(block.getBlockPos()) : position();
+                if (c.name().equals("pos1")) workspace().first(p); else workspace().second(p);
+                YourMindClient.message(c.name() + " = " + p);
+            }
+            case "selection" -> {
+                if (!c.arguments().isEmpty()) workspace().clearSelection();
+                var selection = workspace().selection(); YourMindClient.message(selection == null ? "Selection is incomplete" : selection + " | " + selection.volume() + " blocks");
+            }
+            case "protect" -> { workspace().protect(c.selector()); target = null; resourceCapture = null; candidates = List.of(); YourMindClient.message("Protected region: " + c.selector() + "; #save persists it"); }
+            case "unprotect" -> { workspace().unprotect(c.selector()); YourMindClient.message("Protection updated"); }
+            default -> throw new IllegalArgumentException("Unimplemented command: " + c.name());
+        }
+        return true;
+    }
+    private void refreshRoute() { cancelRoute(); release(); grid = null; capture = null; resourceCapture = null; }
+    private boolean specialJob() {
+        switch (job.name()) {
+            case "come", "follow" -> {
+                var player = client.world.getPlayers().stream().filter(p -> p != client.player && p.getName().getString().equalsIgnoreCase(job.selector())).findFirst().orElse(null);
+                if (player == null) { pause("Player is not visible in loaded terrain: " + job.selector()); return true; }
+                if (player.squaredDistanceTo(client.player) <= job.count() * job.count()) {
+                    cancelRoute(); motion.release(); motion.look(player.getEyePos());
+                    if (job.name().equals("come")) finish("Player reached"); else status = "Following " + job.selector() + " at a safe distance";
+                } else {
+                    Point next = TerrainCapture.point(player.getBlockPos());
+                    if (routeGoal != null && routeGoal.distanceSquared(next) < 4) next = routeGoal;
+                    navigate(next, 2);
+                }
+                return true;
+            }
+            case "patrol" -> {
+                Point next = workspace().waypoint(job.arguments().get(patrolIndex % job.arguments().size()));
+                if (navigate(next, 0)) { patrolIndex++; waitUntil = tick + 20; }
+                return true;
+            }
+            case "look" -> {
+                Vec3d aim;
+                if (jobGoal != null) aim = Vec3d.ofCenter(TerrainCapture.pos(jobGoal));
+                else {
+                    var player = client.world.getPlayers().stream().filter(p -> p.getName().getString().equalsIgnoreCase(job.selector())).findFirst().orElse(null);
+                    if (player == null) { pause("Player is not visible: " + job.selector()); return true; } aim = player.getEyePos();
+                }
+                motion.release(); motion.look(aim); if (++operationAt >= 24) finish("View aligned"); return true;
+            }
+            case "equip" -> {
+                if (selectItem(Registries.ITEM.get(identifier(job.selector())))) finish("Item equipped: " + job.selector());
+                else if (waitUntil <= tick) pause("Item is not in inventory: " + job.selector()); return true;
+            }
+            case "drop" -> {
+                int now = inventory().getOrDefault(identifier(job.selector()).toString(), 0);
+                if (operationBefore - now >= job.count()) { finish("Requested items dropped"); return true; }
+                if (dropIssued >= job.count()) { pause("Drop result was not confirmed; no extra items will be dropped"); return true; }
+                if (!selectItem(Registries.ITEM.get(identifier(job.selector())))) { if (waitUntil <= tick) pause("Requested item is unavailable"); return true; }
+                client.player.dropSelectedItem(false); dropIssued++; waitUntil = tick + 6; return true;
+            }
+            case "eat" -> { eat(); return true; }
+            case "collect" -> {
+                int now = job.selector().equals("all") ? inventory().values().stream().mapToInt(Integer::intValue).sum() : inventory().getOrDefault(identifier(job.selector()).toString(), 0);
+                if (now - operationBefore >= job.count() && (job.arguments().size() >= 2 || !job.selector().equals("all"))) { finish("Collected inventory target confirmed"); return true; }
+                var entities = client.world.getEntitiesByClass(ItemEntity.class, client.player.getBoundingBox().expand(16), e -> e.isAlive() && (job.selector().equals("all") || RecipeCatalog.id(e.getStack().getItem()).equals(identifier(job.selector()).toString())));
+                var nearest = entities.stream().min(Comparator.comparingDouble(e -> e.squaredDistanceTo(client.player))).orElse(null);
+                if (nearest == null) { finish("Pickup area clear; inventory change: " + (now - operationBefore)); return true; }
+                navigate(TerrainCapture.point(nearest.getBlockPos()), 0); return true;
+            }
+            default -> { return false; }
+        }
+    }
+    private void eat() {
+        if (operationAt == 0) {
+            if (!client.player.canConsume(false)) { pause("Food is not needed at the current hunger level"); return; }
+            Item chosen = null; int nutrition = 0;
+            for (int i = 0; i < 36; i++) {
+                ItemStack item = client.player.getInventory().getStack(i); var food = item.get(DataComponentTypes.FOOD);
+                if (food != null && food.nutrition() > nutrition && !item.isOf(Items.ROTTEN_FLESH) && !item.isOf(Items.SPIDER_EYE)
+                        && !item.isOf(Items.POISONOUS_POTATO) && !item.isOf(Items.PUFFERFISH)) { chosen = item.getItem(); nutrition = food.nutrition(); }
+            }
+            if (chosen == null) { pause("No usable food in inventory"); return; }
+            if (!selectItem(chosen)) { if (waitUntil <= tick) pause("Cannot equip food"); return; }
+            operationFood = client.player.getHungerManager().getFoodLevel(); operationAt = tick;
+            client.interactionManager.interactItem(client.player, Hand.MAIN_HAND); usingFood = true;
+        }
+        motion.release(); client.options.useKey.setPressed(true);
+        if (client.player.getHungerManager().getFoodLevel() > operationFood) { finish("Food consumption confirmed"); return; }
+        if (tick - operationAt > 100) pause("Food consumption was not confirmed");
     }
     public String status() {
         return status + " | job=" + (job == null ? "none" : job.name()) + " | mined=" + mined
@@ -74,15 +295,21 @@ public final class AgentController {
                 + "ms, " + visited + " nodes | recipes=" + (catalog == null ? 0 : catalog.recipes.size());
     }
     public void stop(String reason) {
+        debugAt = -1;
+        queue.clear(); clearCurrent(reason);
+    }
+    private void clearCurrent(String reason) {
         if (ownedScreen && client.player != null) client.player.closeHandledScreen();
         job = null; paused = false; cancelRoute(); release(); capture = null; grid = null; target = null;
         resourceCapture = null; scanSelector = null;
         replant = null; craftPending = false; ownedScreen = false; resourceStep = null;
         pickupUntil = 0; lootItem = null; avoided.clear(); seenBlocks.clear(); toolGoals.clear(); status = reason;
+        candidates = List.of(); jobGoal = null; usingFood = false; operationAt = 0;
     }
     public void disconnect() { stop("Disconnected"); catalog = null; table = null; dimension = ""; }
     private void release() {
         motion.release();
+        if (usingFood) { client.options.useKey.setPressed(false); if (client.player != null) client.player.stopUsingItem(); usingFood = false; }
         if (client.interactionManager != null) client.interactionManager.cancelBlockBreaking();
         digging = null;
     }
@@ -96,15 +323,16 @@ public final class AgentController {
         if (!dimension.equals(client.world.getRegistryKey().getValue().toString())) { stop("Dimension changed; submit the task again"); return; }
         if (!client.player.isAlive()) { stop("Player died; task stopped"); return; }
         if (paused) { motion.release(); return; }
-        if (client.player.getHealth() < 6) { pause("Low health: paused for manual recovery"); return; }
-        if (tick - startedAt > 12_000) { pause("Task exceeded its 10-minute budget; inspect #status and #resume"); return; }
+        if (client.player.getHealth() < 6 && !job.name().equals("eat")) { pause("Low health: paused for recovery; #eat is available"); return; }
+        if (tick - startedAt > settings.integer("timeout") * 20) { pause("Task exceeded its time budget; inspect #status and #resume"); return; }
         if (client.isPaused() || client.currentScreen != null && !(client.currentScreen instanceof ChatScreen) && !ownedScreen) {
             release(); return;
         }
         if (tick < waitUntil) { motion.release(); return; }
         try {
             if (catalog == null || catalog.recipes.isEmpty() && tick % 20 == 0) catalog = new RecipeCatalog(client);
-            if (job.name().equals("get") && catalog.recipes.isEmpty()) { status = "Waiting for server recipes"; return; }
+            if (Set.of("get", "craft").contains(job.name()) && catalog.recipes.isEmpty()) { status = "Waiting for server recipes"; return; }
+            if (specialJob()) return;
             if (craftPending) { finishCraft(); return; }
             if (replant != null) { replant(); return; }
             if (pickupUntil > tick) { collectLoot(); return; }
@@ -115,14 +343,19 @@ public final class AgentController {
                 }
                 lootItem = null;
             }
-            if (job.name().equals("goto")) {
-                if (navigate(job.target(), 0)) finish("Destination reached"); return;
+            if (jobGoal != null && !job.name().equals("look")) {
+                if (navigate(jobGoal, 0)) finish("Destination reached"); return;
             }
             if (grid == null || tick - snapshotAt > 200 && target == null) {
                 capture(); return;
             }
-            if (job.name().equals("get")) { get(); return; }
+            if (Set.of("get", "craft").contains(job.name())) { get(); return; }
             if (job.name().equals("farm")) { farm(); return; }
+            if (job.name().equals("find")) {
+                if (target == null) chooseTarget(job.selector());
+                if (target != null) pause("Found " + candidates.size() + " matching blocks; orange outlines are candidates, red is the nearest");
+                return;
+            }
             if (mined >= job.count()) { finish("Requested blocks mined and pickup phase completed"); return; }
             if (target == null) chooseTarget(job.selector());
             if (target != null) mineTarget();
@@ -133,7 +366,7 @@ public final class AgentController {
     private void capture() {
         motion.release(); status = "Capturing loaded terrain (2 ms slices)";
         if (capture == null) {
-            capture = new TerrainCapture(client.world, client.player.getBlockPos(), 24, (pos, state) -> {
+            capture = new TerrainCapture(client.world, client.player.getBlockPos(), settings.integer("radius"), (pos, state) -> {
                 String id = Registries.BLOCK.getId(state.getBlock()).toString();
                 if (catalog.natural(id)) seenBlocks.add(id);
                 return false;
@@ -148,12 +381,15 @@ public final class AgentController {
         motion.release(); status = "Searching observed blocks";
         if (resourceCapture == null || !selector.equals(scanSelector)) {
             scanSelector = selector;
-            resourceCapture = new TerrainCapture(client.world, client.player.getBlockPos(), 24, (pos, state) ->
+            resourceCapture = new TerrainCapture(client.world, client.player.getBlockPos(), settings.integer("radius"), (pos, state) ->
                     avoided.getOrDefault(pos, 0) <= tick && matches(state, selector) && !state.hasBlockEntity()
+                            && !workspace().protectedAt(TerrainCapture.point(pos))
                             && state.getHardness(client.world, pos) >= 0);
         }
         if (!resourceCapture.tick()) return;
-        target = resourceCapture.targets.stream().min(Comparator.comparingDouble(p -> p.getSquaredDistance(client.player.getPos()))).orElse(null);
+        var sorted = resourceCapture.targets.stream().sorted(Comparator.comparingDouble(p -> p.getSquaredDistance(client.player.getPos()))).toList();
+        candidates = sorted.stream().limit(128).map(TerrainCapture::point).toList();
+        target = sorted.isEmpty() ? null : sorted.getFirst();
         grid = resourceCapture.finish(); snapshotAt = tick; resourceCapture = null;
         if (target == null) pause("No reachable matching resource in the captured area. Move to another area, then #resume.");
         else status = "Approaching " + Registries.BLOCK.getId(client.world.getBlockState(target).getBlock());
@@ -172,6 +408,7 @@ public final class AgentController {
         status = resourceStep.reason() + ": " + resourceStep.item();
         switch (resourceStep.kind()) {
             case "obtain" -> {
+                if (job.name().equals("craft")) { pause("Craft needs existing materials: " + resourceStep.item() + "; use #get for automatic collection"); return; }
                 List<String> sources = catalog.sources.get(resourceStep.item());
                 if (sources == null) { pause("Missing block source"); return; }
                 chooseTarget(String.join("|", sources));
@@ -220,6 +457,7 @@ public final class AgentController {
         BlockPos origin = client.player.getBlockPos();
         for (Direction direction : Direction.Type.HORIZONTAL) {
             BlockPos pos = origin.offset(direction, 2), support = pos.down();
+            if (workspace().protectedAt(TerrainCapture.point(pos))) continue;
             if (!client.world.getBlockState(pos).isAir() || !client.world.getBlockState(support).isFullCube(client.world, support)) continue;
             motion.release(); motion.look(Vec3d.ofCenter(support));
             client.interactionManager.interactBlock(client.player, Hand.MAIN_HAND,
@@ -229,6 +467,7 @@ public final class AgentController {
         pause("No supported empty place for the crafting table within reach");
     }
     private void mineTarget() {
+        if (workspace().protectedAt(TerrainCapture.point(target))) { rejectTarget("Target is protected"); return; }
         if (ownedScreen) { client.player.closeHandledScreen(); ownedScreen = false; waitUntil = tick + 4; return; }
         BlockState state = client.world.getBlockState(target);
         if (state.isAir() || state.getCollisionShape(client.world, target).isEmpty() && !(state.getBlock() instanceof CropBlock)) {
@@ -278,8 +517,8 @@ public final class AgentController {
     }
     private void farm() {
         if (target == null) {
-            if (resourceCapture == null) resourceCapture = new TerrainCapture(client.world, client.player.getBlockPos(), job.count(),
-                    (pos, state) -> avoided.getOrDefault(pos, 0) <= tick && state.getBlock() instanceof CropBlock crop && crop.isMature(state));
+            if (resourceCapture == null) resourceCapture = new TerrainCapture(client.world, TerrainCapture.pos(farmOrigin), job.count(),
+                    (pos, state) -> avoided.getOrDefault(pos, 0) <= tick && !workspace().protectedAt(TerrainCapture.point(pos)) && state.getBlock() instanceof CropBlock crop && crop.isMature(state));
             if (!resourceCapture.tick()) return;
             target = resourceCapture.targets.stream().min(Comparator.comparingDouble(p -> p.getSquaredDistance(client.player.getPos()))).orElse(null);
             resourceCapture = null;
@@ -321,7 +560,9 @@ public final class AgentController {
             cancelRoute(); routeGoal = goal; Point start = TerrainCapture.point(client.player.getBlockPos());
             VoxelGrid snapshot = grid; double health = client.player.getHealth();
             long began = System.nanoTime();
-            pending = worker.submit(() -> { var result = planner.plan(snapshot, start, goal, range, 18_000, health);
+            int budget = settings.integer("nodes");
+            boolean allowJump = settings.enabled("jump");
+            pending = worker.submit(() -> { var result = planner.plan(snapshot, start, goal, range, budget, health, allowJump);
                 routeNanos = System.nanoTime() - began; return result; });
             motion.release(); status = "Planning route"; return false;
         }
@@ -370,10 +611,14 @@ public final class AgentController {
     private void rejectTarget(String reason) {
         if (target != null) avoided.put(target, tick + 600);
         target = null; cancelRoute(); grid = null; release(); resourceStep = null;
-        if (++failures >= 8 || job != null && job.name().equals("goto")) pause(reason); else status = reason;
+        if (++failures >= 8 || jobGoal != null) pause(reason); else status = reason;
     }
     private void pause(String reason) { paused = true; cancelRoute(); release(); status = reason; YourMindClient.message(reason); }
-    private void finish(String reason) { stop(reason); YourMindClient.message(reason); }
+    private void finish(String reason) { clearCurrent(reason); YourMindClient.message(reason); nextQueued(); }
+    private void nextQueued() {
+        Command next = queue.poll();
+        if (next != null) try { submit(next); } catch (IllegalArgumentException error) { status = error.getMessage(); YourMindClient.message(status); }
+    }
     private BlockHitResult hit(BlockPos pos) {
         return client.world.raycast(new RaycastContext(client.player.getEyePos(), Vec3d.ofCenter(pos),
                 RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, client.player));
@@ -421,10 +666,12 @@ public final class AgentController {
         if (id == null) throw new IllegalArgumentException("Invalid identifier"); return id;
     }
     private void validateSelector(String selector) {
+        if (selector.contains(",")) { for (String part : selector.split(",")) validateSelector(part); return; }
         if (!selector.startsWith("#") && !Registries.BLOCK.containsId(identifier(selector)))
             throw new IllegalArgumentException("Unknown block: " + selector);
     }
     private boolean matches(BlockState state, String selector) {
+        if (selector.contains(",")) return Arrays.stream(selector.split(",")).anyMatch(s -> matches(state, s));
         if (selector.contains("|")) return Arrays.stream(selector.split("\\|")).anyMatch(s -> matches(state, s));
         if (selector.startsWith("#")) return state.isIn(TagKey.of(RegistryKeys.BLOCK, identifier(selector)));
         return Registries.BLOCK.getId(state.getBlock()).equals(identifier(selector));

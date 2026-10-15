@@ -11,14 +11,17 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
+import net.fabricmc.loader.api.FabricLoader;
 import org.lwjgl.glfw.GLFW;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.*;
 
 public final class YourMindClient implements ClientModInitializer {
+    public static final String VERSION=FabricLoader.getInstance().getModContainer("yourmind").orElseThrow().getMetadata().getVersion().getFriendlyString();
     private static AgentController controller;
     public static AgentController controller() { return controller; }
     @Override public void onInitializeClient() {
         var client = MinecraftClient.getInstance(); controller = new AgentController(client);
+        new DebugRenderer(controller);
         var stopKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("key.yourmind.stop",
                 InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_END, "category.yourmind"));
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> {
@@ -27,7 +30,11 @@ public final class YourMindClient implements ClientModInitializer {
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) -> dispatcher.register(literal("yourmind")
                 .executes(context -> { run("#help"); return 1; })
-                .then(argument("command", StringArgumentType.greedyString()).executes(context -> {
+                .then(argument("command", StringArgumentType.greedyString()).suggests((context,builder)->{
+                    String remaining=builder.getRemaining().toLowerCase(java.util.Locale.ROOT);
+                    dev.y9kudo.yourmind.core.Command.HELP.keySet().stream().filter(name->name.startsWith(remaining)).forEach(builder::suggest);
+                    return builder.buildFuture();
+                }).executes(context -> {
                     run("#" + StringArgumentType.getString(context, "command")); return 1;
                 }))));
         ClientTickEvents.END_CLIENT_TICK.register(c -> {

@@ -21,6 +21,9 @@ public final class RoutePlanner {
                 && Math.abs((long) p.z() - goal.z()) <= range;
     }
     public Result plan(VoxelGrid grid, Point start, Point goal, int range, int maxNodes, double health) {
+        return plan(grid, start, goal, range, maxNodes, health, true);
+    }
+    public Result plan(VoxelGrid grid, Point start, Point goal, int range, int maxNodes, double health, boolean allowJump) {
         if (range < 0 || range > 4 || maxNodes < 1 || maxNodes > 100_000 || !Double.isFinite(health))
             throw new IllegalArgumentException("Invalid route budget");
         if (!grid.standing(start)) return new Result(Status.NO_PATH, List.of(), 0, 0);
@@ -38,7 +41,7 @@ public final class RoutePlanner {
             for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) {
                 if (dx == 0 && dz == 0) continue;
                 boolean diagonal = dx != 0 && dz != 0;
-                for (int dy = 1; dy >= -3; dy--) {
+                for (int dy = allowJump ? 1 : 0; dy >= -3; dy--) {
                     Point next = p.add(dx, dy, dz);
                     if (!grid.standing(next) || diagonal && dy != 0) continue;
                     if (diagonal && (!grid.standing(p.add(dx, 0, 0)) || !grid.standing(p.add(0, 0, dz)))) continue;
