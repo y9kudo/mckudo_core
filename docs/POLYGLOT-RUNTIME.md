@@ -9,7 +9,7 @@ OvermindMC uses different runtimes where there is a concrete integration or meas
 | Java 21 | YourMind Fabric client, immutable voxel routes and crafting dependencies | Vanilla controls/physics/networking, client-thread world capture and one route worker |
 | Python | Optional TinyCC build driver | Development tool only; not a dependency of a running agent |
 
-YourMind is a separate **client execution target** under `mods/yourmind`. It does not replace OMConnect, run the JavaScript kernel inside Minecraft, or accelerate every existing Node.js agent automatically. Its command/recipe/route classes have no Minecraft imports and can be tested independently; Fabric-facing classes perform actual client interactions. See the [installation, commands and code map](../mods/yourmind/README.md).
+YourMind is a separate **client execution target** under `mods/yourmind`. It does not replace OMConnect, run the JavaScript kernel inside Minecraft, or accelerate every existing Node.js agent automatically. Its command/recipe/route classes have no Minecraft imports and can be tested independently; Fabric-facing classes perform actual client interactions. See the [installation, commands and code map](https://github.com/y9kudo/mckudo_core/blob/feat/yourmind-fabric/mods/yourmind/README.md).
 
 The optional C ground kernel already has a measured benefit on its bounded fixture. One repeat on this Windows/Node 24.19.0 workstation measured a median **9.58 ms in JS and 1.76 ms in C**, with **9.83 ms** for the first native adapter call including terrain capture. These figures exclude full gameplay and cannot predict network, furnace, inventory or end-to-end expedition speed. See [native computation](NATIVE-COMPUTE.md) for the exact boundary and reproduction commands.
 
