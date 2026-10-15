@@ -1,5 +1,5 @@
 import {createOMConnect,OM_SKILLS} from '../omconnect/index.js';
-import {OVERMIND,createEndExpedition,endExpeditionScenario,dragonExpeditionScenario,fullExpeditionScenario,validateScenario} from '../overmindmc.js';
+import {OVERMIND,createEndExpedition,endExpeditionScenario,netherVisitScenario,dragonExpeditionScenario,fullExpeditionScenario,validateScenario} from '../overmindmc.js';
 import {appendFile,mkdir,readFile,writeFile,rename} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -9,7 +9,9 @@ import {expeditionLearningEvidence,assessExpeditionRelease} from '../src/expedit
 
 const dragon=process.argv.includes('--dragon');
 const full=process.argv.includes('--full');
-const scenario=validateScenario(full?fullExpeditionScenario():dragon?dragonExpeditionScenario():endExpeditionScenario());
+const netherVisit=process.argv.includes('--nether-visit');
+if(netherVisit&&(dragon||full))throw new Error('Choose a Nether visit or a full End/Dragon expedition.');
+const scenario=validateScenario(netherVisit?netherVisitScenario():full?fullExpeditionScenario():dragon?dragonExpeditionScenario():endExpeditionScenario());
 const required=['dig','collect','craft','ensureStation','smelt','combat','navigate','place','ignitePortal','enterPortal','throwEye','fillEndFrame'];
 if(dragon)required.push('pillar','descendPillar','shoot','evade');
 if(full)required.push('barter','equipArmor','bridgeTo');
@@ -35,7 +37,8 @@ if(process.argv.includes('--check')){
   let previous=null;
   if(resumed){previous=JSON.parse(await readFile(file,'utf8'));}
   if(previous&&(previous.player!==player||previous.worldId!==worldId||previous.port!==port||previous.host!==host||previous.minecraftVersion!==version||previous.full!==full))throw new Error('The saved report belongs to a different player, world, server, version or scenario.');
-  const report={version:OVERMIND.version,objective:dragon?'defeat-dragon':'enter-end',player,worldId,port,startedAt:new Date().toISOString(),status:'running',resumed,autoRespawn,maxDeaths,fromZero:false,originFromZero:previous?.originFromZero??previous?.fromZero??false,previousSegment:previous?{startedAt:previous.startedAt,finishedAt:previous.finishedAt,status:previous.status,stage:previous.expedition?.scenario?.current}:null,goalAchieved:false,playersObserved:[],actions:[],checkpoints:[],warnings:[],evidence:[],deaths:[],failureCounts:{}};
+  if(previous&&Boolean(previous.netherVisit)!==netherVisit)throw new Error('The saved report belongs to a different expedition profile.');
+  const report={version:OVERMIND.version,objective:netherVisit?'visit-nether':dragon?'defeat-dragon':'enter-end',netherVisit,player,worldId,port,startedAt:new Date().toISOString(),status:'running',resumed,autoRespawn,maxDeaths,fromZero:false,originFromZero:previous?.originFromZero??previous?.fromZero??false,previousSegment:previous?{startedAt:previous.startedAt,finishedAt:previous.finishedAt,status:previous.status,stage:previous.expedition?.scenario?.current}:null,goalAchieved:false,playersObserved:[],actions:[],checkpoints:[],warnings:[],evidence:[],deaths:[],failureCounts:{}};
   Object.assign(report,{segmentId:randomUUID(),host,minecraftVersion:version,full,releaseEligible:false,eventsFile,memoryFile,segmentsFile,totalDeaths:previous?.totalDeaths??previous?.deaths?.length??0,originInitial:previous?.originInitial??previous?.initial??null,largeUnexplainedCorrections:previous?.largeUnexplainedCorrections||[],externalInterventions:previous?.externalInterventions||[]});
   Object.assign(report,{runStartedAt:previous?.runStartedAt??previous?.startedAt??report.startedAt,totalActions:previous?.totalActions??previous?.actions?.length??0,failureCounts:previous?.failureCounts??{},playersObserved:previous?.playersObserved??[],checkpoints:previous?.checkpoints??[],goalStages:scenario.steps.map(s=>({id:s.id,type:s.type}))});
   let journalWrites=Promise.resolve();
@@ -129,7 +132,7 @@ if(process.argv.includes('--check')){
       if(previousStage!==stage.current){const checkpoint={at:new Date().toISOString(),...stage,dimension:client.state.dimension,learning:report.learning};report.checkpoints.push(checkpoint);journal({type:'checkpoint',checkpoint});previousStage=stage.current;console.log(JSON.stringify(stage));}
       if(Date.now()-lastSave>=2000){await save();lastSave=Date.now();}
       if(Date.now()-lastMemorySave>=30000){await saveMemory();journal({type:'learning',evidence:report.learning});lastMemorySave=Date.now();}
-      if(stage.status==='completed'&&client.state.dimension==='minecraft:the_end'&&(!dragon||client.endgame.dragonDeath?.confirmed&&client.endgame.dragonDeath?.ownDamageConfirmed)){report.goalAchieved=true;break;}
+      if(stage.status==='completed'&&client.state.dimension===(netherVisit?'minecraft:the_nether':'minecraft:the_end')&&(!dragon||client.endgame.dragonDeath?.confirmed&&client.endgame.dragonDeath?.ownDamageConfirmed)){report.goalAchieved=true;break;}
       if(dragon&&stage.status==='completed'&&!client.endgame.dragonDeath?.ownDamageConfirmed){report.reason="The dragon died, But the damage to this agent is not confirmed.";break;}
       await delay(100,undefined,{signal:stop.signal});
     }

@@ -22,12 +22,13 @@ export function netherCapabilities(registry){
 }
 
 /** A reusable Nether objective. It owns decisions; OMConnect owns packets and confirmation. */
-export function createNetherReactor({client,catalog=client?.registry&&catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}),targets={'minecraft:blaze_rod':10,'minecraft:ender_pearl':20},resourceFactory,explorationPlanner,clock=Date.now,maxBarters=64,memory}={}){
-  if(!client?.world||!catalog||!Number.isInteger(maxBarters)||maxBarters<0||maxBarters>4096)throw new Error("Nether: requires client, catalog and maxBarters 0–4096.");
+export function createNetherReactor({client,catalog=client?.registry&&catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}),targets={'minecraft:blaze_rod':10,'minecraft:ender_pearl':20},resourceFactory,explorationPlanner,clock=Date.now,maxBarters=64,exploreDistance=0,memory}={}){
+  if(!client?.world||!catalog||!Number.isInteger(maxBarters)||maxBarters<0||maxBarters>4096||!Number.isFinite(exploreDistance)||exploreDistance<0||exploreDistance>128)throw new Error('Nether requires a client, catalog, maxBarters 0–4096 and exploreDistance 0–128.');
   const goal=Object.fromEntries(Object.entries(targets).map(([id,n])=>[resourceId(id),n]));
   if(!Object.keys(goal).length||Object.keys(goal).length>32||Object.entries(goal).some(([id,n])=>!catalog.item(id)||!Number.isInteger(n)||n<1||n>4096))throw new Error("Nether.targets: existing items and quantities 1–4096.");
   const visited=[],landmarks=new Map(),failures=new Map(),supplies=new Map();let barters=0,observation,activeResource=null,selected=null,barterBaseline=0;
-  let state={status:'waiting',reason:"Waiting for Neser.",targets:goal,remaining:{...goal},barters:0,landmarks:[]};
+  let startPosition=null,maxExploredDistance=0;
+  let state={status:'waiting',reason:'Waiting for the Nether.',targets:goal,remaining:{...goal},barters:0,landmarks:[],requiredExplorationDistance:exploreDistance,maxExploredDistance:0};
   const supply=(targets,o)=>{const id=JSON.stringify(targets);if(!supplies.has(id))supplies.set(id,resourceFactory?resourceFactory(targets):createSurvivalReactor({client,catalog,targets,explorationPlanner}));activeResource=supplies.get(id);return activeResource.react(o);};
   const act=(skill,args,reason,priority=10)=>({priority,action:{skill,args},reason});
   const blocked=action=>{const f=failures.get(JSON.stringify(action));return f&&f.until>clock()&&f.dimension===observation.dimension&&distance(f.from,observation.self.position)<3;};
@@ -70,15 +71,17 @@ export function createNetherReactor({client,catalog=client?.registry&&catalogFro
   }
   function decide(o){
     if(o.dimension!==NETHER||!point(o.self?.position)||o.self.health==null||o.self.health<=0)return {action:null,reason:"For purpose Nether We need a live agent in Neser."};
+    startPosition??={...o.self.position};maxExploredDistance=Math.max(maxExploredDistance,Math.hypot(o.self.position.x-startPosition.x,o.self.position.z-startPosition.z));state.maxExploredDistance=maxExploredDistance;
     const here=floor(o.self.position);if(!visited.some(v=>key(v)===key(here))){visited.push(here);if(visited.length>512)visited.shift();}
     for(const b of o.world?.sampledBlocks||[])if(point(b.position)&&(fortress.has(name(b))||name(b)==='nether_portal'||name(b)==='warped_nylium'))landmarks.set(key(b.position),{name:resourceId(name(b)),position:floor(b.position)});
     for(const [id,b]of landmarks){const actual=client.world.blockAt(b.position);if(actual&&name(actual)!==name(b))landmarks.delete(id);}while(landmarks.size>256)landmarks.delete(landmarks.keys().next().value);
     const remaining=Object.fromEntries(Object.entries(goal).filter(([id,n])=>owned(o,id)<n).map(([id,n])=>[id,n-owned(o,id)]));state.remaining=remaining;
-    if(!Object.keys(remaining).length)return null;
+    if(!Object.keys(remaining).length&&maxExploredDistance>=exploreDistance)return null;
     if(o.self.health<=8){
       const portal=[...landmarks.values()].filter(b=>name(b)==='nether_portal').sort((a,b)=>distance(a.position,o.self.position)-distance(b.position,o.self.position))[0];
       return portal?{action:null,reason:"Critical health in Neser: Target suspended; Nutrition and protection have priority. Back portal saved."}:{action:null,reason:"Critical health in Neser: First to recover."};
     }
+    if(!Object.keys(remaining).length){const decision=explore(o);return {...decision,reason:`Explore the observed Nether: ${maxExploredDistance.toFixed(1)} / ${exploreDistance} blocks from the entry point. ${decision.reason||''}`};}
     const piglins=(o.entities||[]).filter(e=>e.name==='piglin'&&distance(e.position,o.self.position)<24);
     if(!wearsGold(o.equipment)){
       const gold=Object.entries(o.inventory||{}).find(([id,n])=>n>0&&/^minecraft:golden_(boots|helmet|leggings|chestplate)$/.test(id));
@@ -109,7 +112,8 @@ export function createNetherReactor({client,catalog=client?.registry&&catalogFro
     if(action.skill==='barter'&&(event.outcome==='success'||(client.metrics?.barterGoldSpent||0)>barterBaseline))barters++;
     if(event.outcome==='cancelled')return;
     const id=JSON.stringify(action);if(event.outcome==='failure'){const attempts=(failures.get(id)?.attempts||0)+1;failures.set(id,{attempts,until:clock()+Math.min(120000,2000*2**Math.min(6,attempts)),dimension:observation.dimension,from:{...observation.self.position}});if(action.skill==='navigate'&&point(action.args)){visited.push(floor(action.args));if(visited.length>512)visited.shift();}explorationPlanner?.invalidate();}else failures.delete(id);while(failures.size>128)failures.delete(failures.keys().next().value);
-  },snapshot:()=>structuredClone(state),exportMemory:()=>({schemaVersion:1,targets:{...goal},barters,landmarks:[...landmarks.values()],visited:[...visited]})};
+  },snapshot:()=>structuredClone(state),exportMemory:()=>({schemaVersion:1,targets:{...goal},barters,landmarks:[...landmarks.values()],visited:[...visited],exploreDistance,startPosition:startPosition?{...startPosition}:null,maxExploredDistance})};
   if(memory){if(memory.schemaVersion!==1||JSON.stringify(memory.targets)!==JSON.stringify(goal)||!Number.isInteger(memory.barters)||memory.barters<0||memory.barters>4096||!Array.isArray(memory.landmarks)||memory.landmarks.length>256||!Array.isArray(memory.visited)||memory.visited.length>512||memory.landmarks.some(b=>!point(b.position)||!['nether_portal','warped_nylium',...fortress].includes(name(b)))||memory.visited.some(p=>!point(p)))throw new Error("Invalid Nether memory.");barters=memory.barters;for(const b of memory.landmarks)landmarks.set(key(b.position),structuredClone(b));visited.push(...structuredClone(memory.visited));}
+  if(memory){if((memory.exploreDistance??0)!==exploreDistance||memory.startPosition!=null&&!point(memory.startPosition)||memory.maxExploredDistance!==undefined&&(!Number.isFinite(memory.maxExploredDistance)||memory.maxExploredDistance<0||memory.maxExploredDistance>100000000))throw new Error('Invalid Nether exploration memory.');startPosition=memory.startPosition?{...memory.startPosition}:null;maxExploredDistance=memory.maxExploredDistance??0;state.maxExploredDistance=maxExploredDistance;}
   return reactor;
 }

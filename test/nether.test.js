@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import minecraftData from 'minecraft-data';
-import {createNetherReactor,netherCapabilities,fullExpeditionScenario,validateScenario,createScenario,catalogFromMinecraftData,createSurvivalReactor,createEquipmentReactor,defineMission,findGroundShelterSite,createCombatReactor,createNetherPortalBlueprint,observedNetherPortalFrame,blockKey,resourceSources} from '../overmindmc.js';
+import {createNetherReactor,netherCapabilities,netherVisitScenario,fullExpeditionScenario,validateScenario,createScenario,catalogFromMinecraftData,createSurvivalReactor,createEquipmentReactor,defineMission,findGroundShelterSite,createCombatReactor,createNetherPortalBlueprint,observedNetherPortalFrame,blockKey,resourceSources} from '../overmindmc.js';
 import {OMProtection,OMConnect} from '../omconnect/index.js';
 import {decideFallRescue} from '../packages/omconnect/src/fall-safety.js';
 import {bridgeMaterials} from '../packages/omconnect/src/movement.js';
@@ -13,6 +13,23 @@ const fixture=(targets={'blaze_rod':1},extra={})=>{
   const o={dimension:'minecraft:the_nether',self:{position:{x:0,y:64,z:0},health:20,food:20},inventory:{},equipment:{},entities:[],drops:[],world:{sampledBlocks:[]}};
   return {blocks,client,o,r:createNetherReactor({client,catalog,targets,...extra})};
 };
+
+test('Nether visit profile requires normal portal prerequisites, entry and a nonzero exploration goal',()=>{
+  const scenario=validateScenario(netherVisitScenario()),portal=scenario.steps.findIndex(step=>step.type==='netherPortal'),travel=scenario.steps.findIndex(step=>step.type==='travel');
+  assert.ok(scenario.steps.slice(0,portal).some(step=>step.targets?.['minecraft:diamond_pickaxe']===1&&step.targets?.['minecraft:obsidian']===14));assert.ok(travel>portal);
+  assert.equal(scenario.steps.at(-1).type,'netherResources');assert.equal(scenario.steps.at(-1).exploreDistance,12);
+  assert.throws(()=>validateScenario({schemaVersion:1,name:'Invalid',steps:[{id:'walk',type:'netherResources',targets:{'minecraft:quartz':1},exploreDistance:129}]}),/exploreDistance/);
+});
+
+test('Nether exploration does not complete at the portal, preserves its origin across restart and yields at low health',()=>{
+  const {client,o,r}=fixture({quartz:1},{exploreDistance:12});o.inventory['minecraft:quartz']=1;
+  assert.ok(r.react(o).action);assert.notEqual(r.snapshot().status,'completed');
+  o.self.position.x=6;r.react(o);const memory=r.exportMemory();assert.equal(memory.maxExploredDistance,6);
+  const restored=createNetherReactor({client,catalog,targets:{quartz:1},exploreDistance:12,memory});
+  o.self.health=8;assert.equal(restored.react(o).action,null);assert.notEqual(restored.snapshot().status,'completed');
+  o.self.health=20;o.self.position.x=12;assert.equal(restored.react(o).action,null);assert.equal(restored.snapshot().status,'completed');
+  assert.throws(()=>createNetherReactor({client,catalog,targets:{quartz:1},exploreDistance:4,memory}),/exploration memory/);
+});
 test('Nether capability data is scoped to the connected registry and campaign validates',()=>{
   const domain=netherCapabilities(registry);assert.equal(domain.waterUsable,false);assert.equal(domain.bedsUsable,false);assert.ok(domain.groups.minerals.includes('minecraft:ancient_debris'));
   const s=validateScenario(fullExpeditionScenario());assert.equal(s.steps.at(-1).type,'dragon');assert.ok(s.steps.some(s=>s.type==='netherResources'&&s.targets['minecraft:nether_wart']===3));

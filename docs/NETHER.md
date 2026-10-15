@@ -1,93 +1,76 @@
-# Neser in OvermindMC
+# Nether progression and the fresh-spawn trial
 
-Author: **y9kudo**. This module is part of the library OvermindMC. Decisions are made by the kernel, a Connectivity, Packages, The self-employed perform the physics and action OMConnect. Work profile of these changes — Java 1.21.1.
+OvermindMC owns goals and decisions; OMConnect executes actions and confirms their outcomes. This profile targets Minecraft Java 1.21.1. Author: **y9kudo**, MIT.
 
-## What a module does
+## Run the focused trial
 
-`createNetherReactor` Gets fresh observations and picks **One next action**. Once it's done, it checks the world and the equipment again. Sent strike, Spent ducts or missing objects are not considered to have been received.
+Use a local offline Survival server and a new player name. Existing names can retain items, armor or a position in another dimension.
 
-| Task | Conduct |
-| --- | --- |
-| Searching for Fort | Remembers the observed hell bricks, barriers, Stage, The growth and the flotte. Bricks are a search guide, Not proof of the origin of the construction. |
-| Research | Using existing planners for available concessions. If there is no way, checks short dry tunnel; Doesn't dig a support under him or open known lava pockets. |
-| Miss | Maybe order `bridgeTo` to the observed site through the fully known corridor 16 blocks. Fuel wood doesn't go to bridges/Nezer poles; Crimson and distorted boards allowed. |
-| The Ifrites | It's a safe path, uses a simple battle with a shield; If there is an onion and arrow, it can shoot at a visible far-reaching target. The rod is counted only in the inventory. |
-| Pearls | Searching for observed endermen or using limited exchange with adult piglins. The number of exchanges does not guarantee the number of pearls required. |
-| Piglins | Puts on and stores one gold piece of armor. Resource policy avoids gold mining near the piglins. Brutus are not considered exchange partners. |
-| Growth | Makes mature growth (`age=3`). Clearly protected by the user in the field-still operational. |
-| Other materials | The overall resource planner handles the black stone, basalt, The Stone of Hell, sand/soil of the shower, Mushrooms, quartz, Gold nuns, Light, Ancient debris and the dependence of the recipes on the available version. |
-| Lot Mobs | A clear target can look for magma clots, The tears of the gazing, skull of skeleton-desiccants and hoglin pork. Rare depositions are not replaced by calculated numbers. |
-| Backward | Scenario controller maintains measurement portals, Rechecks blocks, can relight the entire frame being observed. |
-| Water and beds | Sleep is already limited to the upper world. `waterGuard` and `waterClutch` Now banned in Neser and not selected as a protection against falling/The enderman. |
-
-`netherCapabilities(client.registry)` Returns the item and station review **connected version**. Full recipes are in the world's book; A separate copy of Neser's recipes is not loaded. Gold nuns turn into bars on a verstack; For ancient debris, the planner requires a diamond or non-zeric brick. Selecting the height of the study — Search strategy, not knowing the hidden ore.
-
-## Shortest scenario
-
-For an agent, The one already in Neser:
-
-```js
-await agent.mission([
-  { nether: { blaze_rod: 10, ender_pearl: 20, nether_wart: 3, soul_sand: 1 } }
-], { timeoutMs: 1_800_000 });
+```powershell
+npm.cmd run test:nether:check
+$env:MC_HOST='127.0.0.1'
+$env:MC_PORT='25565'
+$env:MC_VERSION='1.21.1'
+$env:MC_NAME='ArcherNetherD3'
+$env:MC_WORLD_ID='nether-trial-world-01'
+$env:MC_TEST_MINUTES='30'
+npm.cmd run test:live:nether
 ```
 
-`agent` created through `createMinecraftAgent`. This call doesn't teleport the player or give out the objects. Use it for a full journey [Expedition file](FULL-EXPEDITION.md).
+The check command validates configuration without connecting. The live command rejects a nonempty starting inventory, equipped armor, a non-Survival mode or a start outside the Overworld. Do not give items or teleport the agent during an unassisted trial. Set `MC_TEST_MINUTES=0` to remove the overall deadline; individual actions remain bounded.
 
-Same action in the ordinary JSON-scenarios:
+The profile is defined by `netherVisitScenario()` in the library. Its stages are:
 
-```json
-{
-  "schemaVersion": 1,
-  "name": "Neser resources",
-  "steps": [
-    {
-      "id": "nether-resources",
-      "type": "netherResources",
-      "targets": {
-        "minecraft:blaze_rod": 10,
-        "minecraft:ender_pearl": 20,
-        "minecraft:nether_wart": 3,
-        "minecraft:soul_sand": 1
-      }
-    },
-    { "id": "return", "type": "travel", "dimension": "minecraft:overworld" }
-  ]
+1. Gather available logs by class and craft a table, stone tools and a furnace.
+2. Prepare a shield, iron tools and an iron chestplate.
+3. Obtain golden boots and spare construction blocks.
+4. Acquire a diamond pickaxe, 14 obsidian and flint and steel.
+5. Build and ignite a full 4 by 5 portal frame, then enter it.
+6. Collect eight netherrack and four quartz, and reach at least 12 horizontal blocks from the Nether objective's starting position using observed terrain.
+
+The current construction profile uses mined obsidian. It does not replace that prerequisite with a bucket-cast frame. Resource acquisition and finding a suitable supported construction area can be lengthy or fail; a configured profile is not proof of a successful run.
+
+## Inspect, stop and resume
+
+```powershell
+node examples/expedition-status.js data/nether-visit/report.json --watch
+Set-Content -LiteralPath 'data/nether-visit/report.stop' -Value 'stop'
+```
+
+Reports, append-only events, learned model memory and scenario checkpoints are written under `data/nether-visit/`. These files are ignored by Git. To resume, remove the stop file, retain the same world, player and server settings, set `MC_RESUME=1`, and run the command again. By default, death ends a segment. Optional recovery uses the same controls described in the [full expedition guide](FULL-EXPEDITION.md).
+
+## Use the domain in an application
+
+```js
+import {createMinecraftAgent} from 'overmindmc';
+
+const agent = createMinecraftAgent({
+  name: 'Atlas', worldId: 'my-world',
+  connection: {host: '127.0.0.1', port: 25565, version: '1.21.1', auth: 'offline'}
+});
+try {
+  // This objective requires the agent to be in the Nether already.
+  await agent.run({
+    schemaVersion: 1, name: 'Explore the Nether',
+    steps: [{id: 'explore', type: 'netherResources',
+      targets: {'minecraft:quartz': 4}, exploreDistance: 12}]
+  }, {timeoutMs: 600000});
+} finally {
+  await agent.close();
 }
 ```
 
-## Integrating into your application
+`createNetherReactor` accepts item targets and an optional `exploreDistance` from 0 to 128 blocks. Zero retains inventory-only completion. A positive distance requires both inventory targets and an observed horizontal displacement from the objective's origin. The origin and maximum displacement persist in exported memory; restarting does not reset the distance requirement to the agent's new position. Low health suspends exploration. Paths use known terrain, ordinary navigation and bounded search.
 
-```js
-import { createMinecraftBrain, createNetherReactor } from 'overmindmc';
+## Existing policies
 
-const nether = createNetherReactor({
-  client, // connected OMConnect
-  targets: { blaze_rod: 10, ender_pearl: 20 },
-  maxBarters: 64
-});
-const brain = createMinecraftBrain({
-  client, worldId: 'my-survival-world',
-  survival: false, storage: false,
-  reactors: [nether]
-});
-let current;
-brain.on('action:start', e => { current = e.id === nether.id ? e.action : null; });
-brain.on('action:finish', e => {
-  if (current && e.rule === nether.id) nether.recordResult(e, current);
-  current = null;
-});
-brain.start();
-```
+| Area | Behavior |
+| --- | --- |
+| Movement | Walk observed routes; try bounded dry passages and short bridges when their support and material constraints permit |
+| Environment | Avoid known lava hazards; do not use water-based protection or sleep in the Nether |
+| Piglins | Keep a gold armor piece; barter only with eligible observed adults; count actual collected rewards |
+| Resource mobs | Approach or fight observed targets, use ranged opportunities when supported, and confirm loot in inventory |
+| Landmarks | Remember observed fortress-like blocks, portal cells and warped vegetation; blocks are evidence, not hidden structure coordinates |
+| Materials | Reuse connected-version resource classes, recipes, workstations and tool requirements |
 
-Uh-huh `createEndExpedition` The transmission of results and the development of this module are already connected. With hand `createScenario` Please pass `netherFactory`; simple API Agent does it automatically. `snapshot()` Shows the remaining targets, benchmarks and exchange costs. `exportMemory()` Maintains orientations, Cells visited and budget; This memory should belong to the same world and agent.
-
-## Confirmations and boundaries
-
-`barter` in OMConnect Gives exactly one existing duct to a observed adult piglin and waits for a server change in the inventory. The missing item is not in the package: The near Lut is not declared proven. The selection and achievement of the objective shall be verified separately. Exchange does not open chest menu.
-
-Smelting and grasshopper improvement use existing active performers. The Zeli Count describes the ingredients, shapes and fuel, but full-fledged per-cool-cup cycle/The use of potions has not yet been realized. All types of automatic farms are also not being sold, Universal looting of bastion or reconstruction of any damaged frame. The module does not declare these options operational.
-
-Automatic checks cover solutions and model exchange protocol. **Full game tour through Nether and victory from zero has not yet been confirmed.** For issuance 1.0 Need server results from the entire chain.
-
-Mechanically controlled [description of the piglins from Mojang](https://www.minecraft.net/en-us/article/meet-piglins) and [vanilla table exchange Java 1.21.1](https://mcasset.cloud/1.21.1/data/minecraft/loot_table/gameplay/piglin_bartering.json). Table of awards; It is not a promise of a particular exchange.
+`netherCapabilities(registry)` lists domain groups for the connected registry. Custom mod machines require their own registered executors. Potion planning is available separately; a recipe graph alone does not establish autonomous brewing execution. The [validation record](results/arthas-dev3-validation-2026-10-15.md) distinguishes unit tests and live runs. Stable Dragon-completion evidence remains separate from this shorter Nether trial.

@@ -28,6 +28,16 @@ export function endExpeditionScenario(){
   ]};
 }
 
+/** Focused fresh-spawn integration profile, stopping after an observed Nether visit. */
+export function netherVisitScenario(){
+  const base=endExpeditionScenario(),end=base.steps.findIndex(step=>step.id==='enter-nether');
+  const steps=base.steps.slice(0,end+1).filter(step=>step.type!=='shelter');
+  Object.assign(steps[0].targets,{'#logs':8,'minecraft:crafting_table':1});
+  steps.splice(steps.findIndex(step=>step.id==='portal-materials'),0,{id:'nether-preparation',type:'resources',targets:{'minecraft:golden_boots':1,'minecraft:cobblestone':32}});
+  steps.push({id:'explore-nether',type:'netherResources',targets:{'minecraft:netherrack':8,'minecraft:quartz':4},exploreDistance:12});
+  return {schemaVersion:1,name:'Fresh spawn to a Nether exploration',steps};
+}
+
 export function dragonExpeditionScenario(){
   const scenario=endExpeditionScenario();scenario.name='From an empty inventory to the Ender Dragon';
   const prepare=scenario.steps.findIndex(s=>s.id==='build-nether-portal');
@@ -78,9 +88,10 @@ export function createEndExpedition({client,worldId,scenario=endExpeditionScenar
   const catalog=catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}),failures=new Map(),dragonCombat=createDragonPolicy({client});
   const explorer=createExplorationPlanner({world:client.world,onReady:()=>client.emit('planningReady')});
   let brain;
-  const journal=createCampaignJournal({clock,objective:scenario.steps.some(s=>s.type==='dragon')?'defeat-dragon':'enter-end'});
+  const objective=scenario.steps.some(s=>s.type==='dragon')?'defeat-dragon':scenario.steps.at(-1).type==='netherResources'?'visit-nether':'enter-end';
+  const journal=createCampaignJournal({clock,objective});
   const controller=createScenario({scenario,catalog,getBlock:p=>client.world.blockAt(p),strongholdSearch:strongholdSearch(client),explorationPlanner:explorer,memory:checkpoint,
-    netherFactory:(step,memory)=>createNetherReactor({client,catalog,targets:step.targets,explorationPlanner:explorer,memory,clock,resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10,spatial:brain?.spatial,explorationPlanner:explorer})}),
+    netherFactory:(step,memory)=>createNetherReactor({client,catalog,targets:step.targets,exploreDistance:step.exploreDistance,explorationPlanner:explorer,memory,clock,resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10,spatial:brain?.spatial,explorationPlanner:explorer})}),
     resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10,spatial:brain?.spatial,explorationPlanner:explorer}),dragonCombat});
   controller.reactor.failureScope='action';controller.reactor.managesRetries=true;
   const failureKey=(dimension,action)=>JSON.stringify([dimension,action]);
