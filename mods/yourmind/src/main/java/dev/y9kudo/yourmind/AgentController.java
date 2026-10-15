@@ -162,7 +162,7 @@ public final class AgentController {
                 for (Command task : queue.snapshot()) YourMindClient.message((n++) + ". " + task.name() + " " + task.selector() + " " + (task.target() == null ? "" : task.target())); return true;
             }
             case "settings" -> { settings.snapshot().forEach((k,v) -> YourMindClient.message(k + " = " + v)); return true; }
-            case "set" -> { settings.set(c.selector(), c.arguments().get(1)); if (Set.of("radius", "nodes").contains(c.selector().toLowerCase(Locale.ROOT))) refreshRoute(); YourMindClient.message(c.selector() + " = " + settings.snapshot().get(c.selector().toLowerCase(Locale.ROOT))); return true; }
+            case "set" -> { settings.set(c.selector(), c.arguments().get(1)); if (Set.of("radius", "nodes", "jump").contains(c.selector().toLowerCase(Locale.ROOT))) refreshRoute(); YourMindClient.message(c.selector() + " = " + settings.snapshot().get(c.selector().toLowerCase(Locale.ROOT))); return true; }
             case "resetsettings" -> { settings.reset(); refreshRoute(); YourMindClient.message("Default settings restored"); return true; }
             case "render", "hud" -> { settings.set(c.name(), c.selector().equals("toggle") ? Boolean.toString(!settings.enabled(c.name())) : c.selector()); YourMindClient.message(c.name() + " = " + settings.enabled(c.name())); return true; }
             case "save", "load" -> {
@@ -212,7 +212,7 @@ public final class AgentController {
                 if (!c.arguments().isEmpty()) workspace().clearSelection();
                 var selection = workspace().selection(); YourMindClient.message(selection == null ? "Selection is incomplete" : selection + " | " + selection.volume() + " blocks");
             }
-            case "protect" -> { workspace().protect(c.selector()); target = null; resourceCapture = null; candidates = List.of(); YourMindClient.message("Protected region: " + c.selector() + "; #save persists it"); }
+            case "protect" -> { workspace().protect(c.selector()); release(); target = null; resourceCapture = null; candidates = List.of(); YourMindClient.message("Protected region: " + c.selector() + "; #save persists it"); }
             case "unprotect" -> { workspace().unprotect(c.selector()); YourMindClient.message("Protection updated"); }
             default -> throw new IllegalArgumentException("Unimplemented command: " + c.name());
         }
@@ -381,10 +381,10 @@ public final class AgentController {
         motion.release(); status = "Searching observed blocks";
         if (resourceCapture == null || !selector.equals(scanSelector)) {
             scanSelector = selector;
+            boolean inspection = job.name().equals("find");
             resourceCapture = new TerrainCapture(client.world, client.player.getBlockPos(), settings.integer("radius"), (pos, state) ->
-                    avoided.getOrDefault(pos, 0) <= tick && matches(state, selector) && !state.hasBlockEntity()
-                            && !workspace().protectedAt(TerrainCapture.point(pos))
-                            && state.getHardness(client.world, pos) >= 0);
+                    avoided.getOrDefault(pos, 0) <= tick && matches(state, selector) && (inspection || !state.hasBlockEntity()
+                            && !workspace().protectedAt(TerrainCapture.point(pos)) && state.getHardness(client.world, pos) >= 0));
         }
         if (!resourceCapture.tick()) return;
         var sorted = resourceCapture.targets.stream().sorted(Comparator.comparingDouble(p -> p.getSquaredDistance(client.player.getPos()))).toList();
@@ -524,6 +524,7 @@ public final class AgentController {
             resourceCapture = null;
             if (target == null) { finish("No eligible mature crops remain; skipped crops may need seeds or a walkable approach"); return; }
         }
+        if (workspace().protectedAt(TerrainCapture.point(target))) { rejectTarget("Crop is protected"); return; }
         BlockState state = client.world.getBlockState(target);
         if (state.isAir()) { target = null; return; }
         if (!nearAndVisible(target)) { approach(target); return; }
@@ -538,6 +539,7 @@ public final class AgentController {
     }
     private void replant() {
         motion.release();
+        if (workspace().protectedAt(TerrainCapture.point(replant))) { pause("Replanting paused because this crop is now protected"); return; }
         if (!client.world.getBlockState(replant).isAir()) {
             if (client.world.getBlockState(replant).getBlock() instanceof CropBlock crop && !crop.isMature(client.world.getBlockState(replant))) {
                 replant = null; pickupUntil = tick + 60; lootItem = null; mined++; return;

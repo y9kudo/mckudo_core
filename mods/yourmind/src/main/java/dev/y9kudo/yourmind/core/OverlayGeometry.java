@@ -33,7 +33,7 @@ public final class OverlayGeometry {
             for (Point p:frame.candidates().stream().limit(128).toList())
                 if (!p.equals(frame.miningTarget()) && center(p).distance(eye)<=radius2) boxes.add(block(p,ORANGE));
             if(frame.miningTarget()!=null && center(frame.miningTarget()).distance(eye)<=radius2) {
-                boxes.add(block(frame.miningTarget(),RED)); labels.add(new Label(center(frame.miningTarget()),"NEXT BLOCK",RED));
+                boxes.add(block(frame.miningTarget(),RED)); labels.add(new Label(center(frame.miningTarget()),frame.task().startsWith("find")?"FOUND BLOCK":"NEXT BLOCK",RED));
             }
         }
         if(settings.enabled("goal") && frame.goal()!=null && center(frame.goal()).distance(eye)<=radius2) {

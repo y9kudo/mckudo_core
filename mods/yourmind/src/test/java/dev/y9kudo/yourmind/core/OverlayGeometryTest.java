@@ -39,4 +39,10 @@ class OverlayGeometryTest {
         var f=frame(route,List.of(),markers,null);route.clear();markers.clear();assertEquals(1,f.route().size());assertEquals(1,f.waypoints().size());
         assertThrows(UnsupportedOperationException.class,()->f.route().clear());
     }
+    @Test void inspectionTargetsAreNotPresentedAsScheduledMiningActions() {
+        var f=new DebugFrame("Found blocks","find chest",true,null,List.of(),0,new Point(1,64,1),List.of(),Map.of(),null,Map.of(),List.of(),0,0,0);
+        var scene=OverlayGeometry.build(f,new AgentSettings(),new OverlayGeometry.Vec(0,65,0));
+        assertTrue(scene.labels().stream().anyMatch(l->l.text().equals("FOUND BLOCK")));
+        assertFalse(scene.labels().stream().anyMatch(l->l.text().equals("NEXT BLOCK")));
+    }
 }
