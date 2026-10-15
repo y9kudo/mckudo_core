@@ -13,6 +13,7 @@
 - Combat pursuit distinguishes sent attacks from attributed damage; transient stale searches can replan without suppressing defense.
 - Directed navigation failure memory, schema-one migration and exclusion of transient occupancy/correction failures.
 - Common configuration/play ping responses fix a LAN login stall. New automated regressions and a bounded live navigation probe.
+- Route-cursor integration tests use the real 50 ms physics cadence alongside the 25 ms steering loop, removing an artificial tenfold physics acceleration that caused intermittent CI overshoot without relaxing movement assertions.
 - Core, standalone OMConnect, OMVectorize identities and declarations use `1.0.0-Arthas-beta1`. YourMind remains `alpha1.0`.
 
 See [beta1 details](docs/releases/1.0.0-Arthas-beta1.md) and the [engineering audit](docs/BETA1-NAVIGATION-COMBAT.md).

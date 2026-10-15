@@ -30,9 +30,11 @@ test('long walking spans preserve velocity across the lookahead boundary without
   c.world.blockAt=p=>flat({x:Math.floor(p.x),y:Math.floor(p.y),z:Math.floor(p.z)});
   c.client={state:'play',write(){},end(){}};
   let nearBoundary=0;const stopped=[];
-  const timer=setInterval(()=>{c.state=stepPhysics(c.state,c.control,c.world.blockAt);c.tickLook();c.emit('physics');if(c.state.position.x>15.5&&c.state.position.x<17.5){nearBoundary++;if(Math.hypot(c.state.velocity.x,c.state.velocity.z)<.04)stopped.push({position:c.state.position,control:c.control,index:c.navigationDebug?.index});}},5);
+  // Each physics step represents 50 ms. Running it every 5 ms accelerated only
+  // physics, not the executor's 25 ms steering loop, causing artificial overshoot.
+  const timer=setInterval(()=>{c.state=stepPhysics(c.state,c.control,c.world.blockAt);c.tickLook();c.emit('physics');if(c.state.position.x>15.5&&c.state.position.x<17.5){nearBoundary++;if(Math.hypot(c.state.velocity.x,c.state.velocity.z)<.04)stopped.push({position:c.state.position,control:c.control,index:c.navigationDebug?.index});}},50);
   try {
-    const result=await executeNavigate(c,{x:28,y:1,z:0,range:0,bridge:false,sprintJump:false},AbortSignal.timeout(5000));
+    const result=await executeNavigate(c,{x:28,y:1,z:0,range:0,bridge:false,sprintJump:false},AbortSignal.timeout(20000));
     assert.equal(result.ok,true);assert.equal(c.metrics.corrections,0);assert.ok(nearBoundary>0);assert.deepEqual(stopped,[]);
     assert.ok(Math.abs(c.state.position.x-28.5)<.3);
   } finally {clearInterval(timer);await c.close();}
