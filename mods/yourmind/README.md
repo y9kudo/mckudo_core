@@ -24,7 +24,7 @@ The mod operates the player you are logged in as. Press **End** at any time to s
 | `#mine #minecraft:logs 8` | Mine up to eight matching blocks across available wood species, then collect drops |
 | `#mine minecraft:iron_ore 4` | Mine matching observed blocks with a suitable existing tool |
 | `#get minecraft:crafting_table 1` | Reach a total inventory target using observed natural block sources and server crafting recipes |
-| `#get minecraft:stone_pickaxe 1` | Plan crafting prerequisites, place/open a crafting table if required, and check the resulting inventory |
+| `#get minecraft:stone_pickaxe 1` | Plan crafting prerequisites, create a required wooden mining tool, place/open a crafting table, and check inventory |
 | `#farm 16` | Harvest mature wheat, carrots, potatoes or beetroot within 16 blocks and replant using an existing seed |
 | `#status` | Show job, route progress, search duration, node count and loaded recipe count |
 | `#pause` / `#resume` | Pause or refresh the current job after resolving an obstruction |
@@ -94,6 +94,8 @@ The current ground model supports known, dry full-block surfaces, one-block jump
 5. During each task, press End; then test pause/resume, opening a menu, disconnecting and changing dimension.
 
 Java tests cover collision geometry, corner clearance, headroom, unknown voxels, voids, route cancellation/budgets, recipe cycles, alternative wood sources, ingredient accounting and command validation. A successful compile/test run is not a recorded live Minecraft result. Live-client verification must be recorded separately with the source commit and observations.
+
+`gradlew.bat benchmarkNavigation` runs a fixed-fixture JVM benchmark with warmup and median/p95/p99 measurements. It does not start Minecraft. See [computation boundaries](../../docs/POLYGLOT-RUNTIME.md) for JavaScript/C/Java responsibilities and the measured C search benefit.
 
 ## Design references
 

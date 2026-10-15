@@ -31,6 +31,12 @@ java {
     withSourcesJar()
 }
 test { useJUnitPlatform() }
+tasks.register('benchmarkNavigation', JavaExec) {
+    dependsOn classes
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'dev.y9kudo.yourmind.core.NavigationBenchmark'
+    maxHeapSize = '256m'
+}
 jar { from('../../LICENSE') { rename { 'LICENSE_yourmind' } } }
 tasks.register('installableJar', Copy) {
     dependsOn remapJar

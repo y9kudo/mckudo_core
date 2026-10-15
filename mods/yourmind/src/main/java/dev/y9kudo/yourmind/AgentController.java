@@ -8,6 +8,7 @@ import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.*;
 import net.minecraft.registry.*;
 import net.minecraft.registry.tag.TagKey;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.*;
@@ -27,6 +28,7 @@ public final class AgentController {
     private final RoutePlanner planner = new RoutePlanner();
     private final Map<BlockPos, Integer> avoided = new HashMap<>();
     private final Set<String> seenBlocks = new HashSet<>();
+    private final Deque<String> toolGoals = new ArrayDeque<>();
     private Command job;
     private RecipeCatalog catalog;
     private TerrainCapture capture;
@@ -76,7 +78,7 @@ public final class AgentController {
         job = null; paused = false; cancelRoute(); release(); capture = null; grid = null; target = null;
         resourceCapture = null; scanSelector = null;
         replant = null; craftPending = false; ownedScreen = false; resourceStep = null;
-        pickupUntil = 0; lootItem = null; avoided.clear(); seenBlocks.clear(); status = reason;
+        pickupUntil = 0; lootItem = null; avoided.clear(); seenBlocks.clear(); toolGoals.clear(); status = reason;
     }
     public void disconnect() { stop("Disconnected"); catalog = null; table = null; dimension = ""; }
     private void release() {
@@ -159,11 +161,14 @@ public final class AgentController {
     private void get() {
         String item = identifier(job.selector()).toString(); Map<String, Integer> inv = inventory();
         if (inv.getOrDefault(item, 0) >= job.count()) { finish("Inventory target confirmed: " + item); return; }
+        while (!toolGoals.isEmpty() && inv.getOrDefault(toolGoals.peek(), 0) > 0) toolGoals.pop();
+        String desired = toolGoals.isEmpty() ? item : toolGoals.peek();
+        int desiredCount = toolGoals.isEmpty() ? job.count() : 1;
         if (target != null) { mineTarget(); return; }
         if (table != null && !client.world.getBlockState(table).isOf(Blocks.CRAFTING_TABLE)) table = null;
         var model = new ResourcePlanner(catalog.recipes, catalog.obtainable(seenBlocks));
-        resourceStep = model.next(item, job.count(), inv, table != null);
-        if (resourceStep == null) { pause("No supported collection/crafting chain for " + item + " in observed terrain. Smelting and special machines are not in this mod build."); return; }
+        resourceStep = model.next(desired, desiredCount, inv, table != null);
+        if (resourceStep == null) { pause("No supported collection/crafting chain for " + desired + " in observed terrain. Smelting and special machines are not in this mod build."); return; }
         status = resourceStep.reason() + ": " + resourceStep.item();
         switch (resourceStep.kind()) {
             case "obtain" -> {
@@ -228,11 +233,22 @@ public final class AgentController {
         BlockState state = client.world.getBlockState(target);
         if (state.isAir() || state.getCollisionShape(client.world, target).isEmpty() && !(state.getBlock() instanceof CropBlock)) {
             // A prediction alone is not a resource completion. Pickup is checked separately.
-            mined++; cancelRoute(); release(); target = null; grid = null; pickupUntil = tick + 100; return;
+            mined++; cancelRoute(); release(); target = null; grid = null; pickupUntil = tick + 200; return;
         }
         if (target.equals(client.player.getBlockPos().down())) { rejectTarget("Refusing to mine the block under the player"); return; }
         if (!nearAndVisible(target)) { approach(target); return; }
-        if (!equip(state)) { if (waitUntil <= tick) rejectTarget("No suitable tool for this block"); return; }
+        if (!equip(state)) {
+            if (waitUntil > tick) return;
+            if (job.name().equals("get") && state.isIn(BlockTags.PICKAXE_MINEABLE)) {
+                String tool = state.isIn(BlockTags.NEEDS_DIAMOND_TOOL) ? "minecraft:diamond_pickaxe"
+                        : state.isIn(BlockTags.NEEDS_IRON_TOOL) ? "minecraft:iron_pickaxe"
+                        : state.isIn(BlockTags.NEEDS_STONE_TOOL) ? "minecraft:stone_pickaxe" : "minecraft:wooden_pickaxe";
+                if (toolGoals.contains(tool) || toolGoals.size() >= 4) { pause("Tool prerequisite cycle: " + tool); return; }
+                toolGoals.push(tool); target = null; cancelRoute(); release(); resourceStep = null;
+                status = "Planning prerequisite tool: " + tool; return;
+            }
+            rejectTarget("No suitable tool for this block"); return;
+        }
         motion.release(); motion.look(Vec3d.ofCenter(target));
         if (!lookingAt(target)) return;
         if (!target.equals(digging)) {
