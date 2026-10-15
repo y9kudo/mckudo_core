@@ -1,5 +1,12 @@
 # OMConnect changelog
 
+## 1.0.0-Arthas-dev.3 · 2026-10-15 · development preview
+
+- Added bounded navigation debug snapshots for live 3D route visualization in OvermindMC.
+- Added official release discovery/inspection and experimental vanilla compatibility profiles.
+- Fixed Java 1.20.4 recipe dimensions and recipe IDs; adapted legacy chunk batches, world block updates, metadata slots and transaction-based crafting.
+- Preserved strict separation between native 1.21/1.21.1 profiles, available codecs and experimental gameplay paths.
+
 ## 1.0.0-Arthas-dev.2 · 2026-10-14 · prerelease
 
 - Synchronized OMConnect and OMVectorize metadata with the OvermindMC Arthas preview.

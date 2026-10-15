@@ -38,12 +38,14 @@ export { createNightReactor } from './src/rest-policy.js';
 export { createHuntingReactor } from './src/hunting.js';
 export { startDashboard } from './src/dashboard.js';
 export {assessFall} from './packages/omconnect/src/fall.js';
-export {createEndExpedition,endExpeditionScenario,dragonExpeditionScenario,fullExpeditionScenario} from './src/expedition.js';
+export {createEndExpedition,endExpeditionScenario,netherVisitScenario,dragonExpeditionScenario,fullExpeditionScenario} from './src/expedition.js';
 export {createNetherReactor,netherCapabilities,NETHER_TRACKED_BLOCKS} from './src/nether.js';
 export {createDragonPolicy} from './src/dragon-brain.js';
 export {createNeuralNavigator,attachNeuralNavigation} from './src/neural-navigation.js';
 export {createNeuralPlanner} from './src/neural-planning.js';
 export {createTaskQueue,validateTasks} from './src/task-queue.js';
+export {createAgentProgram,validateAgentProgram} from './src/agent-program.js';
+export {createVisionVolume,createVisionSnapshot} from './src/vision.js';
 export {createAgentMemory} from './src/agent-memory.js';
 export {brewingRecipes,planBrewing,planNetheriteUpgrade,dimensionTravelPolicy} from './src/mechanics.js';
 

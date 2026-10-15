@@ -3,7 +3,7 @@ import { createBlockTaxonomy } from './taxonomy.js';
 import { createResourceReactor, planExploration } from './exploration.js';
 import { createNetherPortalBlueprint, planNetherPortal, observedNetherPortalFrame, triangulateEyes, fortressEvidence, dragonDecision } from './endgame.js';
 import {blockKey,createGroundShelterBlueprint,findGroundShelterSite,planConstruction} from './construction.js';
-const fields = { resources: ['targets'], netherResources:['targets'], shelter:[], swim:['position'], navigate: ['position','range','bridge','excavate'], collect: ['item', 'count'], netherPortal: ['origin', 'axis'], travel: ['dimension'], blazeRods: ['count'], enderPearls: ['count'], eyes: ['count'], stronghold: [], endPortal: [], dragon: [] };
+const fields = { resources: ['targets'], netherResources:['targets','exploreDistance'], shelter:[], swim:['position'], navigate: ['position','range','bridge','excavate'], collect: ['item', 'count'], netherPortal: ['origin', 'axis'], travel: ['dimension'], blazeRods: ['count'], enderPearls: ['count'], eyes: ['count'], stronghold: [], endPortal: [], dragon: [] };
 const namespaced = s => typeof s === 'string' && /^[a-z0-9_.-]+:[a-z0-9_./-]+$/.test(s);
 export function validateScenario(input) {
   const s = jsonCopy(input);
@@ -19,6 +19,7 @@ export function validateScenario(input) {
     if (step.type === 'resources'||step.type==='netherResources') {
       if (!step.targets || typeof step.targets !== 'object' || Array.isArray(step.targets) || !Object.keys(step.targets).length || Object.keys(step.targets).length > 32 || Object.entries(step.targets).some(([k, n]) => !(namespaced(k) || /^#[a-z0-9_:.-]+$/.test(k)) || !Number.isInteger(n) || n < 1 || n > 4096)) throw new Error("resources.targets: ID/#grade and number 1–4096.");
     }
+    if(step.type==='netherResources'&&step.exploreDistance!==undefined&&(!Number.isFinite(step.exploreDistance)||step.exploreDistance<0||step.exploreDistance>128))throw new Error('netherResources.exploreDistance: 0–128 blocks.');
     if(step.type==='navigate'||step.type==='swim'){
       keys(step.position,['x','y','z'],`steps.${step.id}.position`);
       if(!['x','y','z'].every(k=>Number.isInteger(step.position[k])&&Math.abs(step.position[k])<=30000000))throw new Error("navigate.position: integer coordinates x, y, z within the world.");

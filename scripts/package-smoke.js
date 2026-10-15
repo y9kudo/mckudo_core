@@ -24,7 +24,7 @@ try {
   const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     import {createRequire} from 'node:module';
-    import {OVERMIND, createMinecraftAgent, defineMission, createNeuralPlanner, createCpuPool, catalogFromMinecraftData, createActionEvidenceMemory} from 'overmindmc';
+    import {OVERMIND, createMinecraftAgent, defineMission, createNeuralPlanner, createCpuPool, catalogFromMinecraftData, createActionEvidenceMemory, createAgentProgram, validateAgentProgram, startDashboard} from 'overmindmc';
     import {createOMConnect, OMCONNECT, OMActionError} from 'omconnect';
     import {OMCONNECT as bundled} from 'overmindmc/connect';
     import {createOMAdapter} from 'overmindmc/adapters/omconnect';
@@ -55,6 +55,10 @@ try {
     assert.ok(catalogFromMinecraftData(client.registry).blocks().length > 1000);
     assert.equal(typeof createOMAdapter, 'function'); assert.equal(typeof createSimulator, 'function');
     assert.equal(defineMission([{get:'#logs',count:2}]).steps[0].targets['#logs'], 2);
+    const program=validateAgentProgram({schemaVersion:1,name:'Installed program',nodes:[{id:'pause',type:'action',action:{skill:'wait',args:{durationMs:1}}}]},{skills:['wait']});
+    const controller=createAgentProgram({program,skills:['wait']});const decision=controller.reactor.react({});controller.recordResult({outcome:'success'},decision.action);assert.equal(controller.snapshot().status,'completed');
+    const dashboard=await startDashboard({port:0,manager:{snapshot:()=>({agents:[],log:[]}),close:async()=>{}}});
+    try{for(const path of ['/program-builder.js','/vision3d.js','/vendor/three.module.js','/vendor/three.core.js']){const response=await fetch(dashboard.url+path);assert.equal(response.status,200);await response.arrayBuffer();}}finally{await dashboard.close();}
     const evidence = createActionEvidenceMemory({worldId:'package-smoke'});
     evidence.record({agentId:'Atlas',dimension:'minecraft:overworld',action:{skill:'navigate',args:{x:1,y:64,z:0}},failure:new OMActionError('STEP_STALLED','temporary')});
     assert.equal(evidence.snapshot().entries[0].mode,'timer');

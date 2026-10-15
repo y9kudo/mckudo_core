@@ -28,7 +28,7 @@ export type SkillValidator = (args: Record<string, Json>) => boolean | string | 
 export interface SkillDefinition { execute: SkillHandler; validate?: SkillValidator; }
 export interface Plugin { readonly id: string; readonly apiVersion: 1; readonly requires?: readonly string[]; readonly skills: Readonly<Record<string, SkillHandler | SkillDefinition>>; }
 export declare function definePlugin(plugin: Plugin): Plugin;
-export declare const OVERMIND: Readonly<{ name: string; id: 'overmindmc'; version: string; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-dev.2'; author: 'y9kudo'; protocolVersion: 1 }>;
+export declare const OVERMIND: Readonly<{ name: string; id: 'overmindmc'; version: string; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-dev.3'; author: 'y9kudo'; protocolVersion: 1 }>;
 export declare class ConfigError extends Error { readonly path: string; }
 export declare function validateConfig(input: unknown): AgentConfig;
 export declare function matches(condition: Condition | undefined, observation: Observation): boolean;
@@ -179,7 +179,7 @@ export declare function dragonDecision(observation: Observation): { mode: 'block
 export type ScenarioStep = { id: string } & (
   {type:'swim';position:Position} |
   { type:'navigate'; position:Position; range?:number; bridge?:boolean; excavate?:boolean } |
-  { type: 'resources'|'netherResources'; targets: Record<string, number> } | { type:'shelter' } | { type: 'collect'; item: string; count: number } |
+  { type: 'resources'; targets: Record<string, number> } | {type:'netherResources';targets:Record<string,number>;exploreDistance?:number} | { type:'shelter' } | { type: 'collect'; item: string; count: number } |
   { type: 'netherPortal'; origin?: Position; axis?: 'x' | 'z' } | { type: 'travel'; dimension: 'minecraft:overworld' | 'minecraft:the_nether' | 'minecraft:the_end' } |
   { type: 'blazeRods' | 'enderPearls' | 'eyes'; count: number } | { type: 'stronghold' | 'endPortal' | 'dragon' });
 export interface Scenario { schemaVersion: 1; name: string; steps: ScenarioStep[]; }
@@ -190,18 +190,19 @@ export declare function validateScenario(input: unknown): Scenario;
 export declare function createScenario(options: { scenario: Scenario; catalog: Catalog; taxonomy?: BlockTaxonomy; stations?: Record<string, true | Position>; getBlock?: ExplorationOptions['getBlock']; explorationRadius?: number; explorationPlanner?:ExplorationPlanner; resourceFactory?: (targets: Record<string, number>) => Reactor & { recordResult?(event: any, action: Action): void }; navigationFactory?:(step:Extract<ScenarioStep,{type:'navigate'}>)=>{react(o:Observation):Reaction|null;recordResult?(event:any,action:Action):void}; strongholdSearch?: (observation: Observation, estimate: {x:number;z:number}) => Reaction | null; dragonCombat?:Pick<DragonPolicy,'react'|'recordResult'>;netherFactory?:(step:ScenarioStep & {targets:Record<string,number>},memory?:NetherMemory)=>NetherReactor;memory?:ScenarioMemory }): ScenarioController;
 export {assessFall} from './omconnect/index.js';
 export declare function endExpeditionScenario():Scenario;
+export declare function netherVisitScenario():Scenario;
 export declare function dragonExpeditionScenario():Scenario;
 export declare function observedNetherPortalFrame(options:{interior:Position;getBlock:ExplorationOptions['getBlock']}):Blueprint|null;
 export declare function fullExpeditionScenario():Scenario;
-export interface NetherMemory {schemaVersion:1;targets:Record<string,number>;barters:number;landmarks:{name:string;position:Position}[];visited:Position[];}
-export interface NetherReactor extends Reactor {recordResult(event:{outcome:string;detail?:string},action?:Action):void;snapshot():{status:string;reason:string;targets:Record<string,number>;remaining:Record<string,number>;barters:number;landmarks:{name:string;position:Position}[]};exportMemory():NetherMemory;}
+export interface NetherMemory {schemaVersion:1;targets:Record<string,number>;barters:number;landmarks:{name:string;position:Position}[];visited:Position[];exploreDistance?:number;startPosition?:Position|null;maxExploredDistance?:number;}
+export interface NetherReactor extends Reactor {recordResult(event:{outcome:string;detail?:string},action?:Action):void;snapshot():{status:string;reason:string;targets:Record<string,number>;remaining:Record<string,number>;barters:number;landmarks:{name:string;position:Position}[];requiredExplorationDistance:number;maxExploredDistance:number};exportMemory():NetherMemory;}
 export declare const NETHER_TRACKED_BLOCKS:readonly string[];
 export declare function netherCapabilities(registry:any):{dimension:string;version:string;waterUsable:false;bedsUsable:false;groups:Record<string,string[]>;recipes:string;unknownTerrain:string};
-export declare function createNetherReactor(options:{client:import('./omconnect/index.js').OMConnect;catalog?:Catalog;targets?:Record<string,number>;resourceFactory?:(targets:Record<string,number>)=>Reactor;explorationPlanner?:ExplorationPlanner;clock?:()=>number;maxBarters?:number;memory?:NetherMemory}):NetherReactor;
+export declare function createNetherReactor(options:{client:import('./omconnect/index.js').OMConnect;catalog?:Catalog;targets?:Record<string,number>;resourceFactory?:(targets:Record<string,number>)=>Reactor;explorationPlanner?:ExplorationPlanner;clock?:()=>number;maxBarters?:number;exploreDistance?:number;memory?:NetherMemory}):NetherReactor;
 export interface DragonPolicy {react(observation:Observation):Reaction|null;recordResult(event:{outcome:string},action:Action):void;snapshot():{tower:{entityId:string;anchor:Position;topY:number;mode:string;opened:number}|null;failures:number;reason:string};}
 export declare function createDragonPolicy(options:{client:import('./omconnect/index.js').OMConnect;maxTowerHeight?:number}):DragonPolicy;
-export interface CampaignProgress {objective:'enter-end'|'defeat-dragon';stage:string|null;reason?:string;elapsedMs?:number;idleMs?:number;status?:'running'|'stalled'|'blocked'|'dead'|'completed'|'unverified';goalConfirmed?:boolean;entries:{at:number;stage:string|null;completed:string[];dimension:string}[];}
-export declare function createCampaignJournal(options?:{clock?:()=>number;stallAfterMs?:number;maxEntries?:number;objective?:'enter-end'|'defeat-dragon'}):{observe(input:{scenario:ScenarioState;self:{dimension:string;health:number};inventory?:Record<string,number>;endgame?:{crystals?:{entityId:string}[];dragonDeath?:{confirmed:boolean;ownDamageConfirmed:boolean}}}):CampaignProgress;snapshot():CampaignProgress};
+export interface CampaignProgress {objective:'enter-end'|'defeat-dragon'|'visit-nether';stage:string|null;reason?:string;elapsedMs?:number;idleMs?:number;status?:'running'|'stalled'|'blocked'|'dead'|'completed'|'unverified';goalConfirmed?:boolean;entries:{at:number;stage:string|null;completed:string[];dimension:string}[];}
+export declare function createCampaignJournal(options?:{clock?:()=>number;stallAfterMs?:number;maxEntries?:number;objective?:'enter-end'|'defeat-dragon'|'visit-nether'}):{observe(input:{scenario:ScenarioState;self:{dimension:string;health:number};inventory?:Record<string,number>;endgame?:{crystals?:{entityId:string}[];dragonDeath?:{confirmed:boolean;ownDamageConfirmed:boolean}}}):CampaignProgress;snapshot():CampaignProgress};
 export interface ExpeditionModelEvidence {kind:string;architecture:string;samples:number;updates:number;loss:number;newSamples:number;newUpdates:number;weightsSha256:string|null;weightsChanged:boolean;rememberedFailures:number|null;recentExperience:unknown[];}
 export interface ExpeditionLearningEvidence {method:string;scope:string;planner:ExpeditionModelEvidence|null;navigation:ExpeditionModelEvidence|null;}
 export declare function expeditionLearningEvidence(options?:{planner?:NeuralPlanner|null;navigation?:NeuralNavigator|null;baseline?:ExpeditionLearningEvidence}):ExpeditionLearningEvidence;
@@ -283,7 +284,7 @@ export declare function distributeStorageSupplies(options:{clients:import('./omc
 export interface AgentManagerOptions { brainOptions?:Omit<MinecraftBrainOptions,'client'|'worldId'>; supplyTargets?:Record<string,number>;memoryDirectory?:string; count?:number;names?:string[];connection?:import('./omconnect/index.js').OMOptions;worldId?:string;createClient?:typeof import('./omconnect/index.js').createOMConnect;createBrain?:typeof createMinecraftBrain; }
 export interface ManagedAgent { spatial:SpatialMemorySnapshot|null; tasks:AgentTask[];taskState:TaskState[];learning:NeuralSnapshot|null;cognition:CognitionSnapshot|null;recipes:import("./omconnect/index.js").RecipeBookSnapshot|null; name:string;busy:boolean;error:string;goal:SurvivalTarget;settings:{humanizeMode:boolean;viewDistance:number};attention:unknown|null;schematic:({format:ImportedSchematic['format'];blockCount:number;size:Position;unsupportedStates:number;origin:Position|null})|null;state:import('./omconnect/index.js').OMSnapshot;inventory:{item:string;name:string;count:number;slot:number}[];brain:Snapshot|null;survival:SurvivalSnapshot|null;skills:string[]; }
 export interface ManagerSnapshot { worldId:string;agents:ManagedAgent[];log:{at:number;name:string;event:string;detail:string}[]; }
-export interface AgentManager { ready:Promise<unknown>; fleet:ReturnType<typeof import('./omconnect/index.js').createFleet>;snapshot():ManagerSnapshot;importSchematic(name:string,buffer:Buffer|Uint8Array,filename:string):Pick<ImportedSchematic,'format'|'blockCount'|'size'|'unsupportedStates'>;vision(name:string,options?:{radius?:number}):unknown;execute(name:string,command:'connect'|'disconnect'|'respawn'|'start'|'pause'|'goal'|'action'|'give'|'trade'|'tasks'|'taskRetry'|'settings'|'buildSchematic',args?:Record<string,unknown>):Promise<unknown>;close():Promise<void>; }
+export interface AgentManager { ready:Promise<unknown>; fleet:ReturnType<typeof import('./omconnect/index.js').createFleet>;snapshot():ManagerSnapshot;catalog(name:string):{status:'waiting'|'ready';items:{id:string;name:string}[]};importSchematic(name:string,buffer:Buffer|Uint8Array,filename:string):Pick<ImportedSchematic,'format'|'blockCount'|'size'|'unsupportedStates'>;vision(name:string,options?:{radius?:number}):unknown;vision3d(name:string,options?:VisionVolumeOptions):Promise<VisionVolume>;execute(name:string,command:'connect'|'disconnect'|'respawn'|'start'|'pause'|'goal'|'action'|'give'|'trade'|'tasks'|'taskRetry'|'settings'|'buildSchematic',args?:Record<string,unknown>):Promise<unknown>;close():Promise<void>; }
 export declare function createAgentManager(options?:AgentManagerOptions):AgentManager;
 export interface MinecraftAgentOptions extends Omit<AgentManagerOptions,'count'|'names'|'worldId'> {name?:string;worldId:string;}
 export type MissionStep = {get:string;count?:number} | {craft:string;count?:number} | {go:Position;range?:number;bridge?:boolean;excavate?:boolean} | {swim:Position}|{nether:Record<string,number>};
@@ -293,6 +294,7 @@ export interface MinecraftAgent {
   readonly name:string;readonly worldId:string;readonly client:import('./omconnect/index.js').OMConnect;readonly manager:AgentManager;
   snapshot():ManagedAgent;connect():Promise<ManagedAgent>;start(goal?:SurvivalTarget):Promise<ManagedAgent>;
   run(scenario:Scenario,options?:AgentRunOptions):Promise<ManagedAgent>;
+  runProgram(program:AgentProgram,options?:AgentRunOptions):Promise<ManagedAgent>;
   mission(steps:MissionStep[],options?:AgentRunOptions):Promise<ManagedAgent>;
   get(item:string,count?:number,options?:AgentRunOptions):Promise<ManagedAgent>;
   craft(item:string,count?:number,options?:AgentRunOptions):Promise<ManagedAgent>;
@@ -301,7 +303,7 @@ export interface MinecraftAgent {
   pause():Promise<void>;respawn():Promise<ManagedAgent>;close():Promise<void>;
 }
 export declare function createMinecraftAgent(options:MinecraftAgentOptions):MinecraftAgent;
-export declare function startDashboard(options?:{port?:number;manager?:AgentManager;telemetry?:ReturnType<typeof import('./src/intelligence.js').createTelemetry>}):Promise<{url:string;manager:AgentManager;close():Promise<void>}>;
+export declare function startDashboard(options?:{port?:number;manager?:AgentManager;textureArchive?:string;telemetry?:ReturnType<typeof import('./src/intelligence.js').createTelemetry>}):Promise<{url:string;manager:AgentManager;close():Promise<void>}>;
 
 export interface NavigationExperience {from:Position;to:Position;dimension:string;kind?:string;health?:number|null;food?:number|null;nearbyPlayers?:number;healthAfter?:number|null;outcome:'success'|'failure'|'cancelled';id?:string;reason?:string;}
 export interface NeuralMemory {schemaVersion:1;worldId:string;architecture:'12-16-1';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[];bias:number};replay:{x:number[];y:0|1}[];failed:{key:string;until:number;count:number}[];}
@@ -313,8 +315,18 @@ export interface CognitionMemory {schemaVersion:1;worldId:string;architecture:'2
 export interface CognitionSnapshot {kind:'local-neural-planner';architecture:'24-24-1';samples:number;updates:number;loss:number;journal:{at:number;skill:string;item:string;outcome:string;damage:boolean;detail:string}[];}
 export interface NeuralPlanner {worldId:string;assess(observation:Observation,action:Action):{failureProbability:number;trained:boolean;cost:number};record(event:{before:Observation;after?:Observation|null;action:Action;outcome:'success'|'failure'|'cancelled'|'progress';detail?:string}):boolean;snapshot():CognitionSnapshot;export():CognitionMemory;}
 export declare function createNeuralPlanner(options:{worldId:string;memory?:CognitionMemory;learningRate?:number;clock?:()=>number}):NeuralPlanner;
-export type AgentTask={id:string;title:string}&({type:'action';action:Action&{args:Record<string,Json>}}|{type:'scenario';scenario:Scenario});
-export interface TaskState {id:string;status:'pending'|'running'|'completed'|'failed'|'blocked';reason:string;}
+export type AgentProgramNode={id:string;title?:string;priority?:number}&({type:'action';action:Action&{args:Record<string,Json>}}|{type:'resources';targets:Record<string,number>}|{type:'navigate';position:Position;range?:number;bridge?:boolean;excavate?:boolean}|{type:'scenario';scenario:Scenario}|{type:'sequence'|'parallel';children:AgentProgramNode[]}|{type:'if';condition:Condition;then:AgentProgramNode[];else?:AgentProgramNode[]}|{type:'repeat';count:number;children:AgentProgramNode[]}|{type:'until';condition:Condition;maxIterations:number;children:AgentProgramNode[]});
+export interface AgentProgram {schemaVersion:1;name:string;nodes:AgentProgramNode[];}
+export interface ProgramSnapshot {status:'running'|'completed'|'failed';active:string|null;reason:string;nodes:{id:string;status:'pending'|'completed'|'failed'|'blocked';iteration:number;failures:number;branch?:'then'|'else';reason?:string}[];}
+export interface AgentProgramController {definition():AgentProgram;reactor:Reactor;recordResult(event:Pick<Result,'outcome'>&Partial<Pick<Result,'detail'>>,action:Action):void;snapshot():ProgramSnapshot;}
+export declare function validateAgentProgram(input:unknown,options?:{skills?:readonly string[]}):AgentProgram;
+export declare function createAgentProgram(options:{program:AgentProgram;skills?:readonly string[];scenarioFactory?:(scenario:Scenario)=>ScenarioController;resume?:ProgramSnapshot}):AgentProgramController;
+export type AgentTask={id:string;title:string;mode?:'sequential'|'parallel';priority?:number}&({type:'action';action:Action&{args:Record<string,Json>}}|{type:'scenario';scenario:Scenario}|{type:'program';program:AgentProgram});
+export interface TaskState {id:string;status:'pending'|'running'|'completed'|'failed'|'blocked';reason:string;program?:ProgramSnapshot;}
+export interface VisionVolumeOptions {radius?:number;down?:number;up?:number;maxBlocks?:number;waypoints?:{id:string;title?:string;position:Position}[];}
+export type VisionVolume={status:'waiting';blocks:[];palette:[];entities:[]}|{status:'ready';at:number;signature:string;center:Position;radius:number;down:number;up:number;revision:number;palette:{name:string;stateId:number;properties:Record<string,string|number|boolean>;shapes:number[][];category:string}[];blocks:[number,number,number,number][];truncated:boolean;consistent:boolean;unknownCells:number;readCells:number;dimension:string;self:{position:Position;yaw:number;pitch:number;health:number|null};entities:{id:string;name:string;kind:string;position:Position;yaw:number}[];route:{dimension:string;status:string;goal:Position;index:number;steps:{kind:string;position:Position}[]}|null;target:Position|null;waypoints:{id:string;title?:string;position:Position}[];loadedChunks:number;protectedRegions:unknown[]};
+export declare function createVisionVolume(client:import('./omconnect/index.js').OMConnect,options?:VisionVolumeOptions):Promise<VisionVolume>;
+export declare function createVisionSnapshot(client:import('./omconnect/index.js').OMConnect,options?:{radius?:number;down?:number;up?:number}):unknown;
 export interface TaskQueue {reactor:Reactor;definition():AgentTask[];snapshot():TaskState[];retry(id:string):void;attach(core:OvermindCore):()=>void;}
 export declare function validateTasks(input:unknown,options?:{skills?:readonly string[]}):AgentTask[];
 export declare function createTaskQueue(options?:{tasks?:AgentTask[];skills?:readonly string[];scenarioFactory?:(scenario:Scenario)=>ScenarioController;resume?:TaskState[]}):TaskQueue;

@@ -1,75 +1,82 @@
 # OvermindMC
 
-**Current release: Version Arthas `1.0.0-Arthas-dev.2` · Created by y9kudo · MIT.**
+### Build Minecraft agents with visual programs or JavaScript.
 
-[Download OvermindMC and OMConnect](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-dev.2) · [Release notes and installation](docs/releases/1.0.0-Arthas-dev.2.md).
+**Version Arthas · `1.0.0-Arthas-dev.3` · Minecraft Java agent platform · Created by y9kudo · MIT**
 
-## What is in this release
+[Quick start](#start-with-the-web-dashboard) · [Program builder](docs/PROGRAMS.md) · [API](docs/API.md) · [Test evidence](docs/results/arthas-dev3-validation-2026-10-15.md) · [Contribute](CONTRIBUTING.md)
 
-- **OvermindMC** plans goals, recipes, survival tasks and learning for Minecraft Java agents. **OMConnect** executes actions through the Java protocol; **OMVectorize** plans movement and spatial actions.
-- An optional [C computation layer](docs/NATIVE-COMPUTE.md) handles bounded ground search, packet framing and explicit numerical inference. The JavaScript APIs and adapters remain available.
-- Expedition reports retain learning evidence, placement ownership, heartbeats and interrupted segments. Cave reconnaissance uses supported descents and recovery routes back toward surface resources. [Full campaign instructions](docs/FULL-EXPEDITION.md).
-- PPO, discrete SAC, a physical headless environment and a live RL control bridge are available for experimentation. [Learning and simulation guide](docs/RL-PHYSICS-AND-CONNECT.md).
+OvermindMC is a reusable library for building Minecraft agents. Give an agent a resource goal, a sequence of tasks or a conditional program. The kernel plans prerequisites, reads the connected world and asks its client to execute actions. You can build programs in the local web dashboard or write JavaScript using the same public API.
 
-The release passed **561 automated tests** locally, including the compiled C backend; its GitHub Actions checks also passed on Windows and Linux. An autonomous run from an empty inventory through an own Ender Dragon victory is still unverified. [Validation evidence](docs/results/native-expedition-2026-10-14.md) · [Version support](docs/VERSION-API.md) · [Current release notes](docs/releases/1.0.0-Arthas-dev.2.md).
+This is a development preview. An independently verified autonomous run from an empty inventory to an own Ender Dragon victory remains a requirement for stable 1.0.0. [Current development notes](docs/releases/1.0.0-Arthas-dev.3.md) · [Changelog](CHANGELOG.md) · [Readiness criteria](docs/V1-READINESS.md).
 
-## What the components do
+**Start small:** ask for `#logs`, then a stone pickaxe and a furnace. Inspect what the agent observes, how it chooses actions and which outcomes the server confirms. Build a larger program from those same blocks.
 
-**OvermindMC** is the brain: goals, resource classes, recipe planning, survival policies, learning, experience, cooperation and persistent memory. It is a library for building agents, not a single Minecraft bot.
+## New in dev.3
 
-**OMConnect** is the independent Java client: server connection and authentication, authoritative world and inventory observations, player physics, containers, equipment and action execution. It uses Java protocol libraries and does not require Mineflayer.
+- **3D world debugger:** received blocks with local Minecraft textures/models, route steps, program waypoints, current targets, entities, protected regions and the agent's view frustum.
+- **Visual program builder:** resource goals, movement, skills, sequences, parallel goals, if/else, finite repeats and bounded until loops. Blocks and editable JSON share one document; export runnable JavaScript when you want to extend it in an editor.
+- **Version lab:** official release discovery, explicit transport capabilities and opt-in compatibility profiles. Live test results and known failures are recorded separately from codec availability.
 
-**OMVectorize** handles spatial calculations: ground routes, swimming, body clearance and elytra trajectories. Ground planning includes diagonal movement, supported jumps and descents, controlled excavation and bridges. Execution rechecks terrain and protected regions before editing blocks.
+## How the components fit together
 
-```mermaid
-flowchart LR
-  App[Your application or dashboard] --> Brain[OvermindMC: goals and planning]
-  Brain --> Space[OMVectorize: spatial planning]
-  Brain --> Client[OMConnect: observations and actions]
-  Space --> Client
-  Client <--> MC[Minecraft Java server]
-  Training[Headless training and replay] --> Brain
-```
+| Component | Responsibility | Example |
+| --- | --- | --- |
+| **OvermindMC** | Goals, recipes, resource classes, control flow, survival policies, cooperation and learning evidence | Decide which nearby wood to gather and which prerequisites a furnace needs |
+| **OMConnect** | Connection/authentication, authoritative world and inventory observations, physics and action execution | Dig a block, open a container, equip a tool and confirm the server's response |
+| **OMVectorize** | Spatial calculations and routes | Plan a supported descent, jump, swim or bridge segment |
+| **Agent Center** | Local controls, visual programming and debugging | Change a program and inspect its route in 3D |
 
-## Start without writing an agent
+The data flow is **server observation → kernel decision → spatial plan → client action → observed result**. OMConnect works independently of the kernel and does not require Mineflayer. The optional Mineflayer adapter lets existing applications use OvermindMC's planning layer.
 
-Install Node.js 24, open this checkout in VS Code, and run these commands in its terminal:
+## Start with the web dashboard
+
+Use Node.js 24. From a checkout of this build, open a terminal in the project folder:
 
 ```powershell
+git clone https://github.com/y9kudo/mckudo_core.git
+cd mckudo_core
 npm.cmd ci
-npm.cmd test
-npm.cmd run test:types
+$env:MC_HOST='127.0.0.1'
+$env:MC_PORT='25565'
+$env:MC_VERSION='1.21.1'
+$env:MC_WORLD='my-survival-world'
 npm.cmd run dashboard
 ```
 
-The dashboard binds to the local computer. It shows each agent's inventory, health, goals, task blocks, observed world and diagnostic timings. Controls require the local session token. Unknown chunks are displayed as unknown rather than invented terrain. [Dashboard guide](docs/DASHBOARD.md).
+Open **http://127.0.0.1:4180**. Start a compatible Minecraft Java server first; the default connection uses offline authentication. Use `MC_DASHBOARD_PORT` if port 4180 is already occupied. Change `MC_WORLD` when switching worlds so saved tasks and learning memory stay separated.
 
-To run a bounded real-world test against your offline Java 1.21.1 server at `127.0.0.1:25565`:
+1. Select an agent and press **Connect**.
+2. In **Program builder**, load **First tools & furnace**, or add your own blocks. A resource goal such as `minecraft:stone_pickaxe` asks the kernel to plan its prerequisites.
+3. Press **Apply program**, then **Start program**. Inspect progress, inventory and failure reasons while it runs. **Pause** interrupts the current action.
+4. Open **3D vision** to inspect received terrain, routes and waypoints. Click a block to see its state or add a waypoint above it.
 
-```powershell
-node examples/curriculum-live.js --tier=stone --name=AtlasTrial --minutes=8
-```
-
-Use a new nickname for an empty-inventory test. The launcher checks Survival mode, executes the six stages and saves a report under `data/arthas-live/`. It does not grant items or teleport the agent. [Curriculum guide](docs/ARTHAS-CURRICULUM.md).
-
-## Use the library in your own application
-
-Download `overmindmc-1.0.0-Arthas-dev.2.tgz` from the [current release](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-dev.2). In your application's folder, install the downloaded archive:
+The dashboard can use the installed Minecraft client JAR through `MC_TEXTURE_PACK`, or you can upload a client JAR/resource pack ZIP in **3D vision**. For example:
 
 ```powershell
-npm.cmd install .\overmindmc-1.0.0-Arthas-dev.2.tgz
+$env:MC_TEXTURE_PACK="$env:APPDATA\.minecraft\versions\1.21.1\1.21.1.jar"
+npm.cmd run dashboard
 ```
 
-The independent client is available as `omconnect-1.0.0-Arthas-dev.2.tgz` in the same release. These archives are published on GitHub; installation resolves npm dependencies, and neither package is published to the npm registry.
+Textures and models remain local runtime data. They are excluded from the source package. The preview shows a bounded volume of received chunks, refreshes world snapshots up to twice per second and animates the view smoothly between snapshots. Unloaded terrain remains empty. [Dashboard and texture guide](docs/DASHBOARD.md).
 
-Create `index.js`, with `"type": "module"` in your application's `package.json`:
+## Build a program without coding
+
+Start with **Gather resources**, then add **Move to a waypoint**, **If / else**, **Repeat** or **Parallel goals**. Select a block to edit its fields; after login, search item names from the connected version's catalog. Drag its handle to reorder it or drop it inside a group; arrow buttons provide the same ordering controls. Parallel goals interleave through one physical executor, while defense can interrupt ordinary work.
+
+Use `#logs` to accept available tree species. Use exact item IDs such as `minecraft:iron_pickaxe` for crafted results. Conditions read observed facts such as inventory, health, hunger, time and dimension. Every loop has an explicit limit; reaching that limit reports a failure rather than running forever.
+
+Switch to **JSON** to edit the same program directly. **JavaScript** shows an application generated from it; **Export JavaScript** creates a file you can edit and run locally. [Program format, conditions and examples](docs/PROGRAMS.md).
+
+## Use the library in JavaScript
+
+Build an installation archive from this checkout with `npm.cmd pack --ignore-scripts`. Install the resulting `overmindmc-1.0.0-Arthas-dev.3.tgz` into your application with `npm.cmd install <path-to-archive>`. Add `"type": "module"` to that application's `package.json`.
 
 ```js
 import { createMinecraftAgent } from 'overmindmc';
 
 const agent = createMinecraftAgent({
-  name: 'Atlas',
-  worldId: 'my-local-survival-world',
+  name: 'Atlas', worldId: 'my-survival-world',
   connection: {
     host: '127.0.0.1', port: 25565,
     version: '1.21.1', auth: 'offline'
@@ -77,68 +84,36 @@ const agent = createMinecraftAgent({
 });
 
 try {
-  await agent.get('#logs', 4);       // any usable nearby wood species
-  await agent.craft('crafting_table', 1);
-  await agent.craft('wooden_pickaxe', 1);
-  await agent.get('cobblestone', 8);
-  await agent.craft('furnace', 1);
+  await agent.runProgram({
+    schemaVersion: 1,
+    name: 'First tools and furnace',
+    nodes: [
+      { id: 'wood', type: 'resources', targets: { '#logs': 4 } },
+      { id: 'tools', type: 'resources', targets: {
+        'minecraft:stone_pickaxe': 1, 'minecraft:furnace': 1
+      } }
+    ]
+  }, { timeoutMs: 600000 });
 } finally {
   await agent.close();
 }
 ```
 
-Keep `worldId` stable for the same world; change it for a new world. The core chooses actions and checks the resulting inventory. Acacia, birch and other members of `#logs` can satisfy the wood goal; recipes are selected for the connected registry. [Beginner instructions](docs/GETTING-STARTED.md) · [Simple agent API](docs/SIMPLE-AGENT.md) · [Scenarios](docs/SCENARIOS.md).
+For short scripts, use `agent.get('#logs', 4)`, `agent.craft('crafting_table', 1)` and `agent.goTo({x: 10, y: 64, z: 20})`. For custom execution layers, use `createCore`, register reactors and supply an adapter. [Public API](docs/API.md) · [Scenario guide](docs/SCENARIOS.md) · [Independent OMConnect](packages/omconnect/README.md).
 
-## Simple declarative missions
+## Minecraft versions
 
-```js
-import { defineMission } from 'overmindmc';
+Native high-level profiles currently cover **Java 1.21 and 1.21.1**. The version API distinguishes known catalogs, installed transports, native actions and live test evidence. Discovery can enumerate historical official releases; it does not enable an unsupported wire protocol.
 
-const mission = defineMission([
-  { get: '#logs', count: 4 },
-  { craft: 'crafting_table', count: 1 },
-  { craft: 'wooden_pickaxe', count: 1 },
-  { get: 'cobblestone', count: 8 },
-  { craft: 'furnace', count: 1 }
-]);
-await agent.run(mission);
-```
+The installed transport supplies 30 protocol families. Automated checks round-trip movement and digging through their actual codecs. Selected local server trials check whether a fresh agent can collect cobblestone. Additional vanilla profiles remain experimental until their gameplay paths pass those trials. [Version API](docs/VERSION-API.md) · [Reproduce the version lab](docs/VERSION-LAB.md).
 
-You can also store scenarios and task queues as JSON. Conditions refer to observed facts; a planned effect is not treated as a successful action. [JSON configuration](docs/JSON.md) · [Missions](docs/MISSIONS-AND-BRIDGES.md) · [Task workflows](docs/WORKFLOWS.md).
+Forge, Fabric and NeoForge integrations use an explicit bridge contract and machine catalogs. Applications register executors for custom mechanisms. [Mod integration](docs/MODS.md) · [Machine recipes](docs/MACHINE-RECIPES.md).
 
-## Learning and physical simulation
+## Learning, computation and validation
 
-```powershell
-node examples/train-physical.js --algorithm=ppo --batches=400 --count=32
-node examples/train-physical.js --algorithm=sac --batches=600 --count=32
-node examples/rl-connect-live.js --name=ArthasRL
-```
+The platform includes CPU-based DQN, PPO and discrete SAC experiments, physical headless environments, curriculum stages, replay, rewards, HTN/MCTS planning and an opt-in live RL bridge. Learning requires measured training and evaluation. Optional LLM providers are separate from local execution. [Learning guide](docs/RL-PHYSICS-AND-CONNECT.md).
 
-Double DQN, PPO and discrete SAC run on CPU. Physical environments share OMConnect's 50 ms physics step and model collision, liquids, falls and bounded zombie behavior. Worker pools support 128 independent environments without opening Minecraft windows. A skill-level simulator is also available for resource progression.
-
-The low-level RL bridge executes a compatible 18-feature, 9-action policy through OMConnect. It checks health, loaded support, hazards, projected motion and legal attack targets. Training and evaluation remain explicit. [RL, physics and live transfer](docs/RL-PHYSICS-AND-CONNECT.md) · [v1 intelligence API](docs/V1-INTELLIGENCE.md).
-
-HTN and MCTS planners, a goal stack, rewards, BC/offline replay, SQLite world hints, telemetry and watchdogs are available through `overmindmc/intelligence`. LLM providers are optional; local planning and training do not require a paid service.
-
-## Minecraft versions and integrations
-
-The [version API](docs/VERSION-API.md) exposes catalog, transport, native-action and live-verification status separately. All **30 installed transport families** pass movement codec round trips. Native high-level action profiles currently cover **1.21/1.21.1**, with live evidence on **1.21.1**. A codec or recipe catalog alone does not prove full agent support on another release. Additional profiles can be registered explicitly; the separately supplied 26.3 profile is experimental.
-
-The optional Mineflayer adapter lets existing applications use OvermindMC's planning layer. Mineflayer is a development dependency for interoperability tests and is not required by the native production path. [Adapter API](docs/API.md).
-
-Forge, NeoForge and Fabric integrations use the bridge contract and explicit catalogs/machine recipes. Register modded mechanisms through their executor rather than sending vanilla clicks to an unknown GUI. [Mod integration](docs/MODS.md) · [Machine recipes](docs/MACHINE-RECIPES.md).
-
-## Other capabilities
-
-- Resource catalogs, multiple block classes, recipe graphs and lazy connected-world recipe books.
-- Equipment and tool selection, food and sleep policies, protection and tactical combat.
-- Nether portals, fortress/resource search, barter planning and End expedition policies.
-- Containers, gifts and negotiated exchanges; physical schematic construction in Creative and Survival.
-- Cooperative agents, shared observations, claims, role assignment and persistent world hints.
-
-[Automation](docs/AUTOMATION.md) · [Navigation and protected builds](docs/BUILDINGS-AND-PVP.md) · [Nether](docs/NETHER.md) · [Schematics](docs/SCHEMATICS.md) · [Expeditions](docs/FULL-EXPEDITION.md).
-
-## Validate a change
+An optional C computation layer accelerates bounded ground search, packet framing and explicit numerical inference. JavaScript remains available as a fallback. [Native computation](docs/NATIVE-COMPUTE.md).
 
 ```powershell
 npm.cmd test
@@ -147,6 +122,10 @@ npm.cmd run release:check
 npm.cmd run test:package -- --offline
 ```
 
-The package test installs packed archives into a separate consumer. Its offline mode requires dependencies already present in the npm cache. The release check validates packaged imports, documentation links, metadata and exclusion of local runtime files. Live test reports belong in `data/`; publish curated evidence without account caches, world files or tokens.
+The package smoke test installs both archives into a clean consumer; offline mode needs populated npm caches. [Current validation evidence](docs/results/arthas-dev3-validation-2026-10-15.md) separates automated checks, browser tests and live Minecraft trials. Local worlds, logs, auth caches, texture archives and runtime reports belong in ignored data directories. [Contributing](CONTRIBUTING.md) · [Full expedition instructions](docs/FULL-EXPEDITION.md) · [Roadmap](ROADMAP.md) · [License](LICENSE).
 
-[Contribution guide](CONTRIBUTING.md) · [Readiness criteria](docs/V1-READINESS.md) · [Roadmap](ROADMAP.md) · [License](LICENSE).
+## Help build the platform
+
+Useful contributions include reproducible navigation failures, exact-version gameplay trials, new action executors, examples and clearer beginner documentation. Start with a small case, explain the expected outcome and attach the observed result. [Report a bug](https://github.com/y9kudo/mckudo_core/issues/new?template=bug_report.yml) · [Propose a feature](https://github.com/y9kudo/mckudo_core/issues/new?template=feature_request.yml) · [Development guide](CONTRIBUTING.md).
+
+If the project helps you, a star makes it easier for other developers to discover it. OvermindMC and its independent OMConnect client are maintained by **y9kudo** under the **MIT license**.

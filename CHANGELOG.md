@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.0-Arthas-dev.3 · 2026-10-15 · development preview
+
+- Added a focused fresh-spawn Nether visit profile, persistent exploration-distance completion, and a documented live-trial launcher.
+
+- Added a local 3D debugger for received world geometry, Minecraft textures/models, routes, waypoints, gaze, targets, entities and protected regions.
+- Added local client-JAR/resource-pack import with bounded in-memory asset resolution; game assets are excluded from source archives.
+- Added a visual program editor and shared JSON runtime with sequence, parallel goals, if/else, repeat and bounded until control flow; programs can be exported as runnable JavaScript.
+- Added `runProgram`, portable program validation, per-block execution state and task-queue persistence.
+- Added official historical version discovery, server preparation and explicit experimental vanilla profiles; fixed 1.20.4 recipe dimensions and recipe identifiers, legacy world batches, slot IDs and version-dependent tracked blocks.
+- Rewrote the README and dashboard instructions for the current build. Wider version support and autonomous Dragon completion remain evidence-gated.
+
 ## 1.0.0-Arthas-dev.2 · 2026-10-14 · prerelease
 
 - Packaged the OvermindMC migration, expanded learning APIs, optional C computation and survival recovery work as the second Version Arthas preview.

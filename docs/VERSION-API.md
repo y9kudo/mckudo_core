@@ -2,6 +2,25 @@
 
 OMConnect separates four claims: **known data**, **installed transport**, **native actions** and **live verification**. A version appearing in a recipe catalog does not establish that inventory clicks, swimming or combat work on its server.
 
+The [version lab](VERSION-LAB.md) records real server trials, including whether an empty-inventory agent actually collected cobblestone. Version metadata comes from the [official Minecraft launcher manifest](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json); wire schemas come from the installed [PrismarineJS protocol package](https://github.com/PrismarineJS/node-minecraft-protocol/blob/master/docs/README.md). Neither source alone verifies gameplay.
+
+## Discover exact historical releases
+
+```js
+import {
+  discoverOfficialJavaVersions,
+  inspectOfficialJavaVersion
+} from 'overmindmc/connect';
+
+const releases = await discoverOfficialJavaVersions();
+console.log(releases.length, releases.find(v => v.version === '1.20.4'));
+
+const exact = await inspectOfficialJavaVersion('1.20.4');
+console.log(exact.officialServer, exact.support);
+```
+
+`discoverOfficialJavaVersions()` includes release, old beta and old alpha IDs by default. Use `includeLegacy: false` for full releases only; `includeSnapshots: true` adds snapshots. Discovery is lazy and requires network access. `inspectOfficialJavaVersion()` fetches exact official metadata and reports whether Mojang offers a standalone server JAR. It does **not** install a transport or enable unsupported gameplay actions. A version is considered ready for an agent only after its connection, world decoding, recipes, inventory, movement and actions pass a real server trial.
+
 ## Inspect support before connecting
 
 ```js
@@ -16,6 +35,7 @@ console.table(listVersionSupport());
 const api = createVersionAPI('1.16.5');
 console.log(api.capabilities());
 console.log(api.hasPacket('teleport_confirm'));
+console.log(api.capabilities().blockDigging);
 const registry = api.loadRegistry();
 ```
 
@@ -81,6 +101,24 @@ const outgoing = api.movement({
 ```
 
 Minecraft positions and inventory changes remain server-authoritative. Codec round trips alone do not validate movement physics or prove an accepted inventory transaction.
+
+The `digging()` helper shapes a block-dig packet for the selected schema. The caller must still select a valid target and tool, send start/finish at legal times, and wait for a server-confirmed block change and pickup:
+
+```js
+const start = api.digging({
+  position: {x: 1, y: 64, z: 2}, phase: 'start', face: 1
+});
+// transport.write(start.name, start.params);
+```
+
+The experimental `createVanillaCompatibilityProfile(version)` bridges older vanilla packet layouts into the current client for lab testing. Register it explicitly; it is not a blanket compatibility promise:
+
+```js
+import {createVanillaCompatibilityProfile, registerVersionProfile}
+  from 'overmindmc/connect';
+const unregister = registerVersionProfile(createVanillaCompatibilityProfile('1.20.4'));
+// Create and run the client; call unregister() after closing it.
+```
 
 ## Add a complete version profile
 

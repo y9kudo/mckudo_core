@@ -30,7 +30,7 @@ export function minecraftCurriculumStages({tier='stone'}={}) {
   const groups={
     wood:[
       ['logs',"Gather wood by class",{'#logs':4}],
-      ['table',"Create a Wrestle",{crafting_table:1}],
+      ['table',"Craft a crafting table",{crafting_table:1}],
       ['wood-pickaxe',"Create a wooden pick",{wooden_pickaxe:1}]
     ],
     stone:[

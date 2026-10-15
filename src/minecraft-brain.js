@@ -1,6 +1,8 @@
 import { createCore } from './core.js';
 import { createCombatReactor } from './combat.js';
 import { createOMAdapter } from '../adapters/omconnect.js';
+import {catalogFromMinecraftData} from './catalog.js';
+import {createBlockTaxonomy} from './taxonomy.js';
 import { isStorageBlock } from '../packages/omconnect/src/containers.js';
 import { createLootReactor, createSurvivalReactor } from './survival-brain.js';
 import { createNeedsReactor } from './needs.js';
@@ -43,8 +45,12 @@ export function createMinecraftBrain({ client, worldId, actionEvidence = createA
   if (atlas && atlas.worldId !== worldId) throw new Error("Spatial memory belongs to another world.");
   const previousLearning = options.learning ?? options.planning?.experience;
   const learning = thinking && previousLearning ? {worldId,assess:(...args)=>previousLearning.assess(...args),record:e=>{previousLearning.record(e);thinking.record(e);}} : thinking || previousLearning;
+  const adapterCatalog=adapterOptions.catalog||catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook});
+  const adapterTaxonomy=adapterOptions.taxonomy||createBlockTaxonomy(adapterCatalog);
   const storageNames = client.registry.blocksArray.filter(b=>isStorageBlock(b.name)).map(b=>'minecraft:'+b.name);
-  const trackedBlocks = [...new Set([...(adapterOptions.trackedBlocks || ['#logs', '#ores', '#workstations', '#crops','#beds','stone','cobblestone','deepslate','cobbled_deepslate','blackstone']),...NETHER_TRACKED_BLOCKS.filter(n=>client.registry.blocksByName[n]), ...(storage === false ? [] : storageNames)])];
+  const defaults=['#logs', '#ores', '#workstations', '#crops','#beds','stone','cobblestone','deepslate','cobbled_deepslate','blackstone']
+    .filter(name=>name.startsWith('#')?adapterTaxonomy.members(name.slice(1)).length>0:Boolean(client.registry.blocksByName[name]));
+  const trackedBlocks = [...new Set([...(adapterOptions.trackedBlocks || defaults),...NETHER_TRACKED_BLOCKS.filter(n=>client.registry.blocksByName[n]), ...(storage === false ? [] : storageNames)])];
   const explorer = computation === false ? null : computation.planner || createExplorationPlanner({ world: client.world, pool: computation.pool, onReady: () => client.emit('planningReady') });
   if (explorer) client.once('end', () => explorer.close());
   const survivalReactor = survival===false ? null:createSurvivalReactor({client,spatial:atlas,explorationPlanner:explorer,...survival,actionEvidence});
@@ -53,7 +59,7 @@ export function createMinecraftBrain({ client, worldId, actionEvidence = createA
   const huntingReactor=hunting===false?null:createHuntingReactor(hunting);
   const recoveryReactor=recovery===false?null:createNavigationRecoveryReactor({client,...recovery});
   const needsReactor=needs===false?null:createNeedsReactor({client,...needs});
-  const adapter = createOMAdapter(client, { ...adapterOptions, trackedBlocks });
+  const adapter = createOMAdapter(client, { ...adapterOptions, catalog:adapterCatalog,taxonomy:adapterTaxonomy,trackedBlocks });
   const combatReactor=createCombatReactor({ attackPlayers: true, retaliationHits: 2, retaliationWindowMs: 10000, pathRetreat:client.describe?.().skills?.includes('evade')??false, ...defense });
   if (atlas) {
     const observe = adapter.observe;

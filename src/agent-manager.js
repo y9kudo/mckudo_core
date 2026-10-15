@@ -14,7 +14,7 @@ import { runInteraction } from './interactions.js';
 import { runTrade } from './trade.js';
 import { equipmentTradeTargets } from './equipment-policy.js';
 import {proposeTeamTransfer,teamSupplyTargets} from './cooperation.js';
-import {createVisionSnapshot} from './vision.js';
+import {createVisionSnapshot,createVisionVolume} from './vision.js';
 import {parseSchematic,buildSchematic,findSchematicSite,buildSchematicPhysical} from './schematics.js';
 import {createActionEvidenceMemory} from './action-evidence.js';
 import {createNetherReactor} from './nether.js';
@@ -67,7 +67,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
           const catalog=e.tasks.length?catalogFromMinecraftData(e.client.registry,{recipeBook:e.client.recipeBook}):null;
           const resourceFactory=targets=>createSurvivalReactor({client:e.client,catalog,targets,priority:20,actionEvidence,spatial:e.brain?.spatial,explorationPlanner:e.brain?.computation});
           e.queue=e.tasks.length?createTaskQueue({tasks:e.tasks,skills:e.client.describe().skills,resume:e.taskState,scenarioFactory:scenario=>createScenario({scenario,catalog,getBlock:p=>e.client.world.blockAt(p),explorationPlanner:e.brain?.computation,resourceFactory,
-            netherFactory:step=>createNetherReactor({client:e.client,catalog,targets:step.targets,resourceFactory,explorationPlanner:e.brain?.computation}),
+            netherFactory:(step,memory)=>createNetherReactor({client:e.client,catalog,targets:step.targets,exploreDistance:step.exploreDistance,memory,resourceFactory,explorationPlanner:e.brain?.computation}),
             navigationFactory:step=>createNavigationGoal({client:e.client,catalog,...step,resourceFactory}),dragonCombat:createDragonPolicy({client:e.client})})}):null;
           const modelOptions=(key,saved)=>brainOptions[key]===false?false:{...brainOptions[key],...(saved?{memory:saved}:{})};
           e.brain=createBrain({...brainOptions,actionEvidence,client:e.client,worldId,spatial:modelOptions('spatial',e.spatialMemory),neural:modelOptions('neural',e.neuralMemory),cognition:modelOptions('cognition',e.cognitionMemory),survival:e.queue?false:brainOptions.survival===false?false:{...brainOptions.survival,target:e.goal,peer:fleet.peers.get(name)},reactors:[...(e.queue?[e.queue.reactor]:[]),...(brainOptions.reactors||[])]});e.queue?.attach(e.brain);
@@ -135,7 +135,14 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
   },4000);timer.unref();
   const persistence=setInterval(()=>{if(!closed&&memory)for(const [name,e]of entries)if(e.loaded)void save(name,e).catch(error=>note(name,'memory-error',error.message));},15000);persistence.unref();
   const ready=Promise.all([...entries].map(async([name,e])=>{try{await restore(name,e);}catch(error){e.error=String(error.message);note(name,'memory-error',e.error);}}));
-  return {fleet,entries,snapshot,importSchematic,vision(name,options){const e=entries.get(name);if(!e)throw new Error("Unknown agent.");return createVisionSnapshot(e.client,options);},execute,ready,close(){
+  const vision3d=(name,options)=>{
+    const e=entries.get(name);if(!e)throw new Error('Unknown agent.');const waypoints=[];
+    const collect=nodes=>{for(const node of nodes||[]){if(node.type==='navigate')waypoints.push({id:node.id,title:node.title||'Move',position:node.position});collect(node.children||node.then);collect(node.else);}};
+    for(const task of e.tasks){if(task.type==='program')collect(task.program.nodes);else if(task.type==='scenario')collect(task.scenario.steps);else if(['navigate','creativeFly','goto'].includes(task.action?.skill))waypoints.push({id:task.id,title:task.title,position:task.action.args});}
+    return createVisionVolume(e.client,{...options,waypoints});
+  };
+  const catalog=name=>{const e=entries.get(name);if(!e)throw new Error('Unknown agent.');if(e.client.dataLoaded===false)return {status:'waiting',items:[]};return {status:'ready',items:e.client.registry.itemsArray.slice(0,10000).map(item=>({id:'minecraft:'+item.name,name:item.displayName||item.name.replaceAll('_',' ')}))};};
+  return {fleet,entries,snapshot,importSchematic,vision3d,catalog,vision(name,options){const e=entries.get(name);if(!e)throw new Error("Unknown agent.");return createVisionSnapshot(e.client,options);},execute,ready,close(){
     if(!closing){
       closed=true;clearInterval(timer);clearInterval(persistence);
       closing=(async()=>{

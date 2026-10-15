@@ -1,7 +1,7 @@
 {
   "name": "overmindmc",
-  "version": "1.0.0-Arthas-dev.2",
-  "description": "Reusable Minecraft automation kernel: catalogs, resource planning, construction and reactors",
+  "version": "1.0.0-Arthas-dev.3",
+  "description": "Minecraft Java agent platform with visual programs, 3D debugging, resource planning and independent OMConnect execution",
   "author": "y9kudo",
   "license": "MIT",
   "type": "module",
@@ -51,6 +51,7 @@
     "src/",
     "native/",
     "scripts/build-native.js",
+    "scripts/prepare-version-lab.js",
     "omconnect/",
     "packages/omconnect/",
     "adapters/",
@@ -82,7 +83,7 @@
     "test:package": "node scripts/package-smoke.js",
     "demo:mission": "node examples/mission.js",
     "demo:evidence": "node examples/evidence-memory.js",
-    "test:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types/daily.mts test/types/platform07.mts test/types/evidence.mts test/types/nether.mts test/types/intelligence.mts test/types/physical.mts test/types/native.mts",
+    "test:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types/daily.mts test/types/platform07.mts test/types/evidence.mts test/types/nether.mts test/types/intelligence.mts test/types/physical.mts test/types/native.mts test/types/dev3.mts",
     "test:live:mission": "node examples/mission-live.js",
     "mission:check": "node examples/mission.js examples/missions/first-tools.json --check",
     "test:live:protection": "node examples/protection-live.js",
@@ -143,7 +144,9 @@
     "train:curriculum": "node examples/train-curriculum.js",
     "train:physical": "node examples/train-physical.js",
     "test:live:rl": "node examples/rl-connect-live.js",
-    "check:english": "node scripts/check-english.js"
+    "check:english": "node scripts/check-english.js",
+    "test:live:nether": "node examples/nether-from-zero.js",
+    "test:nether:check": "node examples/nether-from-zero.js --check"
   },
   "dependencies": {
     "minecraft-data": "^3.117.0",
@@ -151,7 +154,9 @@
     "prismarine-block": "^1.23.0",
     "prismarine-chunk": "^1.41.0",
     "prismarine-nbt": "^2.8.0",
-    "protodef": "^1.19.0"
+    "protodef": "^1.19.0",
+    "three": "^0.186.1",
+    "vec3": "^0.1.3"
   },
   "devDependencies": {
     "mineflayer": "^4.39.0",
@@ -165,5 +170,18 @@
   "homepage": "https://github.com/y9kudo/mckudo_core#readme",
   "bugs": {
     "url": "https://github.com/y9kudo/mckudo_core/issues"
-  }
+  },
+  "keywords": [
+    "minecraft",
+    "minecraft-java",
+    "ai-agents",
+    "agent-framework",
+    "automation",
+    "visual-programming",
+    "pathfinding",
+    "reinforcement-learning",
+    "omconnect",
+    "javascript",
+    "typescript"
+  ]
 }

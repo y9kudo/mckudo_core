@@ -1,6 +1,6 @@
 {
   "name": "omconnect",
-  "version": "1.0.0-Arthas-dev.2",
+  "version": "1.0.0-Arthas-dev.3",
   "description": "Independent Minecraft Java agent client, physics and peer communication",
   "author": "y9kudo",
   "license": "MIT",
@@ -40,7 +40,8 @@
     "prismarine-chunk": "^1.41.0",
     "prismarine-block": "^1.23.0",
     "protodef": "^1.19.0",
-    "prismarine-nbt": "^2.8.0"
+    "prismarine-nbt": "^2.8.0",
+    "vec3": "^0.1.3"
   },
   "repository": {
     "type": "git",

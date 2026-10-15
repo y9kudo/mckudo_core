@@ -53,6 +53,8 @@ test('parallel intentions interleave while only one body action is active',()=>{
   brain.emit('action:start',{id:'overmind:tasks',action:first.action});
   assert.equal(q.reactor.react({}).action,null);
   brain.emit('action:finish',{rule:'overmind:tasks',outcome:'success'});
-  q.reactor.react({});
+  const second=q.reactor.react({});
+  assert.ok(q.snapshot().every(task=>task.status!=='running'),'A proposal is not a physically started action.');
+  brain.emit('action:start',{id:'overmind:tasks',action:second.action});
   assert.equal(q.snapshot().find(s=>s.status==='running').id,'b');
 });

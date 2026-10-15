@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup and dashboard guide
+    url: https://github.com/y9kudo/mckudo_core/blob/main/docs/DASHBOARD.md
+    about: Start here for connection settings, textures and visual programming.

@@ -20,3 +20,6 @@ outputs/
 *.tmp
 examples/follow-test.js
 examples/iron-pickaxe.js
+
+# Branding drafts are local; dev.3 documentation uses no artwork.
+/assets/brand/

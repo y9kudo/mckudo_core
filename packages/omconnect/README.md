@@ -1,22 +1,22 @@
 # OMConnect
 
-**Independent Minecraft Java client · Version Arthas · `1.0.0-Arthas-dev.2` · Created by y9kudo · MIT.**
+**Independent Minecraft Java client · Version Arthas · `1.0.0-Arthas-dev.3` · Created by y9kudo · MIT.**
 
-The `omconnect-1.0.0-Arthas-dev.2.tgz` installation archive is included in the [OvermindMC Arthas dev.2 prerelease](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-dev.2).
+This checkout is the Arthas dev.3 development build. Build its independent installation archive with `npm.cmd pack --ignore-scripts` from this directory.
 
 OMConnect connects agents to Java servers, records authoritative world/inventory observations and executes actions through ordinary protocol packets. It includes collision/medium physics, containers, equipment, protection and player tracking. It does not import Mineflayer or the OvermindMC planning kernel.
 
 OMVectorize supplies ground routes, swimming, body clearance and elytra trajectory calculations. OvermindMC can use the client as its execution layer, or your application can use OMConnect independently.
 
-## Install from the current release
+## Install a local build
 
-Use Node.js 24. Download `omconnect-1.0.0-Arthas-dev.2.tgz` from the [GitHub release](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-dev.2). In your application's folder, run:
+Use Node.js 24. Build `omconnect-1.0.0-Arthas-dev.3.tgz`, copy it to your application's folder and run:
 
 ```powershell
-npm.cmd install .\omconnect-1.0.0-Arthas-dev.2.tgz
+npm.cmd install .\omconnect-1.0.0-Arthas-dev.3.tgz
 ```
 
-The archive is published on GitHub and resolves its dependencies through npm; the package is not published to the npm registry.
+Installation resolves dependencies through npm. Publication of this development build is separate from building the archive; the package is not published to the npm registry.
 
 Add `"type": "module"` to your application's `package.json`.
 

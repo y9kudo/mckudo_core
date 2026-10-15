@@ -363,7 +363,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
       const chosenIngredients=new Map();
       for(const g of recipe.ingredients){const item=[...g.choices].sort((a,b)=>estimate(a,g.count*batches+(chosenIngredients.get(a)||0),next)-estimate(b,g.count*batches+(chosenIngredients.get(b)||0),next))[0];chosenIngredients.set(item,(chosenIngredients.get(item)||0)+g.count*batches);}
       const requirements=[...chosenIngredients].map(([item,count])=>({item,count}));
-      const action={skill:'craft',args:{item,count:Math.min(64,missing),recipeId:recipe.id}};
+      const action={skill:'craft',args:{item,count:Math.min(64,missing),...(typeof recipe.id==='string'?{recipeId:recipe.id}:{})}};
       return { recipe, requirements, score: requirements.reduce((n, r) => n + estimate(r.item, r.count, next), 0) + learnedCost(action) + (blocked(action)?1e5:0) };
     }).sort((a, b) => a.score - b.score);
     if (!recipes.length) return { action: null, reason: `There is no supported way to get ${item}.` };

@@ -3,7 +3,7 @@ import {performance} from 'node:perf_hooks';
 import { fluidAt } from './environment.js';
 import {planRoute,planRouteAsync} from './navigation.js';
 
-export const OMVECTORIZE = Object.freeze({ name: 'OMVectorize', author: 'y9kudo', version: '1.0.0-Arthas-dev.2', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-dev.2', modes: ['ground','swim','elytra'], predictions: ['elytra'] });
+export const OMVECTORIZE = Object.freeze({ name: 'OMVectorize', author: 'y9kudo', version: '1.0.0-Arthas-dev.3', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-dev.3', modes: ['ground','swim','elytra'], predictions: ['elytra'] });
 const axes = ['x', 'y', 'z'];
 const valid = p => p && axes.every(k => Number.isFinite(p[k]) && Math.abs(p[k]) <= 30000000);
 const distance = (a,b) => Math.hypot(...axes.map(k=>a[k]-b[k]));

@@ -1,6 +1,7 @@
 import {mkdir,writeFile,rename} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {OVERMIND,createMinecraftAgent,validateScenario} from '../overmindmc.js';
+import {createVanillaCompatibilityProfile,registerVersionProfile,versionSupport} from '../omconnect/index.js';
 import {minecraftCurriculumStages} from '../src/intelligence.js';
 
 const options=Object.fromEntries(process.argv.slice(2).map(value=>{const match=/^--(tier|minutes|name|output)=(.+)$/.exec(value);if(!match)throw new Error(`Unknown argument ${value}`);return [match[1],match[2]];}));
@@ -8,6 +9,10 @@ const tier=options.tier||'stone',definitions=minecraftCurriculumStages({tier}),n
 for(const definition of definitions)validateScenario({schemaVersion:1,name:definition.title,steps:[{id:definition.id,type:'resources',targets:definition.targets}]});
 if(!Number.isFinite(minutes)||minutes<=0||minutes>180)throw new Error('minutes: 0..180');await mkdir(directory,{recursive:true});
 const connection={host:process.env.MC_HOST||'127.0.0.1',port:Number(process.env.MC_PORT||25565),version:process.env.MC_VERSION||'1.21.1',auth:'offline'};
+const support=versionSupport(connection.version);
+if(!support.native&&!support.transport)throw new Error(`No installed transport for Java ${connection.version}.`);
+if(!support.native&&process.env.MC_EXPERIMENTAL_VANILLA!=='1')throw new Error(`Java ${connection.version} needs an explicit experimental version profile. Set MC_EXPERIMENTAL_VANILLA=1 to test it.`);
+const unregister=support.native?()=>{}:registerVersionProfile(createVanillaCompatibilityProfile(connection.version));
 const agent=createMinecraftAgent({name,worldId:process.env.MC_WORLD||'arthas-curriculum-local',connection,
   brainOptions:{storage:false,night:false,hunting:false,defense:{attackPlayers:false}}});
 const controller=new AbortController(),stop=()=>controller.abort(new Error('Curriculum trial stopped')),timer=setTimeout(()=>controller.abort(new Error('Live curriculum time budget reached')),minutes*60000);
@@ -17,6 +22,7 @@ const save=async()=>{await writeFile(resolve(directory,'report.json.tmp'),JSON.s
 let recording=Promise.resolve();const enqueueSave=()=>{recording=recording.then(save).catch(error=>console.error('REPORT',error.message));};
 agent.client.on('action',event=>{if(report.actions.length<4096)report.actions.push({...event,at:Date.now(),position:{...agent.client.state.position},inventory:agent.client.inventory.snapshot()});console.log('ACTION',event.skill,event.outcome,event.detail||'');});
 agent.client.on('correction',event=>{if(report.corrections.length<256)report.corrections.push(event);});
+if(process.env.MC_LEGACY_TRACE==='1')agent.client.on('legacyTransaction',event=>console.log('LEGACY_TRANSACTION',JSON.stringify(event)));
 const progress=setInterval(()=>{const s=agent.snapshot();report.progress={at:Date.now(),stage:report.stages.at(-1)?.id,health:s.state.health,position:s.state.position,inventory:s.inventory,performance:s.brain?.performance};enqueueSave();console.log('PROGRESS',JSON.stringify(report.progress));},15000);progress.unref();
 try{
   await agent.connect();controller.signal.throwIfAborted();const c=agent.client;report.initial=agent.snapshot();
@@ -31,6 +37,6 @@ try{
 }catch(error){report.error=error.message;}
 finally{
   clearInterval(progress);clearTimeout(timer);process.removeListener('SIGINT',stop);process.removeListener('SIGTERM',stop);
-  try{await agent.pause();report.final=agent.snapshot();}catch(error){report.cleanupError=error.message;}finally{await agent.close();}
+  try{await agent.pause();report.final=agent.snapshot();}catch(error){report.cleanupError=error.message;}finally{await agent.close();unregister();}
   report.finishedAt=new Date().toISOString();await recording;await save();console.log('RESULT',JSON.stringify({status:report.status,fromZero:report.fromZero,stages:report.stages.map(s=>({id:s.id,status:s.status})),error:report.error,report:resolve(directory,'report.json')}));if(report.status!=='passed')process.exitCode=1;
 }
