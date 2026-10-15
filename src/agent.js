@@ -2,6 +2,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createAgentManager } from './agent-manager.js';
 import { validateScenario } from './scenario.js';
 import { defineMission } from './mission.js';
+import {validateAgentProgram} from './agent-program.js';
 
 /** A small application facade. Planning and execution still belong to the reusable core/client. */
 export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {}, memoryDirectory, brainOptions = {}, createClient, createBrain } = {}) {
@@ -35,6 +36,7 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
     craft(item,count=1,options) { return api.mission([{craft:item,count}],options); },
     goTo(position,{range=1,bridge=true,excavate=false,...options}={}) { return api.mission([{go:position,range,bridge,excavate}],options); },
     swimTo(position,options) { return api.mission([{swim:position}],options); },
+    runProgram(program,options) { return api.run(program,{...options,program:true}); },
     async start(goal = 'wood') {
       ensureOpen();
       if (active) throw new Error("First stop the script.");
@@ -44,10 +46,10 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
       await manager.execute(name, 'start');
       return snapshot();
     },
-    run(input, { timeoutMs = 300000, signal } = {}) {
+    run(input, { timeoutMs = 300000, signal,program=false } = {}) {
       ensureOpen();
       if (active) throw new Error("One agent does one script. Wait till you're finished or call pause().");
-      const scenario = validateScenario(input);
+      const scenario = program?validateAgentProgram(input,{skills:entry().client.describe().skills}):validateScenario(input);
       if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 1800000) throw new Error("timeoutMs: from 1000 to 1800000 ms.");
       signal?.throwIfAborted();
       const controller = new AbortController(), run = { controller, promise: null };
@@ -67,7 +69,7 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
       run.promise = (async () => {
         try {
           await connect(); controller.signal.throwIfAborted();
-          await manager.execute(name, 'tasks', { tasks: [{ id: 'scenario', title: scenario.name, type: 'scenario', scenario }] });
+          await manager.execute(name, 'tasks', { tasks: [program?{id:'program',title:scenario.name,type:'program',program:scenario}:{ id: 'scenario', title: scenario.name, type: 'scenario', scenario }] });
           controller.signal.throwIfAborted();
           await manager.execute(name, 'start');
           while (true) {

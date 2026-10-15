@@ -4,10 +4,10 @@ export class ConfigError extends Error {
 export const object = x => x !== null && typeof x === 'object' && !Array.isArray(x) && [Object.prototype, null].includes(Object.getPrototypeOf(x));
 export const id = x => typeof x === 'string' && /^[a-zA-Z0-9_:.\/-]{1,100}$/.test(x) && !['__proto__', 'constructor', 'prototype'].includes(x);
 const fail = (path, text) => { throw new ConfigError(path, text); };
-export function jsonCopy(value, path = '$', maxBytes = 262144) {
+export function jsonCopy(value, path = '$', maxBytes = 262144, maxDepth = 20) {
   const seen = new Set();
   function check(v, p, depth) {
-    if (depth > 20) fail(p, "JSON nesting exceeds the allowed depth");
+    if (depth > maxDepth) fail(p, "JSON nesting exceeds the allowed depth");
     if (v === null || typeof v === 'string' || typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))) return;
     if (!Array.isArray(v) && !object(v)) fail(p, "You need the usual JSON-value, without function or class objects");
     if (seen.has(v)) fail(p, "cyclic JSON");

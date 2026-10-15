@@ -33,6 +33,19 @@ test('scenario retries are bounded and a successful alternative resets the failu
   assert.equal(q.snapshot()[0].status,'failed');assert.equal(q.reactor.react({}).action,null);assert.equal(recorded,12);
   q.retry('scenario');finish('failure');assert.equal(q.snapshot()[0].status,'blocked');
 });
+
+test('a defense decision cannot leave a stale parallel proposal marked as the executed task',()=>{
+  const parallel=tasks.map(task=>({...task,mode:'parallel'}));
+  const q=createTaskQueue({tasks:parallel,skills:['wait']}),brain=new EventEmitter();q.attach(brain);
+  q.reactor.react({});
+  assert.ok(q.snapshot().every(task=>task.status!=='running'));
+  brain.emit('action:start',{id:'defense',action:{skill:'wait',args:{}}});
+  brain.emit('action:finish',{rule:'defense',outcome:'success'});
+  const next=q.reactor.react({});assert.equal(next.action.args.durationMs,2);
+  brain.emit('action:start',{id:q.reactor.id,action:next.action});
+  brain.emit('action:finish',{rule:q.reactor.id,outcome:'success'});
+  assert.equal(q.snapshot()[0].status,'pending');assert.equal(q.snapshot()[1].status,'completed');
+});
 test('atomic agent memory reloads trained weights and separates worlds and agents',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'mckudo-memory-'));
   try{
@@ -43,7 +56,7 @@ test('atomic agent memory reloads trained weights and separates worlds and agent
 });
 test('manager rejects invalid edits without discarding the saved queue and restores it',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'mckudo-manager-'));let m=createAgentManager({count:1,names:['Atlas'],memoryDirectory:directory,worldId:'test'});
-  try{await m.execute('Atlas','tasks',{tasks});await assert.rejects(m.execute('Atlas','tasks',{tasks:[{...tasks[0],action:{skill:'nonexistent',args:{}}}]}));assert.equal(m.snapshot().agents[0].tasks.length,2);assert.equal(m.entries.get('Atlas').client.dataLoaded,false);await m.close();m=createAgentManager({count:1,names:['Atlas'],memoryDirectory:directory,worldId:'test'});await m.ready;assert.equal(m.snapshot().agents[0].tasks.length,2);}finally{await m.close();await rm(directory,{recursive:true,force:true});}
+  try{await m.execute('Atlas','tasks',{tasks});await assert.rejects(m.execute('Atlas','tasks',{tasks:[{...tasks[0],action:{skill:'nonexistent',args:{}}}]}));assert.equal(m.snapshot().agents[0].tasks.length,2);assert.equal(m.catalog('Atlas').status,'waiting');assert.equal(m.entries.get('Atlas').client.dataLoaded,false);await m.close();m=createAgentManager({count:1,names:['Atlas'],memoryDirectory:directory,worldId:'test'});await m.ready;assert.equal(m.snapshot().agents[0].tasks.length,2);}finally{await m.close();await rm(directory,{recursive:true,force:true});}
 });
 
 test('manager restores spatial memory into the brain and persists later observations',async()=>{

@@ -1,0 +1,10 @@
+import {createMinecraftAgent,createAgentProgram,validateAgentProgram,startDashboard,createVisionVolume,type AgentProgram} from '../../overmindmc.js';
+const program:AgentProgram={schemaVersion:1,name:'Tools',nodes:[{id:'logs',type:'resources',targets:{'#logs':4}},{id:'loop',type:'until',condition:{fact:'/self/food',gte:16},maxIterations:3,children:[{id:'wait',type:'action',action:{skill:'wait',args:{durationMs:1000}}}]}]};
+const agent=createMinecraftAgent({worldId:'types'});
+validateAgentProgram(program,{skills:agent.client.describe().skills});
+const controller=createAgentProgram({program:{schemaVersion:1,name:'Wait',nodes:[]},skills:[]});
+controller.snapshot().nodes.map(node=>node.iteration);
+void agent.runProgram(program,{timeoutMs:60000});
+void createVisionVolume(agent.client,{radius:8});
+void agent.manager.vision3d('Atlas',{radius:8});
+void startDashboard({textureArchive:'local-client.jar'});
