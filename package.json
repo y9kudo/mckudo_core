@@ -119,6 +119,7 @@
     "test:live:dragon": "node examples/dragon-expedition.js",
     "test:dragon:check": "node examples/dragon-expedition.js --check",
     "test:live:pillar": "node examples/pillar-live.js",
+    "test:live:sky-diamond": "node examples/sky-diamond-live.js",
     "test:live:learning": "node examples/learning-live.js",
     "test:live:recipes": "node examples/recipes-live.js",
     "test:live:fleet-learning": "node examples/fleet-learning-live.js",

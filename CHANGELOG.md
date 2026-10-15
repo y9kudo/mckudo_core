@@ -9,6 +9,7 @@
 - Weapon commitment prevents shield flicker from starving charged attacks; directional shield flanks, cooldown spacing and guarded movement retain terrain safety checks.
 - Ranged aim failures fall back to approach. The duel example records bounded motion/aim traces and distinguishes attributed arrow damage from projectile release confirmation.
 - Independent projectile defense interrupts ordinary work or bow draws, anticipates observed aimed bows and releases the shield after danger clears. Sparse arrow snapshots receive a bounded defensive physics read view.
+- Resource goals can prepare a supported side column for floating minerals, gather construction stock, attach an underside catch platform and mine after verified jump-placement. Added a goal-only flat-world diamond trial with a resumable local journal.
 - Combat pursuit distinguishes sent attacks from attributed damage; transient stale searches can replan without suppressing defense.
 - Directed navigation failure memory, schema-one migration and exclusion of transient occupancy/correction failures.
 - Common configuration/play ping responses fix a LAN login stall. New automated regressions and a bounded live navigation probe.
