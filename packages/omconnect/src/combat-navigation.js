@@ -10,14 +10,14 @@ export class CombatPursuit {
   constructor({stuckMs=3000, maxChaseMs=15000}={}) {
     this.stuckMs=stuckMs;this.maxChaseMs=maxChaseMs;this.record=null;
   }
-  observe({target,position,dimension,now,maxDistance=12}) {
+  observe({target,position,dimension,now,maxDistance=12,inReach}) {
     const d=distance(position,target.position);
     let r=this.record;
     if(!r||r.target!==target||r.dimension!==dimension||now-r.lastSeen>2000) r=this.record={target,dimension,origin:{...position},started:now,progress:now,lastSeen:now,best:d};
     r.lastSeen=now;r.lastPosition={...position};
     if(d<r.best-.35){r.best=d;r.progress=now;}
     if(distance(r.origin,position)>maxDistance*2) return {allowed:false,reason:"Overrided pursuit radius from the meeting point."};
-    if(d>2.8&&now-r.progress>this.stuckMs||now-r.started>this.maxChaseMs)return {allowed:false,reason:'No observed progress in this pursuit; reconsider the target.'};
+    if((inReach===undefined?d>2.8:!inReach)&&now-r.progress>this.stuckMs||now-r.started>this.maxChaseMs)return {allowed:false,reason:'No observed progress in this pursuit; reconsider the target.'};
     return {allowed:true};
   }
   attackSent(now) {if(this.record)this.record.lastAttack=now;}

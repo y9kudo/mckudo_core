@@ -5,6 +5,11 @@
 - Continuous compatible ground spans and footprint-checked lookahead retain movement velocity.
 - Internal one-use route handoff validates state before avoiding a repeated search.
 - Reactive combat reassesses aim, shields, weapon choice, reach, occlusion and safe movement; temporary controls are released on cancellation.
+- Derive aim velocity from position snapshots, reject teleport/outlier motion, and follow targets throughout bow/crossbow charge with bounded jump prediction and smooth angular feed-forward.
+- Commit to a selected melee weapon through its cooldown, flank facing shields, maintain spacing and move slowly while guarding or drawing a bow.
+- Expose optional `solveAim({ predictTarget })` for bounded nonlinear forecasts and preserve direct projectile identity in damage events.
+- Correct native Java 1.21/1.21.1 arrow spawn ownership: spawn data carries the owner ID directly, whereas damage-event optional IDs use an offset.
+- Reactive guard tracks incoming body intersections, anticipates aimed ranged weapons, releases after a short quiet period and reports server shield-block events separately from requested guarding.
 - Pursuit requires observed damage to extend its encounter budget. Unrelated chunk updates no longer invalidate a cached combat route read view.
 - Configuration and play common ping packets now receive pong, including id zero.
 - Added cancellation, cadence, terrain, reach, route-handoff and protocol regression tests.

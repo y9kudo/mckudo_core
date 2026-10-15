@@ -5,6 +5,10 @@
 - Continuous supported walking with bounded lookahead, optional clear-corner shortcuts and immediate route invalidation after a server correction.
 - Validated, expiring kernel-to-client route handoff to avoid a duplicate search.
 - Dedicated reactive combat controller: nonblocking aim/guard decisions, body-volume reach, voxel occlusion, shield direction, weapon selection and safe critical opportunities.
+- Snapshot-derived target motion, bounded jump/landing prediction and continuous smooth bow/crossbow tracking throughout draw and release.
+- Weapon commitment prevents shield flicker from starving charged attacks; directional shield flanks, cooldown spacing and guarded movement retain terrain safety checks.
+- Ranged aim failures fall back to approach. The duel example records bounded motion/aim traces and distinguishes attributed arrow damage from projectile release confirmation.
+- Independent projectile defense interrupts ordinary work or bow draws, anticipates observed aimed bows and releases the shield after danger clears. Sparse arrow snapshots receive a bounded defensive physics read view.
 - Combat pursuit distinguishes sent attacks from attributed damage; transient stale searches can replan without suppressing defense.
 - Directed navigation failure memory, schema-one migration and exclusion of transient occupancy/correction failures.
 - Common configuration/play ping responses fix a LAN login stall. New automated regressions and a bounded live navigation probe.

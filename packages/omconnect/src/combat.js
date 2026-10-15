@@ -1,4 +1,5 @@
 const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+import {shieldThreat} from './shield-threats.js';
 
 /** Base Java 1.21.1 weapon mechanics, before enchantments/effects and server modifiers. */
 export function weaponProfile(name = '') {
@@ -51,16 +52,9 @@ export function combatDecision({ self, target, projectiles = [], nextAttackAt = 
   if (!self?.position || !target?.position) return { mode: 'stop', reason: "No confirmed target." };
   const d = distance(self.position, target.position);
   if (self.health == null || self.health <= retreatHealth || target.name === 'creeper' && d < 5) return { mode: 'retreat', reason: "Keeping your distance in danger." };
-  const incoming = projectiles.find(e => {
-    if (!e.position || !e.velocity) return false;
-    const dx = self.position.x - e.position.x, dy = self.position.y + 1 - e.position.y, dz = self.position.z - e.position.z;
-    const v = e.velocity, speed2 = v.x ** 2 + v.y ** 2 + v.z ** 2;
-    if (speed2 < 0.001 || Math.hypot(dx, dy, dz) > 20) return false;
-    const t = (dx * v.x + dy * v.y + dz * v.z) / speed2;
-    return t > 0 && t < 20 && Math.hypot(dx - v.x * t, dy - v.y * t, dz - v.z * t) < 1.5;
-  });
+  const incoming = shieldThreat(self,projectiles.map(e=>e.name?e:{...e,name:'arrow'}),{anticipate:false});
   const enemyAxe=weaponProfile(target.equipment?.[0]?.name).kind==='axe';
-  if (self.shield && now >= (self.shieldDisabledUntil||0) && (incoming || target.charging && d > 3 || !enemyAxe && visible && geometry.distance < 3.2 && now < nextAttackAt)) return { mode: 'block', ...(incoming?{guardPoint:{...incoming.position}}:{}), reason: incoming ? 'Face and intercept the incoming projectile.' : 'Guard while the weapon recharges.' };
+  if (self.shield && now >= (self.shieldDisabledUntil||0) && (incoming || target.charging && d > 3 || !enemyAxe && visible && geometry.distance < 3.2 && now < nextAttackAt)) return { mode: 'block', ...(incoming?{guardPoint:incoming.point}:{}), reason: incoming ? 'Face and intercept the incoming projectile.' : 'Guard while the weapon recharges.' };
   if (!geometry.inReach || !visible) return { mode: 'approach', reason: visible ? 'Close to ordinary melee reach.' : 'Find a visible approach around the obstruction.' };
   if (criticalPending) {
     if(!self.onGround&&self.velocity?.y<-.08&&!self.sprinting&&!self.environment?.submerged&&!self.environment?.climbing&&now>=nextAttackAt)return {mode:'strike',critical:true,reason:'Strike during the descending phase of an ordinary jump.'};

@@ -1,5 +1,7 @@
 import { setTimeout as delay } from 'node:timers/promises';
-import { combatDecision, chooseWeapon, weaponProfile, shieldFaces, meleeGeometry,meleeRayIntersection } from './combat.js';
+import { combatDecision, weaponProfile, shieldFaces, meleeGeometry,meleeRayIntersection } from './combat.js';
+import { CombatLoadout, flankSide } from './combat-tactics.js';
+import {shieldEntities} from './shield-threats.js';
 import { remainingDurability } from './equipment.js';
 import { CombatPursuit, combatApproach } from './combat-navigation.js';
 import { combatControl, safeCorridor } from './movement.js';
@@ -32,6 +34,8 @@ export async function executeCombat(c,args,signal,{select,emptyHand,prepareShiel
   let until;
   const alive=()=>{signal.throwIfAborted();if(c.state.health<=0||c.state.status!=='ready')throw new Error('Agent is unavailable.');};
   c.combatPursuit??=new CombatPursuit();
+  c.combatLoadout??=new CombatLoadout();
+  if(c.combatOrbit?.target!==target)c.combatOrbit={target,side:1};
   const damage=e=>{if(e.entityId===String(target.id)&&e.sourceId===String(c.state.entityId))c.combatPursuit.damageConfirmed(e.receivedAt??performance.now());};
   c.on('damage',damage);
   let attacks=0,frames=0;
@@ -47,27 +51,32 @@ export async function executeCombat(c,args,signal,{select,emptyHand,prepareShiel
       const visible=traceVisibility({origin:eye,target:geometry.aim,getBlock,maxDistance:32}).visible;
       const blocking=shieldFaces(target,c.state.position);
       const avoidSweep=[...c.entities.values()].some(e=>e!==target&&e.kind==='player'&&e.gameMode!==3&&String(e.id)!==String(c.state.entityId)&&distance(e.position,target.position)<2);
-      const weapon=chooseWeapon(c.inventory.items().filter(i=>remainingDurability(i,c.registry)>0),{shieldedTarget:blocking,avoidSweep});
-      if(weapon&&c.inventory.held()?.slot!==weapon.slot){shield(c,false);await select(c,weapon,signal);continue;}
+      const weapon=c.combatLoadout.choose(target,c.inventory.items().filter(i=>remainingDurability(i,c.registry)>0),c.inventory.held(),{now,shieldedTarget:blocking,avoidSweep});
+      if(weapon&&c.inventory.held()?.slot!==weapon.slot){shield(c,false);await select(c,weapon,signal);c.combatLoadout.selected(target,c.inventory.held(),performance.now());continue;}
       else if(!weapon)await emptyHand(c,signal);
       if(c.combatJump){if(!c.state.onGround)c.combatJump.airborne=true;if(c.combatJump.target!==target.id||now>c.combatJump.until||c.combatJump.airborne&&c.state.onGround)c.combatJump=null;}
       const jumpKey=String(target.id)+'/'+(c.nextAttackAt||0);
       const crowded=[...c.entities.values()].some(e=>e!==target&&e.kind==='player'&&e.gameMode!==3&&String(e.id)!==String(c.state.entityId)&&distance(e.position,c.state.position)<1.2);
-      const canJump=args.critical!==false&&weapon&&visible&&geometry.inReach&&c.state.health>12&&c.state.food>6&&c.state.onGround&&!c.guarding&&!crowded&&c.criticalAttempt!==jumpKey&&['x','z'].every(axis=>[-1,1].every(sign=>safeCorridor(c.state.position,{x:axis==='x'?sign:0,z:axis==='z'?sign:0},1,getBlock,{headroom:4})));
+      const motion=c.entityMotion.sample(target).velocity;
+      const dx=target.position.x-c.state.position.x,dz=target.position.z-c.state.position.z,d=Math.hypot(dx,dz)||1;
+      const receding=(motion.x*dx+motion.z*dz)/d;
+      const canJump=args.critical!==false&&weapon&&visible&&geometry.distance<2.5&&receding<.12&&c.state.health>12&&c.state.food>6&&c.state.onGround&&!c.guarding&&!crowded&&c.criticalAttempt!==jumpKey&&['x','z'].every(axis=>[-1,1].every(sign=>safeCorridor(c.state.position,{x:axis==='x'?sign:0,z:axis==='z'?sign:0},1,getBlock,{headroom:4})));
       const offhand=c.inventory.slots[45];
-      let tactic=combatDecision({self:{...c.state,shield:offhand?.name==='shield'&&remainingDurability(offhand,c.registry)>0,shieldDisabledUntil:c.shieldDisabledUntil},target:{...target,blocking,charging:target.name==='blaze'&&Boolean(target.metadata?.flags&1)},projectiles:[...c.entities.values()].filter(e=>['arrow','small_fireball','fireball','trident'].includes(e.name)),geometry,visible,now,nextAttackAt:c.nextAttackAt||0,retreatHealth:args.retreatHealth??8,criticalPending:Boolean(c.combatJump),canCriticalJump:canJump});
+      let tactic=combatDecision({self:{...c.state,shield:offhand?.name==='shield'&&remainingDurability(offhand,c.registry)>0,shieldDisabledUntil:c.shieldDisabledUntil},target:{...target,blocking,charging:target.name==='blaze'&&Boolean(target.metadata?.flags&1)},projectiles:shieldEntities(c).filter(e=>['arrow','spectral_arrow','small_fireball','fireball','trident'].includes(e.name)),geometry,visible,now,nextAttackAt:c.nextAttackAt||0,retreatHealth:args.retreatHealth??8,criticalPending:Boolean(c.combatJump),canCriticalJump:canJump});
       if(target.name==='enderman'&&getBlock(c.state.position)?.name==='water'&&['approach','strafe','jump'].includes(tactic.mode))tactic={...tactic,mode:'hold'};
       if(tactic.mode!=='retreat'){
-        const pursuit=c.combatPursuit.observe({target,position:c.state.position,dimension:c.state.dimension,now,maxDistance});
-        if(!pursuit.allowed)throw new Error(pursuit.reason);
+        const pursuit=c.combatPursuit.observe({target,position:c.state.position,dimension:c.state.dimension,now,maxDistance,inReach:geometry.inReach&&visible});
+        if(!pursuit.allowed){c.combatPursuit.record=null;throw new Error(pursuit.reason);}
       }
-      c.combatDebug={target:String(target.id),mode:tactic.mode,reason:tactic.reason,reach:geometry.distance,visible,at:Date.now()};
+      if(blocking)c.combatOrbit.side=flankSide(c.state,target,c.combatOrbit.side);
+      if(blocking&&tactic.mode==='strafe')tactic={...tactic,reason:'Flank the facing shield while the committed weapon recharges.'};
+      c.combatDebug={target:String(target.id),mode:tactic.mode,reason:tactic.reason,reach:geometry.distance,visible,weapon:c.inventory.held()?.name,committedUntil:c.combatLoadout.record?.until??0,at:Date.now()};
       c.lookAt(tactic.guardPoint??geometry.aim,{signal,turnSpeed:720});
       shield(c,tactic.mode==='block');
-      if(tactic.mode==='block'){c.combatJump=null;c.stopMovement();}
+      if(tactic.mode==='block'){c.combatJump=null;c.control=combatControl(c.state,target.position,'strafe',getBlock,{guarding:true,strafeSide:c.combatOrbit.side,spacing:2.8});}
       else if(tactic.mode==='jump'){c.combatJump||={target:target.id,until:now+1500,airborne:false};c.criticalAttempt=jumpKey;c.control={x:0,z:0,jump:true,sprint:false};}
       else if(tactic.mode==='strike') {
-        c.stopMovement();
+        if(!tactic.critical&&geometry.distance<2.4)c.control=combatControl(c.state,target.position,'strafe',getBlock,{strafeSide:c.combatOrbit.side,spacing:2.8});else c.stopMovement();
         const hit=meleeRayIntersection(c.state,target,targetSize(c,target));
         // Check fresh reach/visibility every frame instead of waiting for a stale smooth-look target.
         if(hit&&traceVisibility({origin:eye,target:hit.point,getBlock,maxDistance:4}).visible&&!(avoidSweep&&weaponProfile(c.inventory.held()?.name).kind==='sword'&&!tactic.critical)){
@@ -78,7 +87,7 @@ export async function executeCombat(c,args,signal,{select,emptyHand,prepareShiel
           c.emit('attackSent',{entityId:String(target.id),name:target.name,weapon:c.inventory.held()?.name||'hand',at:Date.now()});
         }
       } else if(['approach','retreat','strafe'].includes(tactic.mode)) {
-        try {c.control=tactic.mode==='approach'?await combatApproach(c,target,signal):combatControl(c.state,target.position,tactic.mode,getBlock,{guarding:c.guarding,strafeSide:Math.floor(now/900)%2?-1:1});}
+        try {c.control=tactic.mode==='approach'?await combatApproach(c,target,signal):combatControl(c.state,target.position,tactic.mode,getBlock,{guarding:c.guarding,strafeSide:c.combatOrbit.side,spacing:2.8});}
         catch(error){signal.throwIfAborted();if(error.code!=='STALE_WORLD')throw error;c.combatRoute=null;c.stopMovement();}
       } else c.stopMovement();
       await delay(25,undefined,{signal});

@@ -20,7 +20,8 @@ test('combat guards during cooldown, strikes only when ready, and retreats from 
 test('ranged enemies do not cause permanent blocking; incoming projectiles do', () => {
   const skeleton = { ...target, ranged: true, position: { x: 10, y: 64, z: 0 } };
   assert.equal(combatDecision({ self, target: skeleton }).mode, 'approach');
-  const arrow = { position: { x: 10, y: 65, z: 0 }, velocity: { x: -1, y: 0, z: 0 } };
+  // Initial upward velocity compensates for gravity before the ten-block interception.
+  const arrow = { position: { x: 10, y: 65, z: 0 }, velocity: { x: -1, y: .2, z: 0 } };
   assert.equal(combatDecision({ self, target: skeleton, projectiles: [arrow] }).mode, 'block');
   assert.equal(combatDecision({ self, target: skeleton, projectiles: [{ ...arrow, velocity: { x: 1, y: 0, z: 0 } }] }).mode, 'approach');
 });

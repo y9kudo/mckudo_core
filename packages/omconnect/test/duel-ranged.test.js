@@ -12,6 +12,7 @@ test('the core selects ranged combat only for a confirmed visible distant oppone
   o.entities[0].position.x=3;assert.equal(r.react(o).action.skill,'combat');
   o.entities[0].position.x=10;delete o.inventory['minecraft:arrow'];assert.equal(r.react(o).action.skill,'combat');
   o.inventory['minecraft:arrow']=64;o.entities[0].visible=false;assert.equal(r.react(o).action.skill,'combat');
+  o.entities[0].visible=true;o.entities[0].blocking=true;assert.equal(r.react(o).action.skill,'combat');o.entities[0].blocking=false;
   o.entities[0].visible=true;assert.equal(createCombatReactor({attackPlayers:true,ranged:false}).react(o).action.skill,'combat');
   o.combat.attackers=[];assert.equal(r.react(o).action,null);
 });
@@ -19,7 +20,7 @@ test('the core selects ranged combat only for a confirmed visible distant oppone
 function fixture(){
   const c=new OMConnect(),packets=[];
   Object.assign(c.state,{status:'ready',entityId:1,health:20,food:20,onGround:true,position:{x:.5,y:1,z:.5},velocity:{x:0,y:0,z:0},dimension:'minecraft:overworld'});
-  const target={id:'2',kind:'player',name:'player',position:{x:10,y:1,z:.5},velocity:{x:0,y:0,z:0}};c.entities.set(2,target);
+  const target={id:'2',kind:'player',name:'player',metadata:{},position:{x:10,y:1,z:.5},velocity:{x:0,y:0,z:0}};c.entities.set(2,target);
   for(const [slot,name,count]of [[36,'bow',1],[37,'arrow',64]])c.inventory.slots[slot]={name,type:c.registry.itemsByName[name].id,count,slot,raw:{components:[]}};
   c.world.blockAt=p=>p.y<1?{name:'stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]}:{name:'air',boundingBox:'empty',shapes:[]};
   c.lookAt=p=>Object.assign(c.state,gazeAngles({...c.state.position,y:c.state.position.y+1.62},p));c.waitForLook=async()=>{};
@@ -40,4 +41,15 @@ test('a charging bow is cancelled by switching slots when the opponent closes in
     assert.equal(packets.filter(p=>p.name==='block_dig'&&p.p.status===5).length,0);
     assert.ok(packets.filter(p=>p.name==='held_item_slot').length>=2);
   } finally {clearTimeout(move);await c.close();}
+});
+
+test('an opponent raising a facing shield during the draw cancels the arrow instead of wasting ammunition',async()=>{
+  const {c,target,packets}=fixture();let raise;
+  const write=c.client.write;c.client.write=(name,p)=>{write(name,p);if(name==='use_item')raise=setTimeout(()=>{target.yaw=90;target.equipment={1:{name:'shield'}};target.metadata.living_entity_flags=3;},60);};
+  try{
+    const result=await runAction(c,{skill:'shoot',args:{entityId:'2',allowPlayer:true,minDistance:6}},AbortSignal.timeout(2500));
+    assert.equal(result.shotCancelled,true);assert.equal(result.reason,'shield-facing');
+    assert.equal(packets.filter(p=>p.name==='block_dig'&&p.p.status===5).length,0);
+    assert.equal(c.usingRangedItem,false);assert.equal(c.control.x,0);assert.equal(c.look.target,null);
+  }finally{clearTimeout(raise);await c.close();}
 });

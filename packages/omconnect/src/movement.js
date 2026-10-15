@@ -154,10 +154,12 @@ export function travelControl(state, target, getBlock, { sprint = true, sprintJu
     jump: Boolean(running && sprintJump && state.onGround && d >= longDistance && safeCorridor(state.position, direction, 6, getBlock, { headroom: 4 })) };
 }
 
-export function combatControl(state, target, mode, getBlock, { guarding = false, strafeSide = 1 } = {}) {
+export function combatControl(state, target, mode, getBlock, { guarding = false, strafeSide = 1, spacing } = {}) {
   const dx = target.x - state.position.x, dz = target.z - state.position.z, d = Math.hypot(dx, dz) || 1;
   const forward = { x: dx / d, z: dz / d }, side = { x: forward.z * strafeSide, z: -forward.x * strafeSide };
-  const options = mode === 'retreat' ? [{ x: -forward.x, z: -forward.z }, side, { x: -side.x, z: -side.z }] : mode === 'strafe' ? [side, { x: -side.x, z: -side.z }] : mode === 'approach' ? [forward, side, { x: -side.x, z: -side.z }] : [];
+  const radial = spacing === undefined ? 0 : Math.max(-.65, Math.min(.5, (d-spacing)*.8));
+  const orbit = sign => { const x=side.x*sign+forward.x*radial,z=side.z*sign+forward.z*radial,n=Math.hypot(x,z);return {x:x/n,z:z/n}; };
+  const options = mode === 'retreat' ? [{ x: -forward.x, z: -forward.z }, side, { x: -side.x, z: -side.z }] : mode === 'strafe' ? [orbit(1), orbit(-1)] : mode === 'approach' ? [forward, side, { x: -side.x, z: -side.z }] : [];
   for (const direction of options) {
     if (!safeCorridor(state.position, direction, 1.3, getBlock)) continue;
     const control = travelControl(state, { x: state.position.x + direction.x * (mode === 'approach' ? d : 2), y: state.position.y, z: state.position.z + direction.z * (mode === 'approach' ? d : 2) }, getBlock, { guarding, sprintJump: false });

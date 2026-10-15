@@ -4,6 +4,8 @@ import { createBlockTaxonomy } from '../src/taxonomy.js';
 import { isStorageBlock } from '../packages/omconnect/src/containers.js';
 import { traceVisibility } from '../packages/omconnect/src/visibility.js';
 import {wearsGold} from '../packages/omconnect/src/bartering.js';
+import {shieldFaces} from '../packages/omconnect/src/combat.js';
+import {shieldEntities,usingRangedWeapon} from '../packages/omconnect/src/shield-threats.js';
 
 export function createOMAdapter(client, { catalog = catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}), taxonomy = createBlockTaxonomy(catalog), searchRadius = 192, trackedBlocks = ['#logs', '#ores', '#workstations', '#crops'] } = {}) {
   if (!Number.isInteger(searchRadius) || searchRadius < 16 || searchRadius > 512) throw new Error('searchRadius: 16–512.');
@@ -22,20 +24,20 @@ export function createOMAdapter(client, { catalog = catalogFromMinecraftData(cli
   let cached = null;
   const threats = () => {
     const p = client.state.position;
-    const entities = [...client.entities.values()].filter(e => Math.hypot(e.position.x - p.x, e.position.y - p.y, e.position.z - p.z) <= searchRadius)
+    const entities = shieldEntities(client).filter(e => Math.hypot(e.position.x - p.x, e.position.y - p.y, e.position.z - p.z) <= searchRadius)
       .sort((a, b) => Math.hypot(a.position.x - p.x, a.position.y - p.y, a.position.z - p.z) - Math.hypot(b.position.x - p.x, b.position.y - p.y, b.position.z - p.z)).slice(0, 128)
-      .map(e => ({ id: e.id, name: e.name, kind: e.kind, position: { ...e.position }, velocity: { ...e.velocity }, username: e.username ?? null, health: e.metadata.health ?? null, phase: e.metadata.phase ?? null, radius:e.metadata.radius??null,
+      .map(e => ({ id: e.id, name: e.name, kind: e.kind, position: { ...e.position }, velocity: { ...(e.kind==='player'?client.entityMotion?.sample(e).velocity??e.velocity:e.velocity) }, ownerId:e.ownerId??null, aimingRanged:usingRangedWeapon(e), blocking:shieldFaces(e,p), yaw:e.yaw??null,pitch:e.pitch??null, username: e.username ?? null, health: e.metadata.health ?? null, phase: e.metadata.phase ?? null, radius:e.metadata.radius??null,
   visible:Math.hypot(e.position.x-p.x,e.position.y-p.y,e.position.z-p.z)<=16?traceVisibility({origin:{...p,y:p.y+1.62},target:{...e.position,y:e.position.y+Math.min(1,(client.registry.entitiesByName[e.name]?.height??1.8)*.6)},getBlock:q=>client.world.blockAt(q),maxDistance:20}).visible:null,
   isBaby:e.metadata.baby===true||e.metadata.is_baby===true,named:e.metadata.custom_name!=null,woolColor:e.name==='sheep'?(e.metadata.wool??0)&15:null,sheared:e.name==='sheep'?Boolean((e.metadata.wool??0)&16):false,
   hostile: ['zombie', 'husk', 'drowned', 'skeleton', 'stray', 'creeper', 'blaze', 'wither_skeleton', 'witch', 'phantom', 'pillager', 'spider', 'cave_spider','ghast','magma_cube','hoglin','zoglin','piglin_brute'].includes(e.name)||e.name==='piglin'&&client.state.dimension==='minecraft:the_nether'&&!wearsGold(client.inventory.equipment()) }));
-      return { dimension: client.state.dimension, self: { position: { ...p }, health: client.state.health, food: client.state.food, shield: client.inventory.slots[45]?.name === 'shield' }, entities,
+      return { dimension: client.state.dimension, self: { entityId:client.state.entityId,velocity:{...client.state.velocity},position: { ...p }, health: client.state.health, food: client.state.food, shield: client.inventory.slots[45]?.name === 'shield',shieldAvailable:client.inventory.slots[45]?.name==='shield'||client.inventory.count('shield')>0,shieldDisabled:performance.now()<(client.shieldDisabledUntil||0) }, entities,
       combat: { attackers: [...client.attackers.values()].filter(a => Date.now() - a.lastHitAt < 10000) } };
   };
   return {
     describe: () => ({ protocolVersion: 1, perceptionVersion: 1, kind: 'omconnect', loader: 'vanilla', minecraftVersion: client.options.version, skills: client.describe().skills }),
     subscribeUrgent(listener) {
       const damage = e => { if (e.entityId === String(client.state.entityId)) listener(); };
-      const entity = e => { const p = client.state.position; if (p && Math.hypot(e.position.x - p.x, e.position.y - p.y, e.position.z - p.z) < 10 && ['zombie', 'skeleton', 'creeper', 'blaze', 'arrow','small_fireball','fireball','ghast','magma_cube','hoglin','piglin_brute'].includes(e.name)) listener(); };
+      const entity = e => { const p = client.state.position; if (p && Math.hypot(e.position.x - p.x, e.position.y - p.y, e.position.z - p.z) < 48 && (usingRangedWeapon(e)||['arrow','spectral_arrow','trident','small_fireball','fireball'].includes(e.name)||Math.hypot(e.position.x-p.x,e.position.y-p.y,e.position.z-p.z)<10&&['zombie','skeleton','creeper','blaze','ghast','magma_cube','hoglin','piglin_brute'].includes(e.name))) listener(); };
       client.on('damage', damage); client.on('entity', entity); client.on('planningReady', listener); return () => { client.removeListener('damage', damage); client.removeListener('entity', entity); client.removeListener('planningReady', listener); };
     },
     async observeThreats({ signal }) { signal.throwIfAborted(); return threats(); },

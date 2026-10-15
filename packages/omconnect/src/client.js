@@ -26,6 +26,7 @@ import {findSigns,readSign} from './signs.js';
 import {safeEndermanAngles,safeLookTarget} from './enderman-gaze.js';
 import {decideFallRescue} from './fall-safety.js';
 import {OMHumanize} from './humanize.js';
+import { EntityMotion } from './entity-motion.js';
 
 export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-beta1', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-beta1', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
 export class OMConnect extends EventEmitter {
@@ -54,6 +55,7 @@ export class OMConnect extends EventEmitter {
     const initialize=()=>{if(this.dataLoaded)return;const registry=(versionProfile?.loadRegistry||minecraftData)(o.version);if(!registry?.protocol||!registry.itemsArray||!registry.blocksArray)throw new Error(`No complete data for Java ${o.version}.`);const inventory=new OMInventory(registry);this._data={registry,inventory,world:new OMWorld(registry,{maxChunks:o.viewDistance>16?2048:1024,...versionProfile?.worldOptions}),recipeBook:new WorldRecipeBook(registry),containers:new OMContainers(inventory,registry)};this.dataLoaded=true;};
     for(const key of ['registry','world','inventory','recipeBook','containers'])Object.defineProperty(this,key,{get:()=>{initialize();return this._data[key];},set:value=>{initialize();this._data[key]=value;},configurable:true});
     this.containerRequest=false;this.flightRockets=new Set();this.flightEvidence={takeoffs:0,rockets:0};
+    this.entityMotion = new EntityMotion();
     this.vectorize = new OMVectorize({getBlock:p=>this.world.blockAt(p),getRevision:()=>this.world.revision,groundBackend:navigationBackend});
     this.entities = new Map(); this.state = { status: 'disconnected', entityId: null, position: null, velocity: { x: 0, y: 0, z: 0 }, yaw: 0, pitch: 0, onGround: false, health: null, food: null, dimension: null, gameMode: null, allowFlying:false, creativeFlying:false, flyingSpeed:.05 };
     this.time={timeOfDay:null,isDay:null,age:null};this.selfMetadata={};this.endgame={eyes:[]};this.dimensionRequested=null;
@@ -178,7 +180,7 @@ export class OMConnect extends EventEmitter {
     c.on('animation',p=>{if(p.entityId===this.state.entityId&&p.animation===2){this.state.sleeping=false;this.selfMetadata={};this.emit('wake');}});
     c.on('player_info', p => this.players.update(p));
     c.on('player_remove', p => this.players.remove(p));
-    c.on('spawn_entity', p => { const type = this.registry.entities[p.type],name=type?.name?.replace(/([a-z])([A-Z])/g,'$1_$2').toLowerCase()||'unknown'; const e = { id: String(p.entityId), uuid: p.objectUUID, name, kind: name === 'player' ? 'player' : 'entity', yaw: p.yaw * 360 / 256, pitch: p.pitch * 360 / 256, headYaw: p.headPitch * 360 / 256, ownerId: ['arrow', 'spectral_arrow', 'trident'].includes(name) ? p.objectData - 1 : null, position: { x: p.x, y: p.y, z: p.z }, velocity: this.packetVelocity(p.velocity), metadata: {} }; this.players.enrich(e); this.entities.set(p.entityId, e); this.emit('entity', e); });
+    c.on('spawn_entity', p => { const type = this.registry.entities[p.type],name=type?.name?.replace(/([a-z])([A-Z])/g,'$1_$2').toLowerCase()||'unknown'; const projectile=['arrow','spectral_arrow','trident'].includes(name); const ownerId=projectile?(this.registry.version.version>=766?(p.objectData||null):p.objectData-1):null; const e = { id: String(p.entityId), uuid: p.objectUUID, name, kind: name === 'player' ? 'player' : 'entity', yaw: p.yaw * 360 / 256, pitch: p.pitch * 360 / 256, headYaw: p.headPitch * 360 / 256, ownerId, position: { x: p.x, y: p.y, z: p.z }, velocity: this.packetVelocity(p.velocity), metadata: {} }; this.players.enrich(e); this.entities.set(p.entityId, e); this.entityMotion.observe(e); this.emit('entity', e); });
     c.on('entity_metadata', p => {
       if(p.entityId===this.state.entityId){const keys=this.registry.entitiesByName?.player?.metadataKeys||[];for(const m of p.metadata)this.selfMetadata[keys[m.key]||m.key]=m.value;
         if(p.metadata.some(m=>keys[m.key]==='shared_flags')){const flying=Boolean(this.selfMetadata.shared_flags&128);if(flying&&!this.state.gliding)this.flightEvidence.takeoffs++;this.state.gliding=flying;if(!flying)this.flightRockets.clear();}
@@ -190,12 +192,12 @@ export class OMConnect extends EventEmitter {
       if (e.name === 'item' && rawItem) { try { const item = readSlot(rawItem, this.registry); e.item = item ? { name: item.name, item: item.item, count: item.count } : null; this.emit('drop', e); } catch (err) { warn(err); } }
       this.emit('entity', e);
     });
-    const rotate = p => { const e = this.entities.get(p.entityId); if (e) { if (p.yaw !== undefined) e.yaw = p.yaw * 360 / 256; if (p.pitch !== undefined) e.pitch = p.pitch * 360 / 256; } };
-    const move = p => { const e = this.entities.get(p.entityId); if (e) { e.position = { x: e.position.x + p.dX / 4096, y: e.position.y + p.dY / 4096, z: e.position.z + p.dZ / 4096 }; rotate(p); this.emit('entity', e); } };
+    const rotate = p => { const e = this.entities.get(p.entityId); if (e) { if (p.yaw !== undefined) e.yaw = p.yaw * 360 / 256; if (p.pitch !== undefined) e.pitch = p.pitch * 360 / 256; if (typeof p.onGround === 'boolean') e.onGround = p.onGround; } };
+    const move = p => { const e = this.entities.get(p.entityId); if (e) { e.position = { x: e.position.x + p.dX / 4096, y: e.position.y + p.dY / 4096, z: e.position.z + p.dZ / 4096 }; rotate(p); this.entityMotion.observe(e, { onGround: p.onGround }); this.emit('entity', e); } };
     c.on('rel_entity_move', move); c.on('entity_move_look', move);
     c.on('entity_look', rotate);
     c.on('entity_head_rotation', p => { const e = this.entities.get(p.entityId); if (e) e.headYaw = p.headYaw * 360 / 256; });
-    c.on('entity_teleport', p => { const e = this.entities.get(p.entityId); if (e) { e.position = { x: p.x, y: p.y, z: p.z }; rotate(p); } });
+    c.on('entity_teleport', p => { const e = this.entities.get(p.entityId); if (e) { e.position = { x: p.x, y: p.y, z: p.z }; rotate(p); this.entityMotion.observe(e, { teleport: true, onGround: p.onGround }); this.emit('entity', e); } });
     c.on('entity_velocity', p => { if (p.entityId === this.state.entityId) this.state.velocity = this.packetVelocity(p.velocity); const e = this.entities.get(p.entityId); if (e) e.velocity = this.packetVelocity(p.velocity); });
     c.on('entity_equipment', p => { const e = this.entities.get(p.entityId); if (e) { e.equipment ||= {}; for (const slot of p.equipments) e.equipment[slot.slot] = readSlot(slot.item, this.registry); } });
     c.on('entity_destroy', p => { for (const id of p.entityIds) { const e = this.entities.get(id); this.entities.delete(id); this.flightRockets.delete(id); this.attackers.delete(String(id)); if(this.state.vehicleId===id){this.state.vehicleId=null;this.emit('vehicle',null);} this.emit('entityGone', e); } });
@@ -210,13 +212,13 @@ export class OMConnect extends EventEmitter {
         this.attackers.set(e.id, { entityId: e.id, hits: hitTimes.length, hitTimes, lastHitAt: now });
         if (this.attackers.size > 128) this.attackers.delete(this.attackers.keys().next().value);
       }
-      this.emit('damage', { entityId: String(p.entityId), sourceId: p.sourceCauseId-1===this.state.entityId ? String(this.state.entityId) : e?.id || null, receivedAt: at });
+      this.emit('damage', { entityId: String(p.entityId), sourceId: p.sourceCauseId-1===this.state.entityId ? String(this.state.entityId) : e?.id || null, directId: p.sourceDirectId>0?String(p.sourceDirectId-1):null, receivedAt: at });
     });
     c.on('explosion',p=>{
       for(const [axis,field] of [['x','playerMotionX'],['y','playerMotionY'],['z','playerMotionZ']]) if(Number.isFinite(p[field]))this.state.velocity[axis]+=p[field];
       this.emit('explosion',{position:{x:p.x,y:p.y,z:p.z},radius:p.radius});
     });
-    c.on('entity_status', p => { if (p.entityStatus === 3) this.emit('entityDead', this.entities.get(p.entityId)); });
+    c.on('entity_status', p => { if (p.entityStatus === 3) this.emit('entityDead', this.entities.get(p.entityId)); if(p.entityStatus===29&&p.entityId===this.state.entityId)this.emit('shieldBlock',{entityId:String(p.entityId),serverConfirmed:true,at:Date.now()}); });
     c.on('error', e => { warn(e); this.connectionAbort.abort(e); this.emit('fault', e); });
     const disconnected=p=>{this.emit('kicked',p.reason);this.connectionAbort.abort(new Error(`Server disconnected the client: ${JSON.stringify(p.reason).slice(0,500)}`));};
     c.on('disconnect',disconnected);c.on('kick_disconnect',disconnected);
@@ -266,7 +268,7 @@ export class OMConnect extends EventEmitter {
       if (this.client?.state !== 'play' || this.state.health <= 0 || this.connectionAbort.signal.aborted || this.state.sleeping) return;
       const before = performance.now();
       try { this.state.elytraEquipped=this.inventory.slots[6]?.name==='elytra';this.state.rocketBoost=this.flightRockets.size>0;
-        if(!synchronizeVehicle(this))this.state = this.physics(this.state, { ...this.control, usingItem: this.guarding }, p => this.world.blockAt(p)); this.world.focus = this.state.position; this.attention.tick(); this.humanize.tick(); this.tickLook(); this.sendPosition(); this.versionProfile?.afterTick?.(this); this.tickFallSafety(); }
+        if(!synchronizeVehicle(this))this.state = this.physics(this.state, { ...this.control, usingItem: this.guarding || this.usingRangedItem }, p => this.world.blockAt(p)); this.world.focus = this.state.position; this.attention.tick(); this.humanize.tick(); this.tickLook(); this.sendPosition(); this.versionProfile?.afterTick?.(this); this.tickFallSafety(); }
       catch (error) { this.connectionAbort.abort(error); this.stopClock(); this.emit('warning', error); return; }
       this.metrics.maxTickMs = Math.max(this.metrics.maxTickMs, performance.now() - before); this.emit('physics', this.state.position);
     });

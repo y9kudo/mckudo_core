@@ -38,6 +38,26 @@ The controller evaluates a frame every 25 ms when the event loop is available. T
 - Reconsider unreachable pursuits. A sent attack is not evidence of damage; only an attributed damage event refreshes successful combat progress.
 - Always release controls, shield state and temporary listeners on cancellation or failure.
 
+### Ranged tracking and tactical follow-up
+
+Target velocity is measured from received position snapshots in blocks per game tick. Knockback/spawn velocity packets remain available unchanged; they are not treated as permanent walking velocity. The estimator coalesces TCP bursts, decays stale motion, resets after teleports/outliers and uses entity-object identity so reused IDs do not inherit movement. These are local predictions, not knowledge of a player's future inputs.
+
+Bow and crossbow actions update the interception solution throughout charging and alignment. The ordinary smooth-look controller receives bounded angular feed-forward; the actual current angles must still be within a distance-dependent tolerance before release. A player jump forecast uses gravity and known landing surfaces. Unknown terrain can still block a trajectory. `solveAim` also accepts an optional pure `predictTarget(ticks)` callback; the default remains linear interception.
+
+The selected sword/axe is retained for its base cooldown plus 175 ms after a switch. Repeated enemy shield toggles therefore cannot prevent a charged attempt forever. Shield-facing geometry chooses a persistent orbit direction; cooldown movement maintains spacing, and guarded movement remains slowed. Critical jumps require a close, non-receding target and verified support/headroom. These adjustments still obey ordinary movement physics, reach and collision checks.
+
+At core level, distant visible threats with arrows may select `shoot`. `ranged: false` disables this choice; `rangedDistance` defaults to eight blocks. A facing enemy shield suppresses this choice in favor of approach. A closing opponent, low health or a newly raised facing shield cancels a tactical draw by switching slots. A failed shot backs off ranged selection for 1.5 seconds while approach/defense remain available. It does not count as a hit.
+
+Inspect `client.aimDebug` for measured velocity, motion confidence/age, predicted intercept, flight time, current angular error and release tolerance. `client.combatDebug` also includes the held weapon and its commitment deadline. That deadline uses the local monotonic clock and is not an epoch timestamp.
+
+### Independent projectile defense
+
+`createCombatReactor` selects a priority-1000 reactive guard when a shield is available and a projectile is predicted to intersect the agent's moving body. This defensive reaction does not require two previous hits or `attackPlayers: true`, and never authorizes attacking the shooter. Incoming projectiles and observed aimed bow draws wake urgent observation even during another action; a lower-priority bow draw is cancelled before the offhand shield is used.
+
+The defensive read view advances sparse arrow snapshots with drag, gravity and observed collision geometry. It leaves received entity state unchanged, ignores the agent's own arrows and stationary projectiles, and expires old unobserved motion. A wall can invalidate the predicted threat. Guarding follows the projectile/shooter, respects shield cooldowns and releases after 125 ms without a remaining threat, cancellation or its bounded two-second budget. No repeated raise packets are sent inside that action.
+
+Java's shield has a five-tick activation delay, approximately 250 ms at 20 TPS. Seeing a very close arrow only after release cannot guarantee a block. Observed use of an aimed bow provides advance warning; unexpected shots from behind can still arrive before turning/activation completes. `client.shieldDebug.estimatedActiveAt` is a local estimate, not a server acknowledgment. The `shieldBlock` event is emitted only for the server's shield-block entity status and does not identify which projectile was blocked.
+
 Inspect `client.combatDebug` for target, mode, reason, measured reach and visibility. `client.navigationDebug` describes the active route, and `client.metrics.routePlansReused` counts accepted kernel handoffs. Applications should present these as observations and scheduling decisions, not proof of a successful hit or a guaranteed route.
 
 ## Learning memory migration
@@ -74,7 +94,11 @@ $env:MC_VERSION='1.21.1'
 npm.cmd run test:live:beta1
 ```
 
-The bounded live probe logs in, finds a supported short route, executes a kernel-planned outbound and return trip, records route reuse/cadence/corrections and disconnects. It does not issue world-edit commands or grant equipment. Its JSON report is saved locally to `data/beta1-live.json`. Combat scenarios use automated protocol/physics fixtures until a controlled live arena run is recorded.
+The bounded live probe logs in, finds a supported short route, executes a kernel-planned outbound and return trip, records route reuse/cadence/corrections and disconnects. It does not issue world-edit commands or grant equipment. Its JSON report is saved locally to `data/beta1-live.json`.
+
+For a manual local duel, run `node examples/pvp-duel-live.js`. Defaults are `127.0.0.1:25565`, Java 1.21.1 offline, agent `RowanDuel` and opponent `y9kudo`; override `MC_HOST`, `MC_PORT`, `MC_NAME` and `MC_OPPONENT` as needed. Supply diamond armor and a sword/axe; a shield, bow and arrows enable those options. Once equipped and healthy, the agent waits for two fresh attributed hits. It stops fighting after a death and remains connected for inspection. Write `{"command":"stop"}` to `data/pvp-duel-control.json` to disconnect. Equipment, fighting and pickup behavior come from library policies, not scenario-specific combat code.
+
+The local report `data/pvp-duel-live.json` separates sent melee attacks, attributed outgoing damage, accepted shots and attributed arrow damage. It retains up to 600 motion/aim snapshots at 100 ms intervals and 2,000 events. These local files are ignored by Git. A manual duel is useful for discovering bugs; varying gear, regeneration and human input do not establish a controlled win rate. See the [tracking follow-up report](results/arthas-beta1-pvp-tracking-2026-10-15.md) for the measured results and the initial ownership-counter defect.
 
 ## Research sources
 
@@ -82,5 +106,7 @@ The bounded live probe logs in, finds a supported short route, executes a kernel
 - [Minecraft: Taking Inventory — Shield](https://www.minecraft.net/en-us/article/taking-inventory--shield): front-facing defense, movement slowdown and vulnerability to axes.
 - [Baritone upstream feature documentation](https://github.com/cabaletta/baritone/blob/1.21.4/FEATURES.md): segmented navigation and route continuity informed the architectural review. The implementation here is independent; no upstream source was copied.
 - [PrismarineJS protocol definitions](https://github.com/PrismarineJS/minecraft-data/tree/master/data/pc/1.21.1): separate common ping/pong and keep-alive packets.
+- [Craig Reynolds: Steering Behaviors for Autonomous Characters](https://www.red3d.com/cwr/steer/gdc99/): separating tactical selection from pursuit, evasion and locomotion.
+- [Glenn Fiedler: Snapshot Interpolation](https://gafferongames.com/post/snapshot_interpolation/): handling network snapshots and their temporal limits. Aim here extrapolates received observations rather than delaying them for display interpolation.
 
 These sources explain mechanics and design decisions. They are not evidence that this beta matches another project's complete navigation behavior.
