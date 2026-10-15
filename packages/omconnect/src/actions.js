@@ -490,6 +490,26 @@ async function prepareShield(c,signal){
 }
 
 async function shoot(c, args, signal) {
+  const minDistance=args.minDistance??0,retreatHealth=args.retreatHealth??0;
+  if(!Number.isFinite(minDistance)||minDistance<0||minDistance>32||!Number.isFinite(retreatHealth)||retreatHealth<0||retreatHealth>20)throw new Error('shoot: minDistance 0–32 and retreatHealth 0–20.');
+  if(!minDistance&&!retreatHealth)return shootAttempt(c,args,signal);
+  const abort=new AbortController();let reason=null,released=false;
+  const check=()=>{
+    if(released||signal.aborted)return;
+    const e=c.entities.get(Number(args.entityId));
+    if(e?.kind==='player'&&args.allowPlayer!==true)return;
+    const next=!e?'target-gone':distance(c.state.position,e.position)<minDistance?'melee-range':c.state.health<=retreatHealth?'low-health':null;
+    if(next){reason=next;abort.abort(new Error('Shot cancelled for tactical reassessment.'));}
+  };
+  signal.throwIfAborted();check();
+  if(reason)return {ok:true,shotCancelled:true,reason,shotServerConfirmed:false};
+  const timer=setInterval(check,25);
+  try{return await shootAttempt(c,args,AbortSignal.any([signal,abort.signal]),()=>{released=true;});}
+  catch(error){signal.throwIfAborted();if(reason&&!released)return {ok:true,shotCancelled:true,reason,shotServerConfirmed:false};throw error;}
+  finally{clearInterval(timer);}
+}
+
+async function shootAttempt(c, args, signal, onRelease=()=>{}) {
   const weapon = args.weapon ?? 'bow', chargeTicks = args.chargeTicks ?? 20;
   if (!['bow', 'crossbow'].includes(weapon) || !Number.isInteger(chargeTicks) || chargeTicks < 3 || chargeTicks > 20) throw new Error('shoot: bow/crossbow, chargeTicks 3–20.');
   const target = () => {
@@ -540,6 +560,7 @@ async function shoot(c, args, signal) {
     }
     alive(c, signal); const solution = await turn(), ammoBefore = ammunition(),damageBefore=durabilityUsed(),priorEntities = new Set(c.entities.keys());
     if (weapon === 'crossbow' && loaded().some(raw => !['arrow', 'spectral_arrow', 'tipped_arrow'].includes(c.registry.items[raw.itemId]?.name))) throw new Error("For this ballistics, the crossbow must contain arrows.");
+    onRelease();
     if (weapon === 'bow') c.write('block_dig', { status: 5, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: ++c.sequence });
     else use();
     released = true; using = false;

@@ -14,14 +14,21 @@ export class CombatPursuit {
     const d=distance(position,target.position);
     let r=this.record;
     if(!r||r.target!==target||r.dimension!==dimension||now-r.lastSeen>2000) r=this.record={target,dimension,origin:{...position},started:now,progress:now,lastSeen:now,best:d};
-    r.lastSeen=now;
+    r.lastSeen=now;r.lastPosition={...position};
     if(d<r.best-.35){r.best=d;r.progress=now;}
     if(distance(r.origin,position)>maxDistance*2) return {allowed:false,reason:"Overrided pursuit radius from the meeting point."};
     if(d>2.8&&now-r.progress>this.stuckMs||now-r.started>this.maxChaseMs)return {allowed:false,reason:'No observed progress in this pursuit; reconsider the target.'};
     return {allowed:true};
   }
   attackSent(now) {if(this.record)this.record.lastAttack=now;}
-  damageConfirmed(now) {if(this.record){this.record.progress=now;this.record.started=now;this.record.best=Infinity;}}
+  damageConfirmed(now) {
+    if(this.record){
+      this.record.progress=now;this.record.started=now;this.record.best=Infinity;
+      // A continuing, confirmed exchange can move away from the initial meeting.
+      // Packet-only attacks never move this leash or renew the encounter budget.
+      if(this.record.lastPosition)this.record.origin={...this.record.lastPosition};
+    }
+  }
 }
 
 /** Small, cached, non-destructive pursuit route. No bridges, digging or blind drops. */

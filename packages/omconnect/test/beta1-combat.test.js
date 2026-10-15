@@ -82,3 +82,13 @@ test('sent attacks do not count as observed damage or keep an unsuccessful pursu
   assert.equal(observe(0).allowed,true);p.attackSent(500);assert.equal(observe(1001).allowed,false);
   p.damageConfirmed(1001);assert.equal(observe(1002).allowed,true);
 });
+
+test('confirmed exchanges move the pursuit anchor while packet-only attacks cannot extend the travel leash',()=>{
+  const pursuit=new CombatPursuit(),target={id:'2',position:{x:2,y:64,z:0}};
+  const observe=(x,now)=>{target.position.x=x+2;return pursuit.observe({target,position:{x,y:64,z:0},dimension:'arena',now,maxDistance:12});};
+  assert.equal(observe(0,0).allowed,true);
+  assert.equal(observe(20,500).allowed,true);pursuit.damageConfirmed(501);
+  assert.equal(observe(40,1000).allowed,true);pursuit.damageConfirmed(1001);
+  assert.equal(observe(60,1500).allowed,true);
+  pursuit.attackSent(1501);assert.equal(observe(65,1600).allowed,false);
+});

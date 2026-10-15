@@ -4,6 +4,8 @@ export { weaponProfile, chooseWeapon, combatDecision } from '../packages/omconne
 export function createCombatReactor(options = {}) {
   const ignoredEntities = options.ignoredEntities ?? ['ender_dragon'];
   if (!Array.isArray(ignoredEntities) || ignoredEntities.some(n => typeof n !== 'string')) throw new Error("ignoredEntities: List of names of entities.");
+  const ranged=options.ranged??true,rangedDistance=options.rangedDistance??8;
+  if(typeof ranged!=='boolean'||!Number.isFinite(rangedDistance)||rangedDistance<4||rangedDistance>24)throw new Error('Combat: ranged must be boolean and rangedDistance must be 4–24.');
   const defense = createDefenseReactor(options);
   const clock=options.clock??Date.now,failed=new Map(),retreatBlocked=new Map(),waterAttempted=new Map();let latest=null,selected=null;
   const distance=(a,b)=>a&&b?Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z):Infinity;
@@ -24,9 +26,13 @@ export function createCombatReactor(options = {}) {
       selected=response.action?{ skill: 'combat', args: { ...response.action.args, allowPlayer: options.attackPlayers === true, retreatHealth: options.retreatHealth ?? 8, durationMs: 400 } }:null;
       const threat=selected&&entities?.find(e=>String(e.id)===String(selected.args.entityId));
       const blockedRetreat=threat&&retreatBlocked.has(String(threat.id));
+      if(ranged&&threat?.visible===true&&observation.self?.health>(options.retreatHealth??8)&&distance(threat.position,observation.self.position)>=rangedDistance){
+        const inventory=observation.inventory??{},weapon=inventory['minecraft:bow']?'bow':inventory['minecraft:crossbow']?'crossbow':null;
+        if(weapon&&(inventory['minecraft:arrow']||inventory['minecraft:spectral_arrow']||inventory['minecraft:tipped_arrow']))selected={skill:'shoot',args:{entityId:String(threat.id),weapon,chargeTicks:20,allowPlayer:options.attackPlayers===true,minDistance:Math.max(3,rangedDistance-2),retreatHealth:options.retreatHealth??8}};
+      }
       if(threat?.position&&observation.self?.health>(options.retreatHealth??8)&&threat.visible!==false){
         const flying=['ghast','phantom','blaze','vex'].includes(threat.name)||threat.position.y-observation.self.position.y>3;
-        const weapon=(observation.inventory?.['minecraft:bow']||0)>0?'bow':(observation.inventory?.['minecraft:crossbow']||0)>0?'crossbow':null;
+        const weapon=ranged?((observation.inventory?.['minecraft:bow']||0)>0?'bow':(observation.inventory?.['minecraft:crossbow']||0)>0?'crossbow':null):null;
         if(flying&&distance(threat.position,observation.self.position)>3.5){if(weapon&&(observation.inventory?.['minecraft:arrow']||observation.inventory?.['minecraft:spectral_arrow']||observation.inventory?.['minecraft:tipped_arrow']))selected={skill:'shoot',args:{entityId:String(threat.id),weapon,chargeTicks:20,allowPlayer:options.attackPlayers===true}};
           else if(options.pathRetreat===true)selected={skill:'evade',args:{from:{...threat.position},entityId:String(threat.id),seekCover:true,digEscape:true}};
           else selected=null;}
