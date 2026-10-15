@@ -10,7 +10,7 @@ const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'
 const npm = process.env.npm_execpath;
 assert.ok(npm, 'Run with npm run test:package.');
 const base = resolve(tmpdir()), directory = await mkdtemp(join(base, 'mckudo-package-'));
-const run = (args, cwd) => execFileSync(process.execPath, [npm, ...args], { cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout: 120000, windowsHide: true });
+const run = (args, cwd) => execFileSync(process.execPath, [npm, ...args], { cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout: args[0]==='install'?300000:120000, windowsHide: true });
 try {
   const archives = [];
   for (const folder of [root, join(root, 'packages/omconnect')]) {
@@ -20,7 +20,7 @@ try {
   const consumer = join(directory, 'consumer'); await mkdir(consumer);
   await writeFile(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
   const cacheMode = process.argv.includes('--offline') ? '--offline' : '--prefer-offline';
-  run(['install', cacheMode, '--ignore-scripts', '--omit=dev', '--no-audit', '--no-fund', '--package-lock=false', ...archives], consumer);
+  run(['install', cacheMode, '--fetch-retries=1', '--fetch-timeout=30000', '--ignore-scripts', '--omit=dev', '--no-audit', '--no-fund', '--package-lock=false', ...archives], consumer);
   const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     import {createRequire} from 'node:module';
