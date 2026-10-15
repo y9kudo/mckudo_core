@@ -7,6 +7,8 @@ import {editDecision} from './protection.js';
 import {executeCreativeFly} from './creative-flight.js';
 import {OMActionError} from './failures.js';
 import {routeFacingTarget} from './route-facing.js';
+import {walkTarget,continuesWalk} from './route-cursor.js';
+import {consumeNavigationRoute} from './route-lease.js';
 
 /** Deliberate route excavation only consumes common terrain with an appropriate tool. */
 export const routeCanDig = c => {
@@ -137,7 +139,7 @@ export function safeCorridor(position, direction, length, getBlock, { headroom =
   return true;
 }
 
-export function travelControl(state, target, getBlock, { sprint = true, sprintJump = true, guarding = false, longDistance = 8 } = {}) {
+export function travelControl(state, target, getBlock, { sprint = true, sprintJump = true, guarding = false, longDistance = 8, brake = true } = {}) {
   const dx = target.x - state.position.x, dz = target.z - state.position.z, d = Math.hypot(dx, dz);
   if (d < .04) return { x: 0, z: 0, jump: false, sprint: false };
   const direction = { x: dx / d, z: dz / d }, desired = gazeAngles(state.position, { ...target, y: state.position.y });
@@ -147,15 +149,17 @@ export function travelControl(state, target, getBlock, { sprint = true, sprintJu
   const safe = d >= 1.5 && safeCorridor(supportPosition, direction, Math.min(d, 2), getBlock, { headroom: airborneRun ? 4 : 2 });
   const running = Boolean(sprint && state.food > 6 && !guarding && facing && safe && !state.horizontalCollision);
   // Braking preserves server physics: reduce input, never edit position or velocity.
-  const speed = d < .8 ? Math.max(.08, Math.min(.7, d * 1.5)) : 1;
+  const speed = brake && d < .8 ? Math.max(.08, Math.min(.7, d * 1.5)) : 1;
   return { x: direction.x * speed, z: direction.z * speed, sprint: running,
     jump: Boolean(running && sprintJump && state.onGround && d >= longDistance && safeCorridor(state.position, direction, 6, getBlock, { headroom: 4 })) };
 }
 
-export function combatControl(state, target, mode, getBlock, { guarding = false, strafeSide = 1 } = {}) {
+export function combatControl(state, target, mode, getBlock, { guarding = false, strafeSide = 1, spacing } = {}) {
   const dx = target.x - state.position.x, dz = target.z - state.position.z, d = Math.hypot(dx, dz) || 1;
   const forward = { x: dx / d, z: dz / d }, side = { x: forward.z * strafeSide, z: -forward.x * strafeSide };
-  const options = mode === 'retreat' ? [{ x: -forward.x, z: -forward.z }, side, { x: -side.x, z: -side.z }] : mode === 'strafe' ? [side, { x: -side.x, z: -side.z }] : mode === 'approach' ? [forward, side, { x: -side.x, z: -side.z }] : [];
+  const radial = spacing === undefined ? 0 : Math.max(-.65, Math.min(.5, (d-spacing)*.8));
+  const orbit = sign => { const x=side.x*sign+forward.x*radial,z=side.z*sign+forward.z*radial,n=Math.hypot(x,z);return {x:x/n,z:z/n}; };
+  const options = mode === 'retreat' ? [{ x: -forward.x, z: -forward.z }, side, { x: -side.x, z: -side.z }] : mode === 'strafe' ? [orbit(1), orbit(-1)] : mode === 'approach' ? [forward, side, { x: -side.x, z: -side.z }] : [];
   for (const direction of options) {
     if (!safeCorridor(state.position, direction, 1.3, getBlock)) continue;
     const control = travelControl(state, { x: state.position.x + direction.x * (mode === 'approach' ? d : 2), y: state.position.y, z: state.position.z + direction.z * (mode === 'approach' ? d : 2) }, getBlock, { guarding, sprintJump: false });
@@ -201,7 +205,9 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
   const dimensionDrop=c.state.dimension==='minecraft:overworld'?16:3;
   const view = readRouteWorld(c.world);
   const search=(options,scheduling)=>c.vectorize?.planGroundAsync?c.vectorize.planGroundAsync(options,scheduling):planRouteAsync(options,scheduling);
-  const route = await search({ start, goal: floor(args), range, occupied, staticGeometry:args.excavate!==true&&budget===0,canDig:args.excavate===true?routeCanDig(c):()=>false, edgeCost:c.navigationPolicy?.cost, getBlock: view.getBlock, maxDistance: 128, maxNodes: 12000, maxDrop:args.maxDrop??c.options?.maxDrop??dimensionDrop,fallPolicy,
+  const prepared=consumeNavigationRoute(c,start,args);
+  if(prepared)c.metrics.routePlansReused=(c.metrics.routePlansReused||0)+1;
+  const route = prepared ?? await search({ start, goal: floor(args), range, occupied, staticGeometry:args.excavate!==true&&budget===0,canDig:args.excavate===true?routeCanDig(c):()=>false, edgeCost:c.navigationPolicy?.cost, getBlock: view.getBlock, maxDistance: 128, maxNodes: 12000, maxDrop:args.maxDrop??c.options?.maxDrop??dimensionDrop,fallPolicy,
     bridgeBudget: typeof place === 'function' ? budget : 0, bridgeBlock: blocks[0]?.block || 'minecraft:cobblestone', canPlace:p=>editDecision(c,'place',p).allowed, signal }, { getRevision: view.getRevision });
   alive();
   if (c.metrics.corrections !== plannedCorrections || ['x', 'y', 'z'].some(axis => Math.floor(c.state.position[axis]) !== start[axis])) throw new OMActionError('STALE_WORLD', "Start position changed during route search; replanning is required.");
@@ -226,23 +232,16 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
         continue;
       }
       if (step.kind === 'dig') { if (!dig) throw new Error("No route mining operator."); c.stopMovement(); await dig({ ...step.position, block: step.expected }, signal); continue; }
-      // Merge a straight, flat run so velocity and jumping survive voxel boundaries.
-      let last = i;
-      if (step.kind === 'walk') {
-        const previous = i > 0 && ['walk', 'jump', 'drop'].includes(route.steps[i - 1].kind) ? route.steps[i - 1].position : floor(c.state.position);
-        const dx = step.position.x - previous.x, dz = step.position.z - previous.z;
-        while (last + 1 < route.steps.length) {
-          const a = route.steps[last], b = route.steps[last + 1];
-          if (b.kind !== 'walk' || b.position.y !== a.position.y || b.position.x - a.position.x !== dx || b.position.z - a.position.z !== dz) break;
-          last++;
-        }
-      }
+      const corridor=(position,direction,length)=>safeCorridor(position,direction,length,p=>c.world.blockAt(p));
+      const last=walkTarget(c.state,route.steps,i,corridor,{shortcuts:!c.navigationPolicy&&!bridgeWalk});
+      const continuing=!bridgeWalk&&continuesWalk(c.state,route.steps,last,corridor);
+      const shortcut=step.kind==='walk'&&route.steps.slice(i,last+1).some((s,n,a)=>n>1&&(s.position.x-a[n-1].position.x!==a[1].position.x-a[0].position.x||s.position.z-a[n-1].position.z!==a[1].position.z-a[0].position.z));
       // Keep crouching across narrow spans; verified wide ground permits running.
       const endpoint = route.steps[last].position, target = { x: endpoint.x + .5, y: endpoint.y, z: endpoint.z + .5 }, until = Date.now() + 5000 + (last - i) * (bridgeWalk ? 1200 : 700);
       segment={from:floor(c.state.position),to:{...endpoint},kind:step.kind,dimension:c.state.dimension,health:c.state.health,food:c.state.food};
-      while (Math.hypot(c.state.position.x - target.x, c.state.position.z - target.z) > .18 || Math.abs(c.state.position.y - target.y) > .12 || !c.state.onGround) {
+      while (Math.hypot(c.state.position.x - target.x, c.state.position.z - target.z) > (continuing?.4:.18) || Math.abs(c.state.position.y - target.y) > .12 || !c.state.onGround) {
         alive(); if (Date.now() > until) throw new OMActionError('STEP_STALLED', "Movement step time budget expired.");
-        if (c.metrics.corrections - corrections > 2) throw new OMActionError('SERVER_CORRECTION', "The server has adjusted movement several times; route stopped.");
+        if (c.metrics.corrections !== corrections) throw new OMActionError('SERVER_CORRECTION', 'The server corrected the position; replan from the corrected location.');
         if(c.state.onGround&&route.steps.slice(i,last+1).some(s=>occupied(s.position)&&Math.hypot(s.position.x+.5-c.state.position.x,s.position.z+.5-c.state.position.z)>.9)){
           c.stopMovement();if(replans>=4)throw new OMActionError('OCCUPIED', "The route is occupied by other players; Need a new goal.");
           await delay(100,undefined,{signal});return await executeNavigate(c,args,signal,{place,dig,replans:replans+1});
@@ -252,8 +251,12 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
           const p = route.steps[check].position;
           if (!isAir(c.world.blockAt(p)) || !isAir(c.world.blockAt({ ...p, y: p.y + 1 })) || !isFullBlock(c.world.blockAt({ ...p, y: p.y - 1 }))) throw new OMActionError('SUPPORT_CHANGED', "Support/The route has changed.");
         }
+        if(shortcut) {
+          const origin={...c.state.position,y:target.y},delta={x:target.x-origin.x,z:target.z-origin.z};
+          if(!safeCorridor(origin,delta,Math.min(2,Math.hypot(delta.x,delta.z)),p=>c.world.blockAt(p)))throw new OMActionError('SUPPORT_CHANGED','The steering corridor changed.');
+        }
         c.lookAt(routeFacingTarget(c.state,segment.from,endpoint), { signal });
-        const control = travelControl(c.state, target, p => c.world.blockAt(p), { sprint: args.sprint !== false, sprintJump: args.sprintJump !== false && last - i >= 7, guarding: c.guarding });
+        const control = travelControl(c.state, target, p => c.world.blockAt(p), { sprint: args.sprint !== false, sprintJump: args.sprintJump !== false && last - i >= 7, guarding: c.guarding, brake: !continuing });
         if (bridgeWalk && c.state.onGround) {
           const foot=floor(c.state.position);
           if([-1,0,1].every(dx=>[-1,0,1].every(dz=>isFullBlock(c.world.blockAt({x:foot.x+dx,y:foot.y-1,z:foot.z+dz})))))bridgeWalk=false;
@@ -278,15 +281,19 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
         c.control = personalSpaceControl(c.state,control,[...c.entities.values()],p=>c.world.blockAt(p),c.state.entityId,{canMove,lookAhead:Math.min(1.2,Math.hypot(target.x-c.state.position.x,target.z-c.state.position.z))});
         await delay(25, undefined, { signal });
       }
-      c.stopMovement({ sneak:bridgeWalk });
-      // Absorb remaining inertia before turning or placing blocks at the next step.
-      await c.waitFor(() => Math.hypot(c.state.velocity.x, c.state.velocity.z) < .04, { signal, timeoutMs: 2000 });
+      if(!continuing) {
+        c.stopMovement({ sneak:bridgeWalk });
+        // Edits, vertical transitions and the destination need controlled braking.
+        await c.waitFor(() => Math.hypot(c.state.velocity.x, c.state.velocity.z) < .04, { signal, timeoutMs: 2000 });
+      }
       let previous=segment.from;
-      for(let learned=i;learned<=last;learned++){const current=route.steps[learned];c.emit('navigationStep',{...segment,from:previous,to:current.position,kind:current.kind,outcome:'success',healthAfter:learned===last?c.state.health:segment.health});previous=current.position;}segment=null;
+      if(shortcut)c.emit('navigationStep',{...segment,outcome:'success',healthAfter:c.state.health,skippedWaypoints:last-i});
+      else for(let learned=i;learned<=last;learned++){const current=route.steps[learned];c.emit('navigationStep',{...segment,from:previous,to:current.position,kind:current.kind,outcome:'success',healthAfter:learned===last?c.state.health:segment.health});previous=current.position;}
+      segment=null;
       i = last;
     }
     c.navigationDebug.status='completed';c.navigationDebug.index=route.steps.length;
-  } catch(error){c.navigationDebug.status=signal.aborted?'cancelled':'failed';c.navigationDebug.reason=error.message;if(segment)c.emit('navigationStep',{...segment,outcome:signal.aborted?'cancelled':'failure',healthAfter:c.state.health,reason:error.message});throw error;
+  } catch(error){c.navigationDebug.status=signal.aborted?'cancelled':'failed';c.navigationDebug.reason=error.message;if(segment)c.emit('navigationStep',{...segment,outcome:signal.aborted?'cancelled':'failure',healthAfter:c.state.health,reason:error.message,failureCode:error.code||'ACTION_FAILED'});throw error;
   } finally { c.stopMovement(); }
   return { ok: true, position: { ...c.state.position }, steps: route.steps.length, bridgeUsed: route.bridgeUsed || 0,estimatedFallDamage:route.fallDamage||0 };
 }

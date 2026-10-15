@@ -2,6 +2,7 @@ import { planRouteAsync, readRouteWorld } from '../packages/omconnect/src/naviga
 import { bridgeMaterials, routeCanDig } from '../packages/omconnect/src/movement.js';
 import { editDecision } from '../packages/omconnect/src/protection.js';
 import { createBlockTaxonomy } from './taxonomy.js';
+import { leaseNavigationRoute } from '../packages/omconnect/src/route-lease.js';
 
 const floor=p=>Object.fromEntries(['x','y','z'].map(k=>[k,Math.floor(p[k])]));
 const key=p=>`${p.x},${p.y},${p.z}`;
@@ -59,7 +60,10 @@ export function createNavigationGoal({ client, position, range=1, bridge=true, e
       if(!target)return idle("The route does not contain a confirmed section of traffic.");
       issued={position:{...target},dimension:o.dimension};
       lastReason=plan.partial?"Go through a known area and count the path after new observations.":"To reach target on a proven route.";
-      return {priority:20,action:{skill:'navigate',args:{...target,range:0,bridge,excavate,maxDrop:3}},reason:lastReason};
+      const args={...target,range:0,bridge,excavate,maxDrop:3};
+      const lease=leaseNavigationRoute(client,plan,start,args,ready.isCurrent);
+      if(lease)args.routeLease=lease;
+      return {priority:20,action:{skill:'navigate',args},reason:lastReason};
     },
     recordResult(event,action) {
       if(activeResource){activeResource.recordResult?.(event,action);activeResource=null;ready=null;return;}

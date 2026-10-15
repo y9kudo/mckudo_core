@@ -86,7 +86,7 @@ jobs:
               exit 1
             fi
             release_flags+=(--latest)
-          elif [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(Arthas-)?dev\.[0-9]+$ ]]; then
+          elif [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(Arthas-)?(dev\.[0-9]+|beta[0-9]+)$ ]]; then
             release_flags+=(--prerelease --latest=false)
           else
             echo "Unsupported release version: $version"

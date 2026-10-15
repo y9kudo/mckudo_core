@@ -1,0 +1,145 @@
+# YourMind for Fabric 1.21.1
+
+**By y9kudo · MIT · client mod `alpha1.0` · part of the OvermindMC repository**
+
+YourMind controls your existing Minecraft player through normal movement keys and vanilla interactions. It runs inside the Minecraft Java client. It does not log in a second account, start an OMConnect bot, or require a Node.js process. Single-player and multiplayer use the same commands. Install the mod on the client, not a dedicated server.
+
+This is the first Java implementation of the platform's client-side execution concepts. The JavaScript OvermindMC brain and OMConnect remain separate, working packages. YourMind does not yet embed their full survival, combat, learning, fleet, dashboard, schematic or expedition systems. Its Java ground planner is an independently written OMVectorize implementation, not a bundled Baritone binary.
+
+## Install the mod
+
+1. Install Minecraft Java **1.21.1**, [Fabric Loader](https://fabricmc.net/use/installer/) **0.16.14 or newer**, and the **1.21.1** build of [Fabric API](https://modrinth.com/mod/fabric-api/versions?g=1.21.1).
+2. Build the project below, or obtain `yourmind.jar` from a successful **YourMind Fabric** workflow artifact for the exact source commit you want to test.
+3. Copy `yourmind.jar` and the Fabric API JAR into your launcher's `mods` folder. Remove older copies of YourMind.
+4. Launch the Fabric 1.21.1 profile and join a world. Back up a test world before trying resource jobs.
+5. Send `#help` in chat. These commands are intercepted locally; they are not broadcast to other players. `/yourmind help` is an alternative prefix if another mod uses `#`.
+
+The mod operates the player you are logged in as. Press **End** at any time to stop its current job; rebind this in Minecraft Controls. `#pause` releases movement and mining controls. Open a normal game menu to suspend execution while you inspect things.
+
+## World overlays and HUD
+
+World overlays are enabled by default. **Cyan** lines and node boxes show the planned ground route; **green** segments climb and **gold** segments descend. A **red** outline selects the next mining block, while **orange** outlines show other matching candidates. Candidates are observations, not a promise that every highlighted block will be mined. The **gold goal** has a vertical marker and coordinates. Named waypoints are **purple**, selections are **white**, and protected regions are **red** with their names.
+
+The HUD shows the active command, paused state, reason, route progress, queued tasks, mined blocks, search duration and node count. It also shows a color legend. The renderer reads a cached immutable debug frame; it never starts pathfinding or scans the world. Render distance, geometry counts and label counts are bounded.
+
+```text
+#waypoint add home
+#goal 24 64 -12
+#path
+#find #minecraft:logs
+#render off
+#render on
+#hud off
+#set targets off
+#set xray true
+```
+
+`xray` defaults to **false**. Enabling it draws these debug markers through terrain; it does not load unknown blocks. Use `#set labels off` to reduce clutter. Minecraft's F1 hides the HUD and world debug overlays together.
+
+## Commands
+
+There are **56 canonical commands**, plus the aliases `#cancel`, `#continue`, `#wp` and `#inv`. Use `#help 1`, `#help 2`, and so on for eight entries per page. `/yourmind ` has command-name suggestions. The [complete command reference](COMMANDS.md) lists every syntax and behavior.
+
+| Command | Meaning |
+| --- | --- |
+| `#goto 24 64 -12` | Follow collision-safe ground segments to an exact block position |
+| `#mine #minecraft:logs 8` | Mine up to eight matching blocks across available wood species, then collect drops |
+| `#mine minecraft:iron_ore 4` | Mine matching observed blocks with a suitable existing tool |
+| `#get minecraft:crafting_table 1` | Reach a total inventory target using observed natural block sources and server crafting recipes |
+| `#get minecraft:stone_pickaxe 1` | Plan crafting prerequisites, create a required wooden mining tool, place/open a crafting table, and check inventory |
+| `#farm 16` | Harvest mature wheat, carrots, potatoes or beetroot within 16 blocks and replant using an existing seed |
+| `#status` | Show job, route progress, search duration, node count and loaded recipe count |
+| `#pause` / `#resume` | Pause or refresh the current job after resolving an obstruction |
+| `#stop` | Cancel the job and pending route calculation |
+| `#help` | Display the command reference |
+
+Additional groups include player following, relative destinations, exploration, patrols, crafting-only jobs, dropped-item collection, equipment, food, explicit item dropping, recipe/block queries, a bounded FIFO task queue, world-scoped waypoints/home, selections, edit protection, rendering settings and local configuration save/load.
+
+```text
+#queue mine #logs 8
+#queue get minecraft:stone_pickaxe 1
+#queue goto home
+#tasks
+#follow Alex 4
+#pos1 0 64 0
+#pos2 12 72 12
+#protect house
+#save
+```
+
+The queue holds at most 16 waiting jobs. A failure pauses the current job; it does not silently skip to the next. `#skip` advances manually, `#clearqueue` keeps the current task, and `#stop` or End cancels everything. A successful finite job starts the next queued job. Follow and patrol are continuous until stopped or their time budget expires. `#find` pauses for inspection after highlighting its results; use `#skip` to continue a queue after inspection.
+
+`#save` stores validated settings, named waypoints/home and protected regions in `config/yourmind.json`. `#load` validates the full file before replacing live configuration. Single-player folders and multiplayer server addresses are scoped separately, and dimensions have separate workspaces. Selections, temporary goal markers and task queues are not persisted. If a different multiplayer world replaces an existing world at the same address, clear or replace its saved markers explicitly.
+
+Resource counts are bounded to 1–4096; explicit drop commands allow at most 64 items. Farm radius is 2–48. A job has a configurable time budget (default ten minutes) and pauses on low health, repeated movement failures or missing confirmation. The eating command remains available at low health. A death or dimension change stops the task and queue. Resource collection never counts an action timer as proof that an item was obtained.
+
+`#mine` selects blocks you explicitly request; it does not craft a missing mining tool. `#get` recursively plans **crafting-table and inventory recipes** supplied by the joined server. `#craft` uses existing materials and pauses if collection would be required; its amount is additional output, while `#get` uses a total inventory target. Observed natural sources determine which wood species can be collected. Neither command currently executes furnace, brewing, smithing or mod-machine recipes. A locked recipe, unavailable dependency or unsupported machine produces an explicit paused state.
+
+Farming needs a walkable approach and an existing seed for each crop before harvesting; its search area stays anchored at the starting position. It does not create new farmland or animal farms. Named protection prevents mining, harvesting and crafting-table placement in selected blocks. Server claims and permissions remain authoritative. Ground routes do not excavate buildings or place bridges automatically. Relative up/down commands route over existing supported terrain; they do not fly or build a pillar.
+
+## Open and build in VS Code
+
+Install **JDK 21**, Visual Studio Code and its **Extension Pack for Java** and **Gradle for Java** extensions. Open this folder (`mods/yourmind`) as a VS Code project. The recommended extensions are included in `.vscode/extensions.json`.
+
+Windows PowerShell:
+
+```powershell
+java -version
+.\gradlew.bat build
+```
+
+Linux/macOS:
+
+```sh
+sh ./gradlew build
+```
+
+The wrapper uses Gradle 8.12.1 with a pinned distribution SHA-256. JDK 8 cannot compile this mod. If your PATH still selects Java 8, set `JAVA_HOME` to your JDK 21 directory for the terminal session before running Gradle.
+
+Outputs:
+
+- `build/install/yourmind.jar`: remapped installable mod.
+- `build/libs/yourmind-alpha1.0.jar`: the same remapped mod with a versioned filename.
+- `build/libs/*-dev.jar`: development mappings; **do not install this file** into a normal Minecraft profile.
+- `build/reports/tests/test/index.html`: Java unit-test report.
+
+Run a development client with `gradlew.bat runClient`. This opens a separate development game instance. It does not reuse your Microsoft session or automatically join the user's running world. Use your normal authenticated launcher to test the built mod in your usual client.
+
+MCreator is a different project format with loader generators. This folder is a standard Fabric Gradle project; it should be opened in VS Code or IntelliJ IDEA, not imported as a fabricated `.mcreator` workspace. Fabric Loom resolves the exact Minecraft mappings and API used by the source.
+
+## Code map
+
+| File | Responsibility |
+| --- | --- |
+| `YourMindClient.java` | Fabric lifecycle, local chat/client commands, emergency key |
+| `AgentController.java` | Job state, result checks, inventories, mining, loot, crop and crafting actions |
+| `TerrainCapture.java` | Main-thread world reads, bounded two-millisecond slices, collision classification |
+| `MotionController.java` | Smooth view changes and ordinary movement/sprint/jump inputs |
+| `RecipeCatalog.java` | Server recipe import and natural resource-to-block associations |
+| `DebugRenderer.java` / `core/OverlayGeometry.java` | Bounded world-space routes, markers, labels and status HUD |
+| `ConfigurationStore.java` / `core/WorldWorkspace.java` | Validated local config, dimension-scoped waypoints and edit protection |
+| `core/TaskQueue.java` / `core/AgentSettings.java` | FIFO scheduling, queue limits and shared execution/render settings |
+| `core/RoutePlanner.java` | Standalone Java A*, diagonals, headroom, steps, safe descents and useful partial segments |
+| `core/VoxelGrid.java` | Immutable compact collision grid for worker input |
+| `core/ResourcePlanner.java` | Bounded recursive crafting dependencies and ingredient alternatives |
+| `core/Command.java` | Validated commands usable by chat or Java integrations |
+
+Route work uses one daemon worker and at most one pending search. Game objects never enter that worker. World reads and interaction calls remain on Minecraft's client thread. Route terrain is checked again before each movement step. Cancelled tasks discard their route future; disconnected worlds discard their recipes and terrain. Disabling `jump` removes jump edges from planning as well as the jump input from execution.
+
+The current ground model supports known, dry full-block surfaces, one-block jumps, conservative descents of at most three blocks and diagonals with corner clearance. It treats unknown space, fluids, hazards and unsupported partial-block geometry as non-traversable. It does not yet perform swimming, creative flight, elytra flight, parkour gaps, excavation, bridge placement or Nether/End expedition planning inside the Java mod. These are explicit extension points, not commands silently delegated to a nonexistent backend.
+
+## Validate in a test world
+
+1. Use a flat 1.21.1 Survival world with nearby mixed tree species. Start with an empty inventory. Run `#get minecraft:crafting_table 1`; inspect resource species, visible arm swings, dropped-item pickup and the actual inventory.
+2. Run `#get minecraft:wooden_pickaxe 1`, then `#get minecraft:stone_pickaxe 1` with reachable exposed stone. Check the placed table, tool switches and server-confirmed craft output.
+3. Place a solid wall and a pit between the player and a goal. Use `#goto`. Confirm it chooses a known safe path or pauses without walking into unknown space.
+4. Plant mature crops beside a solid walkway and carry seeds. Use `#farm 8`. Confirm harvesting, replanting and collected items.
+5. During each task, press End; then test pause/resume, opening a menu, disconnecting and changing dimension.
+
+Java tests cover collision geometry, corner clearance, headroom, unknown voxels, voids, route cancellation/budgets, recipe cycles, alternative wood sources, ingredient accounting and command validation. A successful compile/test run is not a recorded live Minecraft result. Live-client verification must be recorded separately with the source commit and observations.
+
+`gradlew.bat benchmarkNavigation` runs a fixed-fixture JVM benchmark with warmup and median/p95/p99 measurements. It does not start Minecraft. See [computation boundaries](../../docs/POLYGLOT-RUNTIME.md) for JavaScript/C/Java responsibilities and the measured C search benefit.
+
+## Design references
+
+Fabric's [Loom documentation](https://docs.fabricmc.net/develop/loom/) and [1.21.1 Yarn API](https://maven.fabricmc.net/docs/yarn-1.21.1+build.3/) define the integration surface. Baritone's published [feature description](https://github.com/cabaletta/baritone/blob/master/FEATURES.md) is a useful comparison for segmented pathing and action costs. No Baritone source code or binary is included. Its [LGPL-3.0 license](https://github.com/cabaletta/baritone/blob/master/LICENSE) remains separate from this implementation's MIT license.

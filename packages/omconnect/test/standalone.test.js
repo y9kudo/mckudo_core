@@ -138,16 +138,19 @@ test('loaded crossbow fires once and distinguishes ammunition confirmation from 
   const result = await c.execute({ skill: 'shoot', args: { entityId: '42', weapon: 'crossbow' } });
   assert.equal(result.shotServerConfirmed, true); assert.equal(result.hitConfirmed, false); assert.equal(packets.filter(e => e.name === 'use_item').length, 1); await c.close();
 });
-test('moving dragon gets a final current aim and releases one arrow',async()=>{
+test('a moving dragon stays tracked during the draw and releases one current arrow',async()=>{
   const {c,packets,slot}=armed('bow');
   Object.assign(c.entities.get(42),{name:'ender_dragon',metadata:{phase:0}});
-  const original=c.waitForLook.bind(c);
-  c.waitForLook=async options=>{await original(options);c.entities.get(42).position.z+=1.5;};
+  c.entityMotion.observe(c.entities.get(42));
+  const motion=setInterval(()=>{const e=c.entities.get(42);e.position.z+=.08;c.entityMotion.observe(e);},50);
+  c.waitForLook=()=>assert.fail('The draw must follow fresh motion instead of waiting on stale aim.');
   c.on('sent',e=>{if(e.name==='block_dig'&&e.packet.status===5)c.inventory.updateSlot({windowId:0,slot:37,stateId:4,item:slot('arrow',2)});});
-  const result=await c.execute({skill:'shoot',args:{entityId:'42'}});
-  assert.equal(result.shotServerConfirmed,true);
-  assert.equal(packets.filter(e=>e.name==='block_dig'&&e.packet.status===5).length,1);
-  await c.close();
+  try{
+    const result=await c.execute({skill:'shoot',args:{entityId:'42'}});
+    assert.equal(result.shotServerConfirmed,true);
+    assert.ok(c.aimDebug.velocity.z>.04);assert.ok(c.aimDebug.predicted.z>c.entities.get(42).position.z);
+    assert.equal(packets.filter(e=>e.name==='block_dig'&&e.packet.status===5).length,1);
+  }finally{clearInterval(motion);await c.close();}
 });
 test('Infinity bow confirms a shot from server durability despite unchanged arrow count',async()=>{
   const {c,packets,slot}=armed('bow');

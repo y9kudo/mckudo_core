@@ -1,1 +1,1 @@
-export const OVERMIND = Object.freeze({ name: 'OvermindMC', id: 'overmindmc', version: '1.0.0-Arthas-dev.3', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-dev.3', author: 'y9kudo', protocolVersion: 1 });
+export const OVERMIND = Object.freeze({ name: 'OvermindMC', id: 'overmindmc', version: '1.0.0-Arthas-beta1', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-beta1', author: 'y9kudo', protocolVersion: 1 });

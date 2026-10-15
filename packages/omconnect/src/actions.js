@@ -1,8 +1,12 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { performance } from 'node:perf_hooks';
 import { planRouteAsync, readRouteWorld, isAir, isFullBlock, isHazard } from './navigation.js';
-import { weaponProfile, chooseWeapon, combatDecision, shieldFaces } from './combat.js';
+import { weaponProfile, shieldFaces } from './combat.js';
+import {executeCombat,combatGeometry} from './combat-runtime.js';
 import { solveAim } from './projectiles.js';
+import { entityPrediction } from './entity-motion.js';
+import { AimTracking } from './aim-tracking.js';
+import { shieldThreat, shieldEntities } from './shield-threats.js';
 import { miningTime, chooseMiningTool, remainingDurability } from './equipment.js';
 import { isStorageBlock, storageIdentity } from './containers.js';
 import { executeNavigate, combatControl, wrapDegrees, safeCorridor, routeCanDig,settleGround } from './movement.js';
@@ -12,7 +16,6 @@ import { ignitePortal, fillEndFrame, throwEye, enterPortal } from './portals.js'
 import { pillar, descendPillar } from './pillar.js';
 import { executeCollect } from './collection.js';
 import {assertEdit, editDecision, rememberPlacement} from './protection.js';
-import {CombatPursuit, combatApproach} from './combat-navigation.js';
 import { executeSwim } from './swimming.js';
 import { clickMenu } from './menus.js';
 import { mountVehicle, dismountVehicle } from './transport.js';
@@ -371,10 +374,10 @@ export async function runAction(c, action, signal) {
   }
   if (skill === 'attack') {
     const e = c.entities.get(Number(args.entityId)); if (!e || e.kind === 'player' && args.allowPlayer !== true) throw new Error("Unaffordable Target; PvP requires allowPlayer.");
-    if (distance(e.position, c.state.position) > 3 || !visible(c, { ...e.position, y: e.position.y + 0.8 })) throw new Error("Target outside impact distance or behind the barrier.");
+    if (!combatGeometry(c,e).inReach || !visible(c, combatGeometry(c,e).aim)) throw new Error("Target outside impact distance or behind the barrier.");
     if (performance.now() < (c.nextAttackAt || 0)) throw new Error("Weapons are still recovering.");
-    c.lookAt({ ...e.position, y: e.position.y + 0.8 },{signal,turnSpeed:720}); await c.waitForLook?.({ signal }); const at = performance.now();
-    if(c.entities.get(Number(e.id))!==e||distance(e.position,c.state.position)>3||!visible(c,{...e.position,y:e.position.y+.8})){const error=new Error("Target moved while aiming; a new approach is required.");error.code='KUDO_TARGET_MOVED';throw error;}
+    c.lookAt(combatGeometry(c,e).aim,{signal,turnSpeed:720}); await c.waitForLook?.({ signal }); const at = performance.now();
+    if(c.entities.get(Number(e.id))!==e||!combatGeometry(c,e).inReach||!visible(c,combatGeometry(c,e).aim)){const error=new Error("Target moved while aiming; a new approach is required.");error.code='KUDO_TARGET_MOVED';throw error;}
     c.write('use_entity', { target: Number(e.id), mouse: 1, sneaking: false }); c.write('arm_animation', { hand: 0 });
     c.emit?.('attackSent',{entityId:String(e.id),name:e.name,weapon:c.inventory.held()?.name||'hand',at:Date.now()});
     c.nextAttackAt = at + weaponProfile(c.inventory.held()?.name).cooldownMs;
@@ -467,57 +470,27 @@ export async function runAction(c, action, signal) {
     }
     throw new Error("The emergency water installation budget has expired.");
   }
-  if (skill === 'combat') {
-    const duration = args.durationMs ?? 400, maxDistance = args.maxDistance ?? 12;
-    if (!Number.isInteger(duration) || duration < 50 || duration > 2000 || !Number.isFinite(maxDistance) || maxDistance < 1 || maxDistance > 32) throw new Error("combat: Wrong budget.");
-    const target = c.entities.get(Number(args.entityId));
-    if (!target || target.kind === 'player' && args.allowPlayer !== true) throw new Error("No authorized target.");
-    const shieldedTarget = shieldFaces(target,c.state.position);
-    const avoidSweep=[...c.entities.values()].some(e=>e.kind==='player'&&e.gameMode!==3&&e!==target&&String(e.id)!==String(c.state.entityId)&&distance(e.position,target.position)<2);
-    if(c.inventory.items().some(i=>i.name==='shield'&&remainingDurability(i,c.registry)>0))await prepareShield(c,signal);
-    const weapon = chooseWeapon(c.inventory.items().filter(i => remainingDurability(i, c.registry) > 0), { shieldedTarget, avoidSweep });
-    if (weapon && c.inventory.held()?.slot !== weapon.slot) await select(c, weapon, signal);
-    else if (!weapon) await emptyHand(c, signal);
-    c.combatPursuit ??= new CombatPursuit();
-    const until = Date.now() + duration;
-    while (Date.now() < until) {
-      alive(c, signal); if (c.entities.get(Number(target.id)) !== target) return { ok: true, targetGone: true, deathConfirmed: false };
-      if (distance(c.state.position, target.position) > maxDistance) throw new Error("Target moved beyond pursuit range.");
-      const now=performance.now(),shield=c.inventory.slots[45]?.name==='shield'&&remainingDurability(c.inventory.slots[45],c.registry)>0;
-      if(c.combatJump){if(!c.state.onGround)c.combatJump.airborne=true;if(c.combatJump.target!==target.id||now>c.combatJump.until||c.combatJump.airborne&&c.state.onGround)c.combatJump=null;}
-      const jumpKey=String(target.id)+'/'+(c.nextAttackAt||0),nearby=[...c.entities.values()].filter(e=>e!==target&&e.kind==='player'&&distance(e.position,c.state.position)<3).length;
-      const safeJump=args.critical!==false&&weapon&&c.state.health>12&&c.state.food>6&&!nearby&&!c.guarding&&c.state.onGround&&c.criticalAttempt!==jumpKey&&['x','z'].every(axis=>[-1,1].every(sign=>safeCorridor(c.state.position,{x:axis==='x'?sign:0,z:axis==='z'?sign:0},1,p=>c.world.blockAt(p),{headroom:4})));
-      let tactic = combatDecision({ self: { ...c.state, shield,shieldDisabledUntil:c.shieldDisabledUntil }, target: { ...target,blocking:shieldFaces(target,c.state.position), charging: target.name === 'blaze' && Boolean(target.metadata.flags & 1) },
-        projectiles: [...c.entities.values()].filter(e => ['arrow', 'small_fireball', 'fireball', 'trident'].includes(e.name)), nextAttackAt: c.nextAttackAt || 0, now, retreatHealth: args.retreatHealth ?? 8,criticalPending:Boolean(c.combatJump),canCriticalJump:safeJump });
-      if(target.name==='enderman'&&c.world.blockAt(floor(c.state.position))?.name==='water'&&['approach','strafe','jump'].includes(tactic.mode))tactic={...tactic,mode:'hold'};
-      if(tactic.mode!=='retreat'){
-        const pursuit=c.combatPursuit.observe({target,position:c.state.position,dimension:c.state.dimension,now,maxDistance});
-        if(!pursuit.allowed){c.stopMovement();throw new Error(pursuit.reason);}
-      }
-      if (!['approach', 'retreat', 'strafe'].includes(tactic.mode)) c.stopMovement();
-      c.lookAt({ ...target.position, y: target.position.y + 1 }, { signal, turnSpeed: 720 });
-      if (tactic.mode === 'block') {c.combatJump=null;return runAction(c, { skill: 'guard', args: { entityId:target.id,durationMs: Math.max(250, Math.min(600, until - Date.now())) } }, signal);}
-      if (tactic.mode === 'jump') {c.combatJump||={target:target.id,until:now+1500,airborne:false};c.criticalAttempt=jumpKey;c.control={x:0,z:0,jump:true,sprint:false};}
-      if (tactic.mode === 'strike') {
-        if(avoidSweep&&weaponProfile(c.inventory.held()?.name).kind==='sword'&&!tactic.critical)throw new Error("A foreign player is in the vicinity: A mass strike by a sword is unsafe.");
-        try{await runAction(c,{skill:'attack',args:{entityId:target.id,allowPlayer:args.allowPlayer===true}},signal);c.combatPursuit.attackSent(performance.now());}
-        catch(error){signal.throwIfAborted();if(error.code!=='KUDO_TARGET_MOVED')throw error;c.combatRoute=null;}
-        c.combatJump=null;
-      }
-      if (['approach', 'retreat', 'strafe'].includes(tactic.mode)) {
-        c.control = tactic.mode==='approach'?await combatApproach(c,target,signal):combatControl(c.state, target.position, tactic.mode, p => c.world.blockAt(p), { guarding: c.guarding, strafeSide: Math.floor(Date.now() / 1800) % 2 ? -1 : 1 });
-      }
-      await delay(25, undefined, { signal });
-    }
-    return { ok: true, frameFinished: true };
-  }
+  if (skill === 'combat') return executeCombat(c,args,signal,{select,emptyHand,prepareShield});
   if (skill === 'guard') {
     const duration = args.durationMs ?? 400; if (!Number.isInteger(duration) || duration < 50 || duration > 2000) throw new Error('guard.durationMs: 50–2000.');
     if(performance.now()<(c.shieldDisabledUntil||0))throw new Error("The server temporarily disabled the shield.");
     await prepareShield(c,signal);
+    const raisedAt=performance.now();let quietAt=null;
     c.write('use_item', { hand: 1, sequence: ++c.sequence, rotation: { x: c.state.yaw, y: c.state.pitch } }); c.guarding = true;
-    try { const until=Date.now()+duration;while(Date.now()<until){alive(c,signal);if(performance.now()<(c.shieldDisabledUntil||0))return {ok:true,shieldDisabled:true};const e=c.entities.get(Number(args.entityId));if(e)c.lookAt({...e.position,y:e.position.y+1},{signal,turnSpeed:720});await delay(25,undefined,{signal});}return { ok: true, guardingRequested: true }; }
-    finally { c.guarding = false; if (c.client.state === 'play') c.write('block_dig', { status: 5, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: ++c.sequence }); }
+    try {
+      const until=performance.now()+duration;
+      while(performance.now()<until){
+        alive(c,signal);if(performance.now()<(c.shieldDisabledUntil||0))return {ok:true,shieldDisabled:true};
+        if(args.reactive===true){
+          const threat=shieldThreat(c.state,shieldEntities(c),{getBlock:p=>c.world.blockAt(p)});
+          if(threat){quietAt=null;c.lookAt(threat.point,{signal,turnSpeed:1080});c.shieldDebug={target:threat.entity.id,anticipating:threat.anticipating,impactTicks:threat.ticks,raisedAt,estimatedActiveAt:raisedAt+250,at:Date.now()};}
+          else{quietAt??=performance.now();if(performance.now()-quietAt>=125)return {ok:true,guardingRequested:true,threatCleared:true};}
+          c.stopMovement();
+        }else{const e=c.entities.get(Number(args.entityId));if(e)c.lookAt({...e.position,y:e.position.y+1},{signal,turnSpeed:720});}
+        await delay(25,undefined,{signal});if(!c.timer){c.tickLook(.025);c.sendPosition();}
+      }
+      return {ok:true,guardingRequested:true};
+    }finally{c.guarding=false;c.stopMovement();c.cancelLook();if(c.client.state==='play')c.write('block_dig',{status:5,location:{x:0,y:0,z:0},face:0,sequence:++c.sequence});}
   }
   if (skill === 'wait') { const ms = args.durationMs ?? 100; if (!Number.isInteger(ms) || ms < 1 || ms > 2000) throw new Error('wait.durationMs: 1–2000.'); await delay(ms, undefined, { signal }); return { ok: true }; }
 }
@@ -533,6 +506,27 @@ async function prepareShield(c,signal){
 }
 
 async function shoot(c, args, signal) {
+  const minDistance=args.minDistance??0,retreatHealth=args.retreatHealth??0;
+  if(!Number.isFinite(minDistance)||minDistance<0||minDistance>32||!Number.isFinite(retreatHealth)||retreatHealth<0||retreatHealth>20)throw new Error('shoot: minDistance 0–32 and retreatHealth 0–20.');
+  if (!['bow','crossbow'].includes(args.weapon??'bow') || !Number.isInteger(args.chargeTicks??20) || (args.chargeTicks??20)<3 || (args.chargeTicks??20)>20) throw new Error('shoot: bow/crossbow, chargeTicks 3–20.');
+  if(!minDistance&&!retreatHealth)return shootAttempt(c,args,signal);
+  const abort=new AbortController();let reason=null,released=false;
+  const check=()=>{
+    if(released||signal.aborted)return;
+    const e=c.entities.get(Number(args.entityId));
+    if(e?.kind==='player'&&args.allowPlayer!==true)return;
+    const next=!e?'target-gone':distance(c.state.position,e.position)<minDistance?'melee-range':c.state.health<=retreatHealth?'low-health':e.kind==='player'&&shieldFaces(e,c.state.position)?'shield-facing':null;
+    if(next){reason=next;abort.abort(new Error('Shot cancelled for tactical reassessment.'));}
+  };
+  signal.throwIfAborted();check();
+  if(reason)return {ok:true,shotCancelled:true,reason,shotServerConfirmed:false};
+  const timer=setInterval(check,25);
+  try{return await shootAttempt(c,args,AbortSignal.any([signal,abort.signal]),()=>{released=true;});}
+  catch(error){signal.throwIfAborted();if(reason&&!released)return {ok:true,shotCancelled:true,reason,shotServerConfirmed:false};throw error;}
+  finally{clearInterval(timer);}
+}
+
+async function shootAttempt(c, args, signal, onRelease=()=>{}) {
   const weapon = args.weapon ?? 'bow', chargeTicks = args.chargeTicks ?? 20;
   if (!['bow', 'crossbow'].includes(weapon) || !Number.isInteger(chargeTicks) || chargeTicks < 3 || chargeTicks > 20) throw new Error('shoot: bow/crossbow, chargeTicks 3–20.');
   const target = () => {
@@ -547,45 +541,52 @@ async function shoot(c, args, signal) {
   const ammunition = () => c.inventory.count('arrow') + c.inventory.count('spectral_arrow') + c.inventory.count('tipped_arrow');
   const durabilityUsed=()=>c.inventory.held()?.raw.components?.find(p=>p.type==='damage')?.data??0;
   if (!ammunition() && !(weapon === 'crossbow' && loaded().length)) throw new Error("No arrows.");
-  const aim = () => {
+  const tracker = new AimTracking();
+  const aim = stage => {
     const e = target(), s = c.state;
-    const solution = solveAim({ origin: { ...s.position, y: s.position.y + 1.52 }, target: { ...e.position, y: e.position.y + (c.registry.entitiesByName[e.name]?.height ?? 1.8) / 2 }, targetVelocity: e.velocity,
-      inheritedVelocity: { x: s.velocity.x, y: s.onGround ? 0 : s.velocity.y, z: s.velocity.z }, weapon, chargeTicks, getBlock: p => c.world.blockAt(p) });
+    const motion = c.entityMotion.sample(e), getBlock = p => c.world.blockAt(p);
+    const height = e.kind === 'player' ? ({1:.6,2:.2,3:.6,4:.6,5:1.5})[e.metadata?.pose]??1.8 : c.registry.entitiesByName[e.name]?.height??1.8;
+    const solution = solveAim({ origin: { ...s.position, y: s.position.y + 1.52 }, target: { ...e.position, y: e.position.y + height / 2 }, targetVelocity: motion.velocity,
+      predictTarget: entityPrediction(e, { ...motion, height, getBlock }),
+      inheritedVelocity: { x: s.velocity.x, y: s.onGround ? 0 : s.velocity.y, z: s.velocity.z }, weapon, chargeTicks, getBlock });
     if (solution.status !== 'aimed') throw new Error(`No trajectory: ${solution.reason}.`);
-    return solution;
+    const angularError = tracker.update(c, solution, signal);
+    const tolerance = Math.max(.2, Math.min(1.5, Math.atan2((c.registry.entitiesByName[e.name]?.width??.6)*.35, distance(s.position,e.position)) * 180 / Math.PI));
+    c.aimDebug = { target: e.id, stage, velocity: motion.velocity, confidence: motion.confidence, ageMs: motion.ageMs, yaw: solution.yaw, pitch: solution.pitch, angularError, tolerance, flightTicks: solution.ticks, predicted: solution.predicted, at: Date.now() };
+    if(args.minDistance>0&&e.kind==='player')c.control=combatControl(s,e.position,'strafe',getBlock,{spacing:12,strafeSide:c.combatOrbit?.side??1});
+    return { solution, aligned: angularError <= tolerance };
   };
-  const turn=async()=>{
-    const direction=(solution,s)=>{const yaw=solution.yaw*Math.PI/180,pitch=solution.pitch*Math.PI/180;return {x:s.x-Math.sin(yaw)*Math.cos(pitch)*20,y:s.y+1.62-Math.sin(pitch)*20,z:s.z+Math.cos(yaw)*Math.cos(pitch)*20};};
-    for(let i=0;i<4;i++){
-      const solution=aim();
-      c.lookAt(direction(solution,c.state.position),{signal,turnSpeed:720});
-      await c.waitForLook({signal});
-      const fresh=aim();
-      if(Math.hypot(wrapDegrees(fresh.yaw-c.state.yaw),fresh.pitch-c.state.pitch)<1)return fresh;
-      // A flying dragon can move several blocks during the turn. Finish with
-      // one current, server-sent angle instead of endlessly chasing old aim.
-      if(i>=1&&target().name==='ender_dragon'){
-        c.lookAt(direction(fresh,c.state.position),{signal,immediate:true});
-        const latest=aim();
-        if(Math.hypot(wrapDegrees(latest.yaw-c.state.yaw),latest.pitch-c.state.pitch)<4)return latest;
-      }
-    }
-    throw new Error("Target shifted when set; I need a new shot.");
+  const follow = async (duration, requireAlignment = false) => {
+    const until = performance.now() + duration;
+    do {
+      alive(c, signal);
+      const latest = aim(requireAlignment ? 'aligning' : 'drawing');
+      if (requireAlignment && latest.aligned) return latest.solution;
+      await delay(25, undefined, { signal });
+      // Standalone tests/clients without a running clock rotate, never simulate extra physics.
+      if (!c.timer) { c.tickLook(.025); c.sendPosition(); }
+    } while (performance.now() < until);
+    if (requireAlignment) throw new Error('Aim did not converge within the tracking budget.');
   };
-  await turn(); const originalSlot = c.inventory.selected;
+  const originalSlot = c.inventory.selected;
   let using = false, released = false;
   const use = () => c.write('use_item', { hand: 0, sequence: ++c.sequence, rotation: { x: c.state.yaw, y: c.state.pitch } });
   try {
+    aim('preparing');
     if (weapon === 'bow' || !loaded().length) {
-      use(); using = true;
-      await delay((weapon === 'crossbow' ? 26 : chargeTicks + 1) * 50, undefined, { signal });
+      use(); using = true; c.usingRangedItem = true;
+      await follow((weapon === 'crossbow' ? 26 : chargeTicks + 1) * 50);
       if (weapon === 'crossbow') await c.waitFor(() => loaded().length > 0, { signal, event: 'inventory', timeoutMs: 2000 });
     }
-    alive(c, signal); const solution = await turn(), ammoBefore = ammunition(),damageBefore=durabilityUsed(),priorEntities = new Set(c.entities.keys());
+    alive(c, signal); const solution = await follow(1000, true), ammoBefore = ammunition(),damageBefore=durabilityUsed(),priorEntities = new Set(c.entities.keys());
     if (weapon === 'crossbow' && loaded().some(raw => !['arrow', 'spectral_arrow', 'tipped_arrow'].includes(c.registry.items[raw.itemId]?.name))) throw new Error("For this ballistics, the crossbow must contain arrows.");
+    onRelease();
+    c.sendPosition();
     if (weapon === 'bow') c.write('block_dig', { status: 5, location: { x: 0, y: 0, z: 0 }, face: 0, sequence: ++c.sequence });
     else use();
-    released = true; using = false;
+    released = true; using = false; c.usingRangedItem = false;
+    c.aimDebug = { ...c.aimDebug, stage: 'released', at: Date.now() };
+    c.emit('shotReleased', { ...c.aimDebug, weapon });
     const releasedAt=Date.now(),until = releasedAt + 2000;
     while (Date.now() < until) {
       alive(c, signal);
@@ -597,6 +598,7 @@ async function shoot(c, args, signal) {
     }
     throw new Error("Shots fired, but the server did not confirm the projectile or the ammunition consumption. Do not repeat automatically.");
   } finally {
+    c.usingRangedItem = false; c.stopMovement(); c.cancelLook();
     // Switching slots cancels a drawn bow without releasing its arrow at the old target.
     if (using && !released && c.client.state === 'play') {
       c.write('held_item_slot', { slotId: (originalSlot + 1) % 9 }); c.write('held_item_slot', { slotId: originalSlot });

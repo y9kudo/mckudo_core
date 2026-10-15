@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import {createCore} from '../src/core.js';
 import {createCombatReactor} from '../src/combat.js';
 
+test('a failed ranged aim yields to approach instead of silencing defense for five seconds',()=>{
+  let now=1000;const r=createCombatReactor({attackPlayers:true,clock:()=>now});
+  const o={dimension:'minecraft:overworld',self:{position:{x:0,y:64,z:0},health:20},inventory:{'minecraft:bow':1,'minecraft:arrow':64},entities:[{id:'1',name:'player',kind:'player',username:'Enemy',visible:true,position:{x:10,y:64,z:0}}],combat:{attackers:[{entityId:'1',hits:2,lastHitAt:999}]}};
+  const first=r.react(o);assert.equal(first.action.skill,'shoot');r.recordResult({outcome:'failure',detail:'No trajectory: obstacle.'},first.action);
+  assert.equal(r.react(o).action.skill,'combat');now+=1501;assert.equal(r.react(o).action.skill,'shoot');
+});
+
 test('one unreachable combat target does not suppress defense against another attacker',async()=>{
   let id='1';const calls=[];
   const core=createCore({config:{schemaVersion:4,worldId:'pvp-recovery',name:'Alice',rules:[]},clock:()=>1000,

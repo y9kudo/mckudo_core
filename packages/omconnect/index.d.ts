@@ -15,7 +15,7 @@ export declare function findMenuSlot(menu:MenuObservation,selector:{item?:string
 export interface SwimRouteOptions {start:Position;goal:Position;getBlock:(p:Position)=>NavigationBlock|null;signal?:AbortSignal;maxNodes?:number;maxDistance?:number;airTicks?:number;airReserveTicks?:number;ticksPerBlock?:number;waterBreathing?:boolean;}
 export interface SwimRouteResult {status:'planned'|'blocked';reason:string;mode?:'swim';waypoints:Position[];visited:number;cost?:number;airRemainingTicks?:number;}
 export interface VolumeResult {clear:boolean;reason:string;position?:Position;water?:boolean;submerged?:boolean;fraction?:number;submergedSamples?:number;samples?:number;}
-export declare const OMVECTORIZE:Readonly<{name:'OMVectorize';author:'y9kudo';version:string;versionName:'Version Arthas';displayVersion:'v1.0.0Arthas-dev.3';modes:readonly string[];predictions:readonly string[]}>;
+export declare const OMVECTORIZE:Readonly<{name:'OMVectorize';author:'y9kudo';version:string;versionName:'Version Arthas';displayVersion:'v1.0.0Arthas-beta1';modes:readonly string[];predictions:readonly string[]}>;
 export declare function volumeClearance(options:{position:Position;getBlock:SwimRouteOptions['getBlock'];height?:number;radius?:number}):VolumeResult;
 export declare function traceVolume(options:{from:Position;to:Position;getBlock:SwimRouteOptions['getBlock'];height?:number;radius?:number}):VolumeResult;
 export declare function planSwimRoute(options:SwimRouteOptions):SwimRouteResult;
@@ -74,7 +74,7 @@ export declare class OMProtection {
 export interface AuthCode {user_code:string;verification_uri:string;expires_in:number;}
 export interface AuthenticationState {mode:'offline'|'microsoft';status:'offline'|'pending'|'device-code'|'authenticated';profile:{name:string;uuid:string}|null;}
 export interface OMOptions { host?: string; port?: number; username?: string; version?: string; auth?: 'offline'|'microsoft'; profilesFolder?:string;authTimeoutMs?:number;onMsaCode?:(code:AuthCode)=>void;realms?:{realmId:number}; viewDistance?: number; humanizeMode?:boolean; connectTimeoutMs?: number; fallSafety?:boolean; maxDrop?: number; fallHealthReserve?: number; maxFallDamage?: number; bridgeReserve?: number; bridgeItemValue?: (name: string,item: OMItem) => number; protection?:ProtectionOptions; }
-export interface OMState { status: 'disconnected' | 'connecting' | 'ready' | 'dead'; entityId: number | null; position: Position | null; velocity: Position; yaw: number; pitch: number; onGround: boolean; health: number | null; food: number | null; dimension: string | null; gameMode: string | number | null; allowFlying?:boolean; creativeFlying?:boolean; flyingSpeed?:number; environment?: Environment; sleeping?: boolean; sprinting?: boolean; sneaking?:boolean; frozen?: boolean; horizontalCollision?: boolean; }
+export interface OMState { status: 'disconnected' | 'connecting' | 'ready' | 'dead'; entityId: number | null; position: Position | null; velocity: Position; yaw: number; pitch: number; onGround: boolean; health: number | null; food: number | null; dimension: string | null; gameMode: string | number | null; allowFlying?:boolean; creativeFlying?:boolean; flyingSpeed?:number; environment?: Environment; sleeping?: boolean; sprinting?: boolean; sneaking?:boolean; frozen?: boolean; horizontalCollision?: boolean; shield?:boolean;shieldAvailable?:boolean;shieldDisabled?:boolean; }
 export interface OMMetrics { packetsSent: number; corrections: number; actions: number; failures: number; maxTickMs: number; timing?: TickTimingSnapshot; navigation?: WorkSchedulerSnapshot; decoderWarnings: { message: string; at: number }[]; reactions: unknown[]; }
 export interface OMItem { name: string; item: string; type: number; count: number; slot: number; raw: any; }
 export interface OMTime { timeOfDay:number|null; isDay:boolean|null; age:number|null; }
@@ -83,7 +83,7 @@ export interface EndEvidence {eyes:EyeFlight[];crystals:{entityId:string;positio
 export interface PillarArgs {count?:number;block?:string;}
 export interface PillarResult {ok:true;serverConfirmed:true;placed:(Position & {block:string})[];position:Position;}
 export interface OMSnapshot extends OMState { authentication:AuthenticationState; time:OMTime; equipment:ReturnType<OMInventory["equipment"]>; identity: typeof OMCONNECT; inventory: Record<string, number>; loadedChunks: number; metrics: OMMetrics; }
-export declare const OMCONNECT: Readonly<{ name: 'OMConnect'; version: '1.0.0-Arthas-dev.3'; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-dev.3'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
+export declare const OMCONNECT: Readonly<{ name: 'OMConnect'; version: '1.0.0-Arthas-beta1'; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-beta1'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
 export declare const OM_SKILLS: readonly string[];
 export interface FallPolicy { health?:number; minHealthAfter?:number; maxDamage?:number; slowFalling?:boolean; sneaking?:boolean; }
 export interface FallAssessment { height:number; landing:string|null; estimatedDamage:number|null; healthAfter:number|null; survivable:boolean; allowed:boolean; reason:string; }
@@ -117,6 +117,8 @@ export declare class OMConnect {
   findSigns(options?:SignSearch):SignObservation[];
   signAt(position:Position):SignObservation|null;
   readonly state: OMState;
+  readonly aimDebug?: {target:string;stage:string;velocity:Position;confidence:number;ageMs:number;yaw:number;pitch:number;angularError:number;tolerance:number;flightTicks:number;predicted:Position;at:number};
+  readonly shieldDebug?: {target:string;anticipating:boolean;impactTicks:number;raisedAt:number;estimatedActiveAt:number;at:number};
   readonly time: OMTime;
   readonly endgame: EndEvidence;
   readonly metrics: OMMetrics;
@@ -177,7 +179,7 @@ export declare function environmentAt(position: Position, getBlock: (p: Position
 export declare function fluidAt(block: NavigationBlock | null): { kind: 'water' | 'lava'; height: number; level: number; falling: boolean } | null;
 export declare function miningTime(registry: any, block: any, item: { type: number } | null, options?: { onGround?: boolean }): { milliseconds: number; harvestable: boolean };
 export interface ActionTrace { at: number; skill: string; priority: number; outcome: 'success' | 'failure' | 'cancelled'; detail: string; durationMs: number; }
-export interface AgentObservation { endgame:{eyes:EyeFlight[]}; time:OMTime; equipment:ReturnType<OMInventory['equipment']>; contract: 'omconnect.agent'; version: 1; minecraftVersion: string; self: OMState; inventory: Record<string, number>; entities: { id: string; name: string; kind: string; position: Position; velocity: Position; yaw:number|null;pitch:number|null;health: number | null;phase?:number|null;woolColor?:number|null;sheared?:boolean|null;isBaby?:boolean;named?:boolean;provoked?:boolean }[]; world: { dimension: string | null; revision: number; loadedChunks: number }; combat: { attackers: any[] }; drops: { id: string; item: string; count: number; position: Position }[]; }
+export interface AgentObservation { endgame:{eyes:EyeFlight[]}; time:OMTime; equipment:ReturnType<OMInventory['equipment']>; contract: 'omconnect.agent'; version: 1; minecraftVersion: string; self: OMState; inventory: Record<string, number>; entities: { id: string; name: string; kind: string; position: Position; velocity: Position; blocking:boolean; yaw:number|null;pitch:number|null;health: number | null;phase?:number|null;woolColor?:number|null;sheared?:boolean|null;isBaby?:boolean;named?:boolean;provoked?:boolean }[]; world: { dimension: string | null; revision: number; loadedChunks: number }; combat: { attackers: any[] }; drops: { id: string; item: string; count: number; position: Position }[]; }
 export interface PeerEnvelope { protocol: 1; team: string; from: string; to: string | null; sequence: number; topic: string; payload: Json; expiresAt: number; }
 export interface PeerClaim { resource: string; bid: number; release: boolean; from: string; sequence: number; expiresAt: number; observedAt: number; }
 export declare class OMPeer {
@@ -201,7 +203,7 @@ export declare function projectileProfile(weapon?: 'bow' | 'crossbow' | 'trident
 export type ProjectileTrace = { status: 'clear'; path: Position[]; position: Position; ticks: number } | { status: 'blocked'; path: Position[]; ticks: number; collision: { t: number; cell: Position; reason: string } };
 export declare function traceProjectile(options: { origin: Position; velocity: Position; profile?: ProjectileProfile; ticks?: number; getBlock: (p: Position) => NavigationBlock | null }): ProjectileTrace;
 export type AimSolution = { status: 'aimed'; yaw: number; pitch: number; ticks: number; predicted: Position; error: number; velocity: Position; path: Position[]; hitConfirmed: false } | { status: 'blocked'; reason: string; hitConfirmed: false };
-export declare function solveAim(options: { origin: Position; target: Position; targetVelocity?: Position; inheritedVelocity?: Position; weapon?: 'bow' | 'crossbow' | 'trident'; chargeTicks?: number; maxTicks?: number; radius?: number; getBlock: (p: Position) => NavigationBlock | null }): AimSolution;
+export declare function solveAim(options: { origin: Position; target: Position; targetVelocity?: Position; inheritedVelocity?: Position; predictTarget?: (ticks:number)=>Position; weapon?: 'bow' | 'crossbow' | 'trident'; chargeTicks?: number; maxTicks?: number; radius?: number; getBlock: (p: Position) => NavigationBlock | null }): AimSolution;
 export interface PlayerObservation { uuid: string; username: string | null; listed: boolean | null; latency: number | null; gameMode: number | null; entityId: string | null; observed: boolean; position: Position | null; yaw: number | null; headYaw: number | null; pitch: number | null; managedAgent: boolean; }
 export interface PlayerEntity { id: string; uuid: string; kind: 'player'; username: string; position: Position; velocity: Position; yaw: number; headYaw: number; pitch: number; eyeHeight: number; }
 export declare class OMPlayers {
@@ -236,8 +238,8 @@ export declare function smeltingRecipe(registry:any,item:string):{item:string;in
 export declare function fuelItems(item:string):number;
 export declare function rotateToward(state:{yaw:number;pitch:number},angles:{yaw:number;pitch:number},options?:{turnSpeed?:number;dt?:number}):{yaw:number;pitch:number};
 export interface MovementControl { x:number;z:number;jump:boolean;sprint:boolean;sneak?:boolean; }
-export declare function travelControl(state:OMState&{position:Position},target:Position,getBlock:(p:Position)=>NavigationBlock|null,options?:{sprint?:boolean;sprintJump?:boolean;guarding?:boolean;longDistance?:number}):MovementControl;
-export declare function combatControl(state:OMState&{position:Position},target:Position,mode:string,getBlock:(p:Position)=>NavigationBlock|null,options?:{guarding?:boolean;strafeSide?:number}):MovementControl;
+export declare function travelControl(state:OMState&{position:Position},target:Position,getBlock:(p:Position)=>NavigationBlock|null,options?:{sprint?:boolean;sprintJump?:boolean;guarding?:boolean;longDistance?:number;brake?:boolean}):MovementControl;
+export declare function combatControl(state:OMState&{position:Position},target:Position,mode:string,getBlock:(p:Position)=>NavigationBlock|null,options?:{guarding?:boolean;strafeSide?:number;spacing?:number}):MovementControl;
 export declare function bridgeMaterials(registry:any,items:OMItem[],options?:{blockAtState?:(stateId:number)=>NavigationBlock;itemValue?:(name:string,item:OMItem)=>number;reserve?:number;dimension?:string}):{name:string;block:string;count:number;value:number;slot:number}[];
 export interface RecipeBookSnapshot {source:'server'|'waiting'|'version-catalog';revision:number;announced:number;indexedOutputs:number;}
 export interface WorldRecipe {id:string;type:string;output:{item:string;count:number};ingredients:{choices:string[];count:number}[];station:string|null;executable:boolean;cells:{x:number;y:number;choices:string[]}[];reason:string;}

@@ -46,14 +46,16 @@ export function traceProjectile({ origin, velocity, profile = projectileProfile(
 }
 
 /** Numerical interception; yaw/pitch are Minecraft NETWORK DEGREES, positive pitch points down. */
-export function solveAim({ origin, target, targetVelocity = { x: 0, y: 0, z: 0 }, inheritedVelocity = { x: 0, y: 0, z: 0 }, weapon = 'bow', chargeTicks = 20, maxTicks = 80, radius = .35, getBlock }) {
+export function solveAim({ origin, target, targetVelocity = { x: 0, y: 0, z: 0 }, inheritedVelocity = { x: 0, y: 0, z: 0 }, predictTarget, weapon = 'bow', chargeTicks = 20, maxTicks = 80, radius = .35, getBlock }) {
   if (![origin, target, targetVelocity, inheritedVelocity].every(point) || length(targetVelocity) > 4 || length(inheritedVelocity) > 4 || !Number.isInteger(maxTicks) || maxTicks < 1 || maxTicks > 200 || !Number.isFinite(radius) || radius <= 0 || radius > 2 || typeof getBlock !== 'function') throw new Error("Targeting: Observed items/speed, getBlock and limited horizon.");
   const profile = projectileProfile(weapon, chargeTicks), candidates = [];
+  if (predictTarget !== undefined && typeof predictTarget !== 'function') throw new Error('predictTarget must be a function.');
   // Linear interpolation WITHIN a discrete tick, rather than continuous drag approximation.
   const required = t => {
     const n = Math.floor(t), f = t - n, sum = (1 - profile.drag ** n) / (1 - profile.drag) + f * profile.drag ** n;
     const fall = profile.gravity / (1 - profile.drag) * (t - sum);
-    const predicted = Object.fromEntries(axes.map(k => [k, target[k] + targetVelocity[k] * t]));
+    const predicted = predictTarget ? predictTarget(t) : Object.fromEntries(axes.map(k => [k, target[k] + targetVelocity[k] * t]));
+    if (!point(predicted)) throw new Error('predictTarget must return a finite world position.');
     const v = Object.fromEntries(axes.map(k => [k, (predicted[k] - origin[k] + (k === 'y' ? fall : 0)) / sum - inheritedVelocity[k]]));
     return { v, predicted, difference: length(v) - profile.speed };
   };

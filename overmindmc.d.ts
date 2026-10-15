@@ -28,7 +28,7 @@ export type SkillValidator = (args: Record<string, Json>) => boolean | string | 
 export interface SkillDefinition { execute: SkillHandler; validate?: SkillValidator; }
 export interface Plugin { readonly id: string; readonly apiVersion: 1; readonly requires?: readonly string[]; readonly skills: Readonly<Record<string, SkillHandler | SkillDefinition>>; }
 export declare function definePlugin(plugin: Plugin): Plugin;
-export declare const OVERMIND: Readonly<{ name: string; id: 'overmindmc'; version: string; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-dev.3'; author: 'y9kudo'; protocolVersion: 1 }>;
+export declare const OVERMIND: Readonly<{ name: string; id: 'overmindmc'; version: string; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-beta1'; author: 'y9kudo'; protocolVersion: 1 }>;
 export declare class ConfigError extends Error { readonly path: string; }
 export declare function validateConfig(input: unknown): AgentConfig;
 export declare function matches(condition: Condition | undefined, observation: Observation): boolean;
@@ -162,9 +162,9 @@ export declare function createResourceReactor(options: { catalog: Catalog; targe
 export interface Weapon { name?: string; item?: string; [key: string]: unknown; }
 export declare function weaponProfile(name?: string): { damage: number; cooldownMs: number; kind: 'sword' | 'axe' | 'hand' };
 export declare function chooseWeapon<T extends Weapon>(items: T[], options?: { shieldedTarget?: boolean; avoidSweep?:boolean }): T | null;
-export interface CombatEntity { position: Position; name?: string; ranged?: boolean; charging?: boolean; blocking?: boolean; velocity?: Position | null; equipment?:Record<number,{name?:string}>; }
-export declare function combatDecision(input: { self: { position: Position; health: number | null; shield?: boolean;shieldDisabledUntil?:number;onGround?:boolean;velocity?:Position;sprinting?:boolean }; target: CombatEntity; projectiles?: CombatEntity[]; nextAttackAt?: number; now?: number; retreatHealth?: number;criticalPending?:boolean;canCriticalJump?:boolean }): { mode: 'stop' | 'retreat' | 'block' | 'approach' | 'strike' | 'strafe' | 'jump' | 'wait'; reason: string;critical?:boolean };
-export declare function createCombatReactor(options?: NonNullable<Parameters<typeof createDefenseReactor>[0]> & { ignoredEntities?: string[];pathRetreat?:boolean }): Reactor & {recordResult(result:{outcome:string},action?:Action):void;attach(core:OvermindCore):()=>void};
+export interface CombatEntity { position: Position; name?: string; ownerId?:number|null; ranged?: boolean; charging?: boolean; blocking?: boolean; velocity?: Position | null; equipment?:Record<number,{name?:string}>; }
+export declare function combatDecision(input: { self: { position: Position; entityId?:number|null; health: number | null; shield?: boolean;shieldDisabledUntil?:number;onGround?:boolean;velocity?:Position;sprinting?:boolean;environment?:{submerged?:boolean;climbing?:boolean} }; target: CombatEntity; projectiles?: CombatEntity[]; nextAttackAt?: number; now?: number; retreatHealth?: number;criticalPending?:boolean;canCriticalJump?:boolean;visible?:boolean;geometry?:{inReach:boolean;distance:number;aim:Position|null} }): { mode: 'stop' | 'retreat' | 'block' | 'approach' | 'strike' | 'strafe' | 'jump' | 'wait'; reason: string;critical?:boolean;guardPoint?:Position };
+export declare function createCombatReactor(options?: NonNullable<Parameters<typeof createDefenseReactor>[0]> & { ignoredEntities?: string[];pathRetreat?:boolean;ranged?:boolean;rangedDistance?:number }): Reactor & {recordResult(result:{outcome:string},action?:Action):void;attach(core:OvermindCore):()=>void};
 export declare function createEndSafetyReactor(): Reactor;
 export interface NetherPortalBlueprint extends Blueprint { id: string; origin: Position; axis: 'x' | 'z'; air: Position[]; }
 export declare function createNetherPortalBlueprint(options: { origin: Position; axis?: 'x' | 'z' }): NetherPortalBlueprint;
@@ -305,8 +305,8 @@ export interface MinecraftAgent {
 export declare function createMinecraftAgent(options:MinecraftAgentOptions):MinecraftAgent;
 export declare function startDashboard(options?:{port?:number;manager?:AgentManager;textureArchive?:string;telemetry?:ReturnType<typeof import('./src/intelligence.js').createTelemetry>}):Promise<{url:string;manager:AgentManager;close():Promise<void>}>;
 
-export interface NavigationExperience {from:Position;to:Position;dimension:string;kind?:string;health?:number|null;food?:number|null;nearbyPlayers?:number;healthAfter?:number|null;outcome:'success'|'failure'|'cancelled';id?:string;reason?:string;}
-export interface NeuralMemory {schemaVersion:1;worldId:string;architecture:'12-16-1';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[];bias:number};replay:{x:number[];y:0|1}[];failed:{key:string;until:number;count:number}[];}
+export interface NavigationExperience {from:Position;to:Position;dimension:string;kind?:string;health?:number|null;food?:number|null;nearbyPlayers?:number;healthAfter?:number|null;outcome:'success'|'failure'|'cancelled';id?:string;reason?:string;failureCode?:string;}
+export interface NeuralMemory {schemaVersion:1|2;worldId:string;architecture:'12-16-1';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[];bias:number};replay:{x:number[];y:0|1}[];failed:{key:string;until:number;count:number}[];}
 export interface NeuralSnapshot {kind:'local-neural-network';architecture:'12-16-1';samples:number;updates:number;loss:number;rememberedFailures:number;journal:{at:number;from:Position;to:Position;dimension:string;outcome:string;damage:boolean;reason:string}[];}
 export interface NeuralNavigator {worldId:string;record(event:NavigationExperience):boolean;assess(event:Omit<NavigationExperience,'outcome'>):{failureProbability:number;samples:number;trained:boolean;rememberedFailures:number;cost:number};snapshot():NeuralSnapshot;export():NeuralMemory;}
 export declare function createNeuralNavigator(options:{worldId:string;learningRate?:number;memory?:NeuralMemory;clock?:()=>number}):NeuralNavigator;

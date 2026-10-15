@@ -2,7 +2,8 @@ import {jsonCopy} from './config.js';
 
 const INPUTS=12,HIDDEN=16,clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const point=p=>p&&['x','y','z'].every(k=>Number.isFinite(p[k]));
-const key=(dimension,p)=>`${dimension}/${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`;
+const cell=p=>`${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`;
+const key=e=>`${e.dimension}/${cell(e.from)}>${cell(e.to)}/${e.kind??'walk'}`;
 const features=e=>{
   if(!point(e.from)||!point(e.to))throw new Error("Learning to Transmit from/to.");
   if(typeof e.dimension!=='string'||e.dimension.length>80||['health','food','nearbyPlayers','healthAfter'].some(k=>e[k]!=null&&!Number.isFinite(e[k])))throw new Error("Uncorrect observation of transition.");
@@ -28,39 +29,47 @@ export function createNeuralNavigator({worldId,learningRate=.025,memory,clock=Da
   };
   if(memory){
     const m=jsonCopy(memory,'neuralMemory',2*1024*1024);
-    if(m.schemaVersion!==1||m.worldId!==worldId||m.architecture!=='12-16-1'||!Number.isSafeInteger(m.samples)||m.samples<0||!Number.isSafeInteger(m.updates)||m.updates<0)throw new Error("The memory of a neural net of another world or a wrong format.");
+    if(![1,2].includes(m.schemaVersion)||m.worldId!==worldId||m.architecture!=='12-16-1'||!Number.isSafeInteger(m.samples)||m.samples<0||!Number.isSafeInteger(m.updates)||m.updates<0)throw new Error("The memory of a neural net of another world or a wrong format.");
     const finite=a=>a.every(n=>Number.isFinite(n)&&Math.abs(n)<=1000);
     if(!Array.isArray(m.weights?.w)||m.weights.w.length!==HIDDEN||m.weights.w.some(a=>!Array.isArray(a)||a.length!==INPUTS||!finite(a))||!Array.isArray(m.weights.b)||m.weights.b.length!==HIDDEN||!finite(m.weights.b)||!Array.isArray(m.weights.v)||m.weights.v.length!==HIDDEN||!finite(m.weights.v)||!Number.isFinite(m.weights.bias)||Math.abs(m.weights.bias)>1000)throw new Error("Invalid neural-network weights.");
     ({w,b,v,bias}=m.weights);samples=m.samples;updates=m.updates;
     if(!Array.isArray(m.replay)||m.replay.length>512||m.replay.some(s=>!Array.isArray(s.x)||s.x.length!==INPUTS||!finite(s.x)||s.x.some(n=>Math.abs(n)>1)||![0,1].includes(s.y)))throw new Error("The memory of the crossings is damaged.");
     replay.push(...m.replay);
-    if(!Array.isArray(m.failed)||m.failed.length>256||m.failed.some(e=>typeof e.key!=='string'||e.key.length>150||!Number.isFinite(e.until)||!Number.isInteger(e.count)||e.count<1||e.count>32))throw new Error("Damaged memory failure.");
-    for(const f of m.failed)if(f.until>clock()&&f.until<=clock()+300000)failed.set(f.key,{until:f.until,count:f.count});
+    if(!Array.isArray(m.failed)||m.failed.length>256||m.failed.some(e=>typeof e.key!=='string'||e.key.length>300||!Number.isFinite(e.until)||!Number.isInteger(e.count)||e.count<1||e.count>32))throw new Error("Damaged memory failure.");
+    // Old memories penalized every entrance to a destination. Keep their network,
+    // but discard those over-broad bans when upgrading to directed transitions.
+    for(const f of m.failed)if(m.schemaVersion===2&&f.until>clock()&&f.until<=clock()+300000)failed.set(f.key,{until:f.until,count:f.count});
   }
-  const prune=()=>{for(const [k,f]of failed)if(f.until<=clock())failed.delete(k);};
+  let prunedAt=-Infinity;
+  const prune=()=>{const now=clock();if(now===prunedAt)return;prunedAt=now;for(const [k,f]of failed)if(f.until<=now)failed.delete(k);};
   return {
     worldId,
     record(event){
       if(!['success','failure','cancelled'].includes(event.outcome))throw new Error("Unknown transition result.");
       if(event.outcome==='cancelled')return false;
+      if(['STALE_WORLD','SERVER_CORRECTION','OCCUPIED','SUPPORT_CHANGED'].includes(event.failureCode))return false;
       if(event.id&&seen.has(event.id))return false;
       const x=features(event),y=Number(event.outcome==='failure'||event.healthAfter!=null&&event.healthAfter<(event.health??20));
       if(event.id){seen.add(event.id);if(seen.size>2048)seen.delete(seen.values().next().value);}
-      const k=key(event.dimension,event.to);prune();
+      const k=key(event);prune();
       if(y){const count=Math.min(32,(failed.get(k)?.count||0)+1);failed.set(k,{count,until:clock()+Math.min(300000,15000*count)});if(failed.size>256)failed.delete(failed.keys().next().value);}else failed.delete(k);
       const sample={x,y};replay.push(sample);if(replay.length>512)replay.shift();samples++;
       train(sample);for(let i=0;i<Math.min(16,replay.length);i++){train(replay[cursor%replay.length]);cursor++;}
       journal.push({at:clock(),from:{...event.from},to:{...event.to},dimension:event.dimension,outcome:event.outcome,damage:y===1&&event.outcome==='success',reason:String(event.reason||'').slice(0,200)});if(journal.length>32)journal.shift();return true;
     },
-    assess(event){prune();const x=features(event),cacheKey=x.join(',');if(!predictions.has(cacheKey)){predictions.set(cacheKey,forward(x).p);if(predictions.size>256)predictions.delete(predictions.keys().next().value);}const probability=predictions.get(cacheKey),exact=failed.get(key(event.dimension,event.to));return {failureProbability:probability,samples,trained:samples>=8,rememberedFailures:exact?.count||0,cost:(exact?12+exact.count:0)+(samples>=8?probability*6:0)};},
+    assess(event){prune();const x=features(event),cacheKey=x.join(',');if(!predictions.has(cacheKey)){predictions.set(cacheKey,forward(x).p);if(predictions.size>256)predictions.delete(predictions.keys().next().value);}const probability=predictions.get(cacheKey),exact=failed.get(key(event));return {failureProbability:probability,samples,trained:samples>=8,rememberedFailures:exact?.count||0,cost:(exact?12+exact.count:0)+(samples>=8?probability*6:0)};},
     snapshot(){prune();return {kind:'local-neural-network',architecture:'12-16-1',samples,updates,loss,rememberedFailures:failed.size,journal:structuredClone(journal)};},
-    export(){prune();return jsonCopy({schemaVersion:1,worldId,architecture:'12-16-1',samples,updates,weights:{w,b,v,bias},replay,failed:[...failed].map(([key,f])=>({key,...f}))},'neuralMemory',2*1024*1024);}
+    export(){prune();return jsonCopy({schemaVersion:2,worldId,architecture:'12-16-1',samples,updates,weights:{w,b,v,bias},replay,failed:[...failed].map(([key,f])=>({key,...f}))},'neuralMemory',2*1024*1024);}
   };
 }
 
 export function attachNeuralNavigation(client,model){
   const describe=(from,to,kind)=>({from,to,kind,dimension:client.state.dimension,health:client.state.health,food:client.state.food,nearbyPlayers:[...client.entities.values()].filter(e=>e.kind==='player'&&Math.hypot(e.position.x-to.x,e.position.z-to.z)<3).length});
-  const prior=client.navigationPolicy,policy={cost:(from,to,kind)=>model.assess(describe(from,to,kind)).cost};client.navigationPolicy=policy;
+  const prior=client.navigationPolicy,policy={cost:(from,to,kind)=>{
+    const base=prior?.cost?.(from,to,kind)??0;
+    if(!Number.isFinite(base)||base<0||base>1000)throw new Error('Prior navigation cost must be finite and within 0–1000.');
+    return Math.min(1000,base+model.assess(describe(from,to,kind)).cost);
+  }};client.navigationPolicy=policy;
   const listen=e=>model.record({...describe(e.from,e.to,e.kind),...e});client.on('navigationStep',listen);
   return ()=>{client.off('navigationStep',listen);if(client.navigationPolicy===policy)client.navigationPolicy=prior;};
 }

@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.0-Arthas-beta1 · 2026-10-15 · beta
+
+- Continuous supported walking with bounded lookahead, optional clear-corner shortcuts and immediate route invalidation after a server correction.
+- Validated, expiring kernel-to-client route handoff to avoid a duplicate search.
+- Dedicated reactive combat controller: nonblocking aim/guard decisions, body-volume reach, voxel occlusion, shield direction, weapon selection and safe critical opportunities.
+- Snapshot-derived target motion, bounded jump/landing prediction and continuous smooth bow/crossbow tracking throughout draw and release.
+- Weapon commitment prevents shield flicker from starving charged attacks; directional shield flanks, cooldown spacing and guarded movement retain terrain safety checks.
+- Ranged aim failures fall back to approach. The duel example records bounded motion/aim traces and distinguishes attributed arrow damage from projectile release confirmation.
+- Independent projectile defense interrupts ordinary work or bow draws, anticipates observed aimed bows and releases the shield after danger clears. Sparse arrow snapshots receive a bounded defensive physics read view.
+- Resource goals can prepare a supported side column for floating minerals, gather construction stock, attach an underside catch platform and mine after verified jump-placement. Added a goal-only flat-world diamond trial with a resumable local journal.
+- Combat pursuit distinguishes sent attacks from attributed damage; transient stale searches can replan without suppressing defense.
+- Directed navigation failure memory, schema-one migration and exclusion of transient occupancy/correction failures.
+- Common configuration/play ping responses fix a LAN login stall. New automated regressions and a bounded live navigation probe.
+- Route-cursor integration tests use the real 50 ms physics cadence alongside the 25 ms steering loop, removing an artificial tenfold physics acceleration that caused intermittent CI overshoot without relaxing movement assertions.
+- Core, standalone OMConnect, OMVectorize identities and declarations use `1.0.0-Arthas-beta1`. YourMind remains `alpha1.0`.
+
+See [beta1 details](docs/releases/1.0.0-Arthas-beta1.md) and the [engineering audit](docs/BETA1-NAVIGATION-COMBAT.md).
+
 ## 1.0.0-Arthas-dev.3 · 2026-10-15 · development preview
 
 - Added a focused fresh-spawn Nether visit profile, persistent exploration-distance completion, and a documented live-trial launcher.

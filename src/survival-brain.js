@@ -8,6 +8,8 @@ import { smeltingRecipe, fuelItems } from '../packages/omconnect/src/crafting.js
 import { blockEvidenceValue } from '../packages/omconnect/src/failures.js';
 import {piglinAngerRisk} from '../packages/omconnect/src/bartering.js';
 import {remainingDurability} from '../packages/omconnect/src/equipment.js';
+import {bridgeMaterials} from '../packages/omconnect/src/movement.js';
+import {planResourcePillar,constructionSoil} from './elevated-access.js';
 
 const key = p => `${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`;
 const floor = p => ({ x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) });
@@ -102,7 +104,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
   // Gravel's ordinary drop is probabilistic; success still requires inventory observation.
   if(catalog.block('minecraft:gravel')&&catalog.item('minecraft:flint'))sourcesByItem.set('minecraft:flint',[{item:'minecraft:flint',block:'minecraft:gravel',tools:[]}]);
   const memory = new Map(), failures = new Map(), unreachable = new Map(), unreachableRoutes = new Map(), visited = [], milestones = new Set();
-  let dimension, pendingStep = null, heading = null, selected = null, o, evaluations, estimates, claim = null, trace = [];
+  let dimension, pendingStep = null, heading = null, selected = null, o, evaluations, estimates, claim = null, trace = [], elevation=null;
   const releaseClaim = () => { if(claim){peer?.release(claim);claim=null;} };
   let state = { status: 'waiting', stage: basicStages[0], reason: "Waiting for observation.", targets: goal, completed: [], knownResources: 0, lastFailure: null };
   const getBlock = p => {const id=key(p);if(!blockCache.has(id))blockCache.set(id,client?.world?.blockAt(p)??null);return blockCache.get(id);};
@@ -151,7 +153,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
     return [[0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(([x, y, z]) => { const n = getBlock({ x: p.x + x, y: p.y + y, z: p.z + z }); return n && !isHazard(n) && !(y && /^(?:sand|red_sand|gravel|.*_concrete_powder|(?:chipped_|damaged_)?anvil|pointed_dripstone)$/.test(n.name)); });
   };
   const updateMemory = () => {
-    if (dimension !== o.dimension) { memory.clear(); unreachable.clear(); unreachableRoutes.clear(); visited.length = 0; pendingStep = null; heading = null; dimension = o.dimension; }
+    if (dimension !== o.dimension) { memory.clear(); unreachable.clear(); unreachableRoutes.clear(); visited.length = 0; pendingStep = null; heading = null; elevation=null; dimension = o.dimension; }
     for(const [id,failure]of unreachableRoutes)if(key(o.self.position)!==key(failure.from)||routeStamp(failure.from,failure.to)!==failure.stamp){unreachableRoutes.delete(id);failures.delete(id);}
     if (spatial) for (const b of spatial.entries({ dimension, near: floor(o.self.position) }).slice(0, maxMemory)) {
       if (!memory.has(key(b.position))) memory.set(key(b.position), { name: b.name, position: { ...b.position } });
@@ -327,6 +329,32 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
         if(!immediate)return explore(item,sources[0]);
       }
       for (const source of sources) {
+        const suspended=source.position.y>o.self.position.y+4&&isAir(getBlock({...source.position,y:source.position.y-1}))&&isAir(getBlock({...source.position,y:source.position.y-2}));
+        if(client?.world&&client.registry&&minTier>=0&&(suspended||elevation?.key===key(source.position))){
+          const access=planResourcePillar({position:o.self.position,target:source.position,getBlock,previous:elevation?.key===key(source.position)?elevation:null,
+            canPlace:p=>!client.protection||client.protection.check({operation:'place',dimension:o.dimension,position:p,getBlock}).allowed,
+            owned:p=>client.pillarBlocks?.has(`${o.dimension}/${p.x},${p.y},${p.z}`),entities:(o.entities||[]).filter(e=>String(e.id)!==String(client.state?.entityId))});
+          if(access.status==='planned'){
+            elevation={...access,key:key(source.position)};state.elevatedAccess=access;
+            if(!client.state.onGround)return {action:null,reason:'Wait for a confirmed landing before elevated resource access.'};
+            const materials=bridgeMaterials(client.registry,client.inventory.items(),{blockAtState:id=>client.world.Block.fromStateId(id,0),dimension:o.dimension});
+            const available=materials.reduce((n,m)=>n+m.count,0);
+            if(available<access.blocksNeeded){
+              if(access.top.y>access.base.y)return response('descendPillar',{count:Math.min(8,access.top.y-access.base.y)},'Return down the verified column to replenish construction blocks.');
+              if(Math.hypot(o.self.position.x-access.base.x-.5,o.self.position.z-access.base.z-.5)>6)return response('navigate',{...access.base,range:0,bridge:false,maxDrop:1},'Approach the supported staging area for an elevated resource.');
+              const soil=constructionSoil({position:o.self.position,base:access.base,getBlock,canDig:safeDig});
+              if(soil)return response('dig',{...soil,block:rid(getBlock(soil).name)},`Prepare construction blocks: ${available}/${access.blocksNeeded}, including a drop-catching platform.`);
+              return {action:null,reason:'The elevated resource requires additional safe construction material.'};
+            }
+            if(Math.hypot(o.self.position.x-access.top.x-.5,o.self.position.z-access.top.z-.5)>.35||Math.abs(o.self.position.y-access.top.y)>.1)return response('navigate',{...access.top,range:0,bridge:false,maxDrop:1},'Reach the base or confirmed top of the resource column.');
+            if(access.needCatch&&access.top.y>=access.stagingY){
+              if(access.top.y>access.stagingY)return response('descendPillar',{count:Math.min(8,access.top.y-access.stagingY)},'Reach the underside of the resource before placing its drop-catching platform.');
+              return response('place',{...access.catchBlock,block:materials[0].block},'Place a catch block against the underside of the resource before the final ascent.');
+            }
+            const rise=(access.needCatch?access.stagingY:source.position.y)-access.top.y;
+            if(rise>0)return response('pillar',{count:Math.min(8,rise)},'Jump-place a verified side column toward the observed resource.');
+          }
+        }
         if (unreachable.has(key(source.position))) continue;
         const actual = getBlock(source.position);
         if (client?.world && (!actual || !safeDig(source.position))) continue;

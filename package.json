@@ -1,6 +1,6 @@
 {
   "name": "overmindmc",
-  "version": "1.0.0-Arthas-dev.3",
+  "version": "1.0.0-Arthas-beta1",
   "description": "Minecraft Java agent platform with visual programs, 3D debugging, resource planning and independent OMConnect execution",
   "author": "y9kudo",
   "license": "MIT",
@@ -89,6 +89,7 @@
     "test:live:protection": "node examples/protection-live.js",
     "test:cpu": "node examples/cpu-responsiveness.js",
     "test:live:timing": "node examples/timing-live.js",
+    "test:live:beta1": "node examples/beta1-live.js",
     "test:runtime": "node examples/runtime-responsiveness.js",
     "test:live:agent": "node examples/agent-live.js",
     "test": "node --test --test-concurrency=4 test/*.test.js packages/omconnect/test/*.test.js",
@@ -118,6 +119,7 @@
     "test:live:dragon": "node examples/dragon-expedition.js",
     "test:dragon:check": "node examples/dragon-expedition.js --check",
     "test:live:pillar": "node examples/pillar-live.js",
+    "test:live:sky-diamond": "node examples/sky-diamond-live.js",
     "test:live:learning": "node examples/learning-live.js",
     "test:live:recipes": "node examples/recipes-live.js",
     "test:live:fleet-learning": "node examples/fleet-learning-live.js",
