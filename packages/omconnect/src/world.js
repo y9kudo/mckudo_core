@@ -12,7 +12,7 @@ export class OMWorld extends EventEmitter {
     super();this.sectionIndex=new OMSectionIndex();this.stateProperties=new Map();
     this.registry = registry; this.Chunk = chunkFactory(registry); this.Block = blockFactory(registry);
     if (!Number.isInteger(maxChunks) || maxChunks < 1 || maxChunks > 4096) throw new Error('maxChunks: 1–4096.');
-    this.maxChunks = maxChunks; this.focus = { x: 0, z: 0 }; this.columns = new Map(); this.classes = new Map(); this.revision = 0; this.epoch = 0; this.columnRevisions = new WeakMap(); this.reset('minecraft:overworld');
+    this.maxChunks = maxChunks; this.focus = { x: 0, z: 0 }; this.columns = new Map(); this.classes = new Map(); this.revision = 0; this.epoch = 0; this.columnRevisions = new WeakMap();this.sectionRevisions=new WeakMap(); this.reset('minecraft:overworld');
     const all = registry.blocksArray.map(b => b.name);
     for (const [group, pattern] of Object.entries({ logs: /(_log|_stem)$|^log2?$/, leaves: /_leaves$|^leaves2?$/, ores: /_ore$|^ancient_debris$/, deepslate_ores: /^deepslate_.*_ore$/, crops: /^(wheat|carrots|potatoes|beetroots|nether_wart)$/, workstations: /^(crafting_table|furnace|smoker|blast_furnace|brewing_stand)$/ })) this.classes.set(group, all.filter(n => pattern.test(n)));
     this.classes.set('tree', [...this.classes.get('logs'), ...this.classes.get('leaves')]);
@@ -59,18 +59,18 @@ export class OMWorld extends EventEmitter {
     const stateId = this.stateAt(p); if (stateId === null) return null;
     const block = this.Block.fromStateId(stateId, 0); block.position = { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) }; return block;
   }
-  /** Track only chunks actually read by a computation, including absent chunks. */
+  /** Track read sections, including absent columns; unrelated vertical edits do not cancel a route. */
   createReadView() {
     const epoch = this.epoch, reads = new Map();
     return {
       blockAt: p => {
-        const key = `${Math.floor(p.x / 16)},${Math.floor(p.z / 16)}`, column = this.columns.get(key);
-        if (!reads.has(key)) reads.set(key, { column, revision: column ? this.columnRevisions.get(column) || 0 : null });
+        const columnKey = `${Math.floor(p.x / 16)},${Math.floor(p.z / 16)}`, column = this.columns.get(columnKey),section=Math.floor(p.y/16),key=columnKey+'/'+section;
+        if (!reads.has(key)) reads.set(key, { columnKey,column,section, revision: column ? this.sectionRevisions.get(column)?.get(section) || 0 : null });
         return this.blockAt(p);
       },
-      isCurrent: () => epoch === this.epoch && [...reads].every(([key, old]) => {
-        const column = this.columns.get(key);
-        return column === old.column && (column ? this.columnRevisions.get(column) || 0 : null) === old.revision;
+      isCurrent: () => epoch === this.epoch && [...reads.values()].every(old => {
+        const column = this.columns.get(old.columnKey);
+        return column === old.column && (column ? this.sectionRevisions.get(column)?.get(old.section) || 0 : null) === old.revision;
       })
     };
   }
@@ -79,7 +79,11 @@ export class OMWorld extends EventEmitter {
     const previous = this.stateAt(p);
     if(previous!==stateId)this.blockEntities.delete(`${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`);
     column.setBlockStateId(new Vec3(Math.floor(p.x) & 15, Math.floor(p.y), Math.floor(p.z) & 15), stateId); this.revision++;
-    this.columnRevisions.set(column, (this.columnRevisions.get(column) || 0) + 1);
+    if(previous!==stateId){
+      this.columnRevisions.set(column, (this.columnRevisions.get(column) || 0) + 1);
+      if(!this.sectionRevisions.has(column))this.sectionRevisions.set(column,new Map());
+      const revisions=this.sectionRevisions.get(column),section=Math.floor(p.y/16);revisions.set(section,(revisions.get(section)||0)+1);
+    }
     this.emit('blockUpdate', { position: { ...p }, previous, stateId }); return true;
   }
   async findBlocks({ names = [], classes = [], properties = {}, position, radius = 32, count = 32, maxVisited = 250000, signal }) {
@@ -111,7 +115,7 @@ export class OMWorld extends EventEmitter {
     outer: for (const { column, base, minDistance } of sections) {
       if (found.length >= count && minDistance > found[count - 1].distance) break;
       if(maxVisited-visited>=4096){
-        signal?.throwIfAborted();const index=this.sectionIndex.query(column,base,this.columnRevisions.get(column)||0,ids,selectorSignature);stateReads+=index.stateReads;visited+=4096;
+        signal?.throwIfAborted();const index=this.sectionIndex.query(column,base,this.sectionRevisions.get(column)?.get(Math.floor(base.y/16))||0,ids,selectorSignature);stateReads+=index.stateReads;visited+=4096;
         for(const p of index.matches)consider(p.x,p.y,p.z,p.stateId);
         await yieldLoop();
       }else{

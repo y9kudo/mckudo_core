@@ -23,6 +23,7 @@ test('storage policy chooses observed nearest chest, respects refresh, health an
 test('standard brain performs retaliation through the adapter with urgent priority', async () => {
   const c = new OMConnect({username:'Henry'}), calls = [];
   c.state = {...c.state,status:'ready',health:20,food:20,position:{x:0,y:64,z:0},dimension:'minecraft:overworld'};
+  c.inventory.updateSlot({windowId:0,slot:36,stateId:1,item:{itemId:c.registry.itemsByName.stone_sword.id,itemCount:1,components:[],removeComponents:[]}});
   c.entities.set(2,{id:'2',kind:'player',name:'player',username:'Blake',position:{x:2,y:64,z:0},velocity:{x:0,y:0,z:0},metadata:{}});
   c.attackers.set('2',{entityId:'2',hits:2,hitTimes:[Date.now()-100,Date.now()],lastHitAt:Date.now()});
   c.world.findBlocks = async()=>({blocks:[],revision:0,truncated:false});

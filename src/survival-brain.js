@@ -208,7 +208,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
     // Reacquire surface resources after cave work using a supported ascending staircase.
     const ascending=!ore&&preferred?.position.y>p.y+2;
     // Staircases remove adjacent headroom, never the supporting block under the bot.
-    if ((ore || ascending) && digStaircase && hasPickaxe(0)) {
+    if ((ascending || ore&&hasPickaxe(0)) && digStaircase) {
       const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
       if (!heading) heading = dirs[Math.abs([...String(client.options?.username || '')].reduce((a, c) => a + c.charCodeAt(0), 0)) % 4];
       const ranked = [heading, ...dirs.filter(d => d !== heading)].sort((a, b) => preferred ? distance({ x: p.x + a[0], y: p.y, z: p.z + a[1] }, preferred.position) - distance({ x: p.x + b[0], y: p.y, z: p.z + b[1] }, preferred.position) : 0);
@@ -222,13 +222,13 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
         const overhead={...p,y:p.y+2};
         if(ascending&&!isAir(getBlock(overhead))){
           if(!safeDig(overhead))continue;
-          const opening=response('dig',{...overhead,block:rid(getBlock(overhead).name)},'Open safe overhead clearance before climbing toward surface resources.');
+          const opening=response('dig',{...overhead,block:rid(getBlock(overhead).name),dropRequired:false},'Open safe overhead clearance before climbing toward surface resources.');
           opening.priority=Math.max(priority,81);if(blocked(opening.action))continue;pendingStep=next;return opening;
         }
         const cells = []; for (let y = Math.max(p.y + 1, next.y + 1); y >= next.y; y--) cells.push({ ...next, y });
         if (cells.some(c => !isAir(getBlock(c)) && !safeDig(c))) continue;
         const cell = cells.find(c => !isAir(getBlock(c)));
-        const result = cell ? response('dig', { ...cell, block: rid(getBlock(cell).name) }, `Open a supported ${ascending?'ascending':'mining'} passage for ${item}.`) : response('navigate', { ...next, range: 0, maxDrop:1 }, `Follow the supported staircase toward ${ascending?preferred.position.y:destinationY}.`);
+        const result = cell ? response('dig', { ...cell, block: rid(getBlock(cell).name),...(ascending?{dropRequired:false}:{}) }, `Open a supported ${ascending?'ascending':'mining'} passage for ${item}.`) : response('navigate', { ...next, range: 0, maxDrop:1 }, `Follow the supported staircase toward ${ascending?preferred.position.y:destinationY}.`);
         // Finish opening and entering the step before collecting dirt above it.
         // Otherwise loot navigation stands on the unfinished support and makes
         // the final excavation an illegal "dig under yourself" operation.

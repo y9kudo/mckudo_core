@@ -8,3 +8,6 @@ void agent.runProgram(program,{timeoutMs:60000});
 void createVisionVolume(agent.client,{radius:8});
 void agent.manager.vision3d('Atlas',{radius:8});
 void startDashboard({textureArchive:'local-client.jar'});
+import {planRouteToAnyAsync,startExpeditionMonitor} from '../../overmindmc.js';
+void planRouteToAnyAsync({start:{x:0,y:1,z:0},goals:[{x:1,y:1,z:0}],getBlock:()=>null});
+void startExpeditionMonitor({reportPath:'data/expedition/report.json',port:4181});

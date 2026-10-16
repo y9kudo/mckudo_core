@@ -41,3 +41,10 @@ test('chunk read views ignore unrelated edits but detect changed, unloaded and n
   world.columns.set('0,0', makeColumn()); assert.equal(unknown.isCurrent(), false);
   const dimension = world.createReadView(); world.reset('minecraft:the_nether'); assert.equal(dimension.isCurrent(), false);
 });
+test('read views retain valid underground geometry across surface and duplicate state updates',()=>{
+  const registry=minecraftData('1.21.1'),world=new OMWorld(registry),column=new world.Chunk({minY:-64,worldHeight:384});world.columns.set('0,0',column);
+  const p={x:1,y:-20,z:1},read=world.createReadView();read.blockAt(p);
+  world.update({x:1,y:80,z:1},registry.blocksByName.stone.defaultState);assert.equal(read.isCurrent(),true);
+  world.update(p,registry.blocksByName.air.defaultState);assert.equal(read.isCurrent(),true);
+  world.update({...p,x:2},registry.blocksByName.stone.defaultState);assert.equal(read.isCurrent(),false);
+});

@@ -59,6 +59,16 @@ test('underground wood acquisition opens an ascending staircase and preserves it
   assert.ok(!protectedResult||protectedResult.skill!=='dig'||protectedResult.args.x!==0||protectedResult.args.y!==66||protectedResult.args.z!==0);
 });
 
+test('an unarmed survivor can clear stone headroom to regain surface wood without claiming its drop',()=>{
+  const trunk={x:6,y:72,z:0};
+  const world={blockAt:q=>({...block(key(q)===key(trunk)?'birch_log':q.x===0&&q.z===0&&[64,65].includes(q.y)?'air':q.y<72?'stone':'air',q),boundingBox:q.x===0&&q.z===0&&[64,65].includes(q.y)||q.y>=72&&key(q)!==key(trunk)?'empty':'block'})};
+  const r=createSurvivalReactor({catalog,client:{world},targets:{'#logs':1}});
+  const o=observation({},[{name:rid('birch_log'),position:trunk}]);
+  const next=r.react(o);assert.equal(next.action.skill,'dig');assert.equal(next.action.args.block,rid('stone'));
+  assert.equal(next.action.args.dropRequired,false);assert.equal(next.action.args.y,66);
+  assert.equal(r.snapshot().status,'progressing');assert.deepEqual(o.inventory,{});
+});
+
 test('a workstation high above the cave does not bypass local crafting prerequisites',()=>{
   const world={blockAt:q=>({...block(q.y<64?'stone':'air',q),boundingBox:q.y<64?'block':'empty'})};
   const r=createSurvivalReactor({catalog,client:{world},targets:{stone_pickaxe:1},exploration:false});

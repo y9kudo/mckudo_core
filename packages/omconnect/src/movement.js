@@ -11,10 +11,10 @@ import {walkTarget,continuesWalk} from './route-cursor.js';
 import {consumeNavigationRoute} from './route-lease.js';
 
 /** Deliberate route excavation only consumes common terrain with an appropriate tool. */
-export const routeCanDig = c => {
+export const routeCanDig = (c,{requireHarvest=true}={}) => {
   let revision, protectionRevision; const decisions = new Map();
   return (block, position) => {
-    if (!/^(?:minecraft:)?(?:stone|deepslate|cobblestone|cobbled_deepslate|dirt|grass_block|coarse_dirt|rooted_dirt|podzol|mycelium|netherrack|tuff|granite|diorite|andesite)$/.test(block.name||block.id) || block.diggable === false || block.hardness < 0 || !chooseMiningTool(c.registry, block, c.inventory.items(), {held:c.inventory.held(),onGround:true})) return false;
+    if (!/^(?:minecraft:)?(?:stone|deepslate|cobblestone|cobbled_deepslate|dirt|grass_block|coarse_dirt|rooted_dirt|podzol|mycelium|netherrack|tuff|granite|diorite|andesite)$/.test(block.name||block.id) || block.diggable === false || block.hardness < 0 || !chooseMiningTool(c.registry, block, c.inventory.items(), {held:c.inventory.held(),onGround:true,requireHarvest})) return false;
     if (revision !== c.world.revision || protectionRevision !== c.protection?.revision) { decisions.clear(); revision = c.world.revision; protectionRevision = c.protection?.revision; }
     const id = `${position.x},${position.y},${position.z}`;
     if (!decisions.has(id)) { if (decisions.size >= 4096) decisions.clear(); decisions.set(id, editDecision(c, 'dig', position).allowed); }

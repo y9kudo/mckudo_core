@@ -14,7 +14,7 @@ export { createShelterBlueprint, createGroundShelterBlueprint, findGroundShelter
 export { parseSchematic, schematicBlueprint, buildSchematic, findSchematicSite, buildSchematicPhysical } from './src/schematics.js';
 export { createSurvivalProgression, survivalStages, createDefenseReactor } from './src/survival.js';
 export { createBlockTaxonomy, resourceSources } from './src/taxonomy.js';
-export { planRoute, planRouteAsync } from './src/navigation.js';
+export { planRoute, planRouteAsync,planRouteToAny,planRouteToAnyAsync } from './src/navigation.js';
 export { createFoodReactor } from './src/food.js';
 export { readJavaDataArchive } from './src/java-data.js';
 export { planExploration, createResourceReactor } from './src/exploration.js';
@@ -37,6 +37,7 @@ export { createEquipmentReactor } from './src/equipment-policy.js';
 export { createNightReactor } from './src/rest-policy.js';
 export { createHuntingReactor } from './src/hunting.js';
 export { startDashboard } from './src/dashboard.js';
+export {startExpeditionMonitor} from './src/expedition-monitor.js';
 export {assessFall} from './packages/omconnect/src/fall.js';
 export {createEndExpedition,endExpeditionScenario,netherVisitScenario,dragonExpeditionScenario,fullExpeditionScenario} from './src/expedition.js';
 export {createNetherReactor,netherCapabilities,NETHER_TRACKED_BLOCKS} from './src/nether.js';

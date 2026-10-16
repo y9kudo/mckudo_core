@@ -59,7 +59,7 @@ export function createNativeNavigationBackend({kernel=loadNativeKernel(),maxVoxe
     async planGroundAsync(options,scheduling={}){
       options.signal?.throwIfAborted();
       const fallback=()=>{stats.fallback++;return planRouteAsync(options,scheduling);};
-      if(options.staticGeometry!==true||options.edgeCost||options.bridgeBudget||options.allowPartial||(options.maxDrop??3)>16)return fallback();
+      if(options.goals||options.staticGeometry!==true||options.edgeCost||options.bridgeBudget||options.allowPartial||(options.maxDrop??3)>16)return fallback();
       const {start,goal,getBlock}=options;
       if(![start,goal].every(p=>p&&['x','y','z'].every(k=>Number.isInteger(p[k])&&Math.abs(p[k])<=30000000)))throw new Error('Native ground routes require integer start and goal positions.');
       const pad=6,maxDrop=options.maxDrop??3,origin={x:Math.min(start.x,goal.x)-pad,y:Math.min(start.y,goal.y)-maxDrop-2,z:Math.min(start.z,goal.z)-pad};
