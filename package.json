@@ -107,7 +107,8 @@
     "expedition:full": "node examples/expedition.js",
     "expedition:check": "node examples/expedition.js --check",
     "expedition:monitor": "node examples/monitor.js",
-    "benchmark:navigation": "node scripts/navigation-benchmark.js"
+    "benchmark:navigation": "node scripts/navigation-benchmark.js",
+    "benchmark:cognition": "node examples/cognitive-comparison.js"
   },
   "dependencies": {
     "minecraft-data": "^3.117.0",

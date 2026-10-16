@@ -43,6 +43,7 @@ jobs:
       - run: npm run check:english
       - run: npm run test:types
       - run: npm run benchmark:navigation
+      - run: npm run benchmark:cognition
       - run: npm run demo:evidence
       - run: npm run demo
       - run: npm run demo:workflow
