@@ -53,7 +53,7 @@ export declare class OMVectorize {
 }
 export interface Action { skill: string; args?: Record<string, Json>; }
 export interface Position { x: number; y: number; z: number; }
-export type ActionFailureCode = 'START_UNSUPPORTED'|'NO_PATH'|'SEARCH_BUDGET'|'STALE_WORLD'|'STEP_STALLED'|'OCCUPIED'|'SERVER_CORRECTION'|'SUPPORT_CHANGED'|'ACTION_FAILED'|'STUCK'|'BLOCKED'|'UNLOADED'|'INVALID_SUPPORT'|'INSUFFICIENT_RESOURCES'|'UNSAFE_ROUTE'|'DYNAMIC_OBSTACLE'|'ACTION_TIMEOUT';
+export type ActionFailureCode = 'START_UNSUPPORTED'|'NO_PATH'|'SEARCH_BUDGET'|'STALE_WORLD'|'STEP_STALLED'|'OCCUPIED'|'SERVER_CORRECTION'|'SUPPORT_CHANGED'|'ACTION_FAILED'|'STUCK'|'BLOCKED'|'UNLOADED'|'INVALID_SUPPORT'|'INSUFFICIENT_RESOURCES'|'UNSAFE_ROUTE'|'DYNAMIC_OBSTACLE'|'ACTION_TIMEOUT'|'EFFECT_UNCONFIRMED';
 export interface ActionFailure {code:ActionFailureCode;evidence?:{complete:boolean;facts:Record<string,string|number|boolean|null>};}
 export declare const ACTION_FAILURE_CODES:readonly ActionFailureCode[];
 export declare class OMActionError extends Error {readonly code:ActionFailureCode;readonly evidence?:ActionFailure['evidence'];constructor(code:ActionFailureCode,message:string,evidence?:ActionFailure['evidence']);}

@@ -34,6 +34,7 @@ try {
     import {createMachineGraph,planMachineResources,createCampaignJournal} from 'overmindmc';
     import {createNavigationSession,RegionalRouteGraph,IncrementalRegionPlanner,createNavigationRecovery} from 'overmindmc';
     import {createWorldAtlas,createNeuralNavigator,planFrontierExploration} from 'overmindmc';
+    import {createCognitiveEngine,createCognitivePlanner,repairPlan,buildPlannerContext,evaluateCognitiveCheckpoint} from 'overmindmc';
     import {createNavigationSession as standaloneNavigation} from 'omconnect/vectorize';
     import {createDQN,createVectorEnvironment,openWorldStore} from 'overmindmc/intelligence';
     import {loadNativeKernel,createNativeNavigationBackend,NativeFrameDecoder} from 'overmindmc/native';
@@ -77,6 +78,10 @@ try {
     assert.equal(evidence.snapshot().entries[0].mode,'timer');
     const model = createNeuralPlanner({worldId:'package-smoke'});
     assert.equal(createNeuralPlanner({worldId:'package-smoke',memory:model.export()}).snapshot().samples, 0);
+    const cognition=createCognitiveEngine({worldId:'package-smoke'});assert.equal(createCognitiveEngine({worldId:'package-smoke',memory:cognition.export()}).snapshot().records,0);
+    const context=buildPlannerContext({observation:{done:false},goal:{id:'done',desired:{fact:'/done',eq:true}},operators:[{id:'work',action:{skill:'work'},effects:[{fact:'/done',set:true}]}],skills:['work']});
+    const proposal=await createCognitivePlanner({budgetMs:1000}).plan(context,{signal:new AbortController().signal});assert.deepEqual(proposal.steps,['work']);assert.equal((await repairPlan(context,['work'])).status,'repaired');
+    model.setMode('evaluate');assert.equal(evaluateCognitiveCheckpoint({baseline:model.export(),candidate:model.export(),evaluation:{split:'evaluation',source:'unit',records:[]}}).decision,'inconclusive');
     const pool = createCpuPool();
     try { await assert.rejects(pool.run({type:'unknown'}), /Unknown task CPU/); } finally { await pool.close(); }
     const agent = createMinecraftAgent({worldId:'package-smoke'}); await agent.close(); await client.close();

@@ -6,8 +6,10 @@ import { traceVisibility } from '../packages/omconnect/src/visibility.js';
 import {wearsGold} from '../packages/omconnect/src/bartering.js';
 import {shieldFaces} from '../packages/omconnect/src/combat.js';
 import {shieldEntities,usingRangedWeapon} from '../packages/omconnect/src/shield-threats.js';
+import {verifyMinecraftAction} from '../src/action-verification.js';
 
-export function createOMAdapter(client, { catalog = catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}), taxonomy = createBlockTaxonomy(catalog), searchRadius = 192, trackedBlocks = ['#logs', '#ores', '#workstations', '#crops'] } = {}) {
+export function createOMAdapter(client, { catalog = catalogFromMinecraftData(client.registry,{recipeBook:client.recipeBook}), taxonomy = createBlockTaxonomy(catalog), searchRadius = 192, trackedBlocks = ['#logs', '#ores', '#workstations', '#crops'], verifyResults = false } = {}) {
+  if(typeof verifyResults!=='boolean')throw new Error('verifyResults must be boolean.');
   if (!Number.isInteger(searchRadius) || searchRadius < 16 || searchRadius > 512) throw new Error('searchRadius: 16–512.');
   if (!Array.isArray(trackedBlocks) || trackedBlocks.length > 128 || trackedBlocks.some(s => typeof s !== 'string')) throw new Error("trackedBlocks: to 128 ID or classes.");
   const names = [...new Set(trackedBlocks.flatMap(s => {
@@ -72,6 +74,7 @@ export function createOMAdapter(client, { catalog = catalogFromMinecraftData(cli
         drops: [...client.entities.values()].filter(e => e.name === 'item' && e.item).map(e => ({ id: e.id, ...e.item, position: { ...e.position } })) });
     },
     execute: (action, { signal, priority = 0 }) => client.execute(action, { signal, priority }),
+    ...(verifyResults?{verifyAction:(action,context)=>verifyMinecraftAction(client,action,context)}:{}),
     dispose() { cached = null; }
   };
 }

@@ -2,15 +2,21 @@ import { createHash } from 'node:crypto';
 import { jsonCopy, id, object } from './config.js';
 import { matches } from './conditions.js';
 import { createSymbolicPlanner, validateOperators, validatePlan, conditionFacts, projectFacts, applyOperator, buildPlannerContext } from './planner.js';
+import { repairPlan } from './plan-repair.js';
 
 const canonical = v => Array.isArray(v) ? v.map(canonical) : object(v) ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canonical(v[k])])) : v;
 const fingerprint = v => createHash('sha256').update(JSON.stringify(canonical(v))).digest('hex');
 
 export class GoalBrain {
-  #goals; #operators; #planner; #clock; #states; #calls = 0; #lastCall = null; #cache = null; #blocked = new Map(); #options; #fingerprint;
+  #goals; #operators; #planner; #clock; #states; #calls = 0; #lastCall = null; #caches = new Map(); #lastGoal = null; #blocked = new Map(); #options; #fingerprint;
+  #repairAttempts = new Map(); #repairs = { attempted: 0, repaired: 0, fallback: 0, last: null };
+  get #cache() { return this.#caches.get(this.#lastGoal) || null; }
+  set #cache(value) { if(value)this.#caches.set(this.#lastGoal,value);else this.#caches.delete(this.#lastGoal); }
   constructor(goals, options, clock, memory) {
     this.#goals = goals; this.#clock = clock;
     this.#options = { maxCalls: 100, minIntervalMs: 250, retryDelayMs: 1000, ...options };
+    if(options.repair!==undefined&&options.repair!==false&&(!object(options.repair)||Object.keys(options.repair).some(k=>!['maxNodes','maxDepth','maxSuffixes','maxRepairs'].includes(k))))throw new Error('planning.repair: false or bounded repair options.');
+    if(options.repair!==false&&options.repair!==undefined){this.#options.repair={maxNodes:128,maxDepth:4,maxSuffixes:8,maxRepairs:4,...options.repair};for(const [k,min,max]of[['maxNodes',1,4096],['maxDepth',0,16],['maxSuffixes',1,16],['maxRepairs',1,16]])if(!Number.isInteger(this.#options.repair[k])||this.#options.repair[k]<min||this.#options.repair[k]>max)throw new Error(`planning.repair.${k}: invalid budget.`);}
     for (const [key, max] of [['maxCalls', 100000], ['minIntervalMs', 300000], ['retryDelayMs', 300000]]) {
       const value = this.#options[key];
       if (!Number.isInteger(value) || value < (key === 'minIntervalMs' ? 0 : 1) || value > max) throw new Error(`planning.${key}: Wrong limit.`);
@@ -33,14 +39,14 @@ export class GoalBrain {
     }
   }
   snapshot() { return jsonCopy({ planner: this.#planner.id, calls: this.#calls, maxCalls: this.#options.maxCalls,
-    goals: this.#goals.map(g => ({ id: g.id, priority: g.priority, ...this.#states[g.id] })), plan: this.#cache ? { goalId: this.#cache.goalId, steps: this.#cache.steps, reason: this.#cache.reason } : null }); }
+    goals: this.#goals.map(g => ({ id: g.id, priority: g.priority, ...this.#states[g.id] })), repairs: this.#repairs, plan: this.#cache ? { goalId: this.#cache.goalId, steps: this.#cache.steps, reason: this.#cache.reason } : null }); }
   export() { return jsonCopy({ fingerprint: this.#fingerprint, calls: this.#calls, goals: this.#states }); }
   isCurrent(plan, observation) { return fingerprint(projectFacts(observation, plan.pointers)) === plan.observedSignature; }
   retry(goalId) {
     const state = this.#states[goalId];
     if (!state) throw new Error("Unknown objective.");
     Object.assign(state, { status: 'pending', actions: 0, retryAt: 0, reason: '', inFlight: false });
-    this.#cache = null; this.#blocked.clear();
+    this.#caches.delete(goalId); this.#repairAttempts.delete(goalId); this.#blocked.clear();
   }
   candidates(observation, now) {
     return this.#goals.map(g => {
@@ -57,9 +63,11 @@ export class GoalBrain {
   }
   async propose(candidate, observation, skills, signal) {
     const goal = this.#goals.find(g => g.id === candidate.goalId), state = this.#states[goal.id], now = this.#clock();
-    for (const [name, until] of this.#blocked) if (until <= now) this.#blocked.delete(name);
+    this.#lastGoal=goal.id;
+    const opSignature=op=>fingerprint({dimension:observation.dimension??null,facts:projectFacts(observation,[...new Set([...conditionFacts(op.requires),...op.effects.map(e=>e.fact)])])});
     const learned = this.#options.experience?.operators() || [];
     const combined = [...this.#operators, ...learned.filter(op => !this.#operators.some(s => s.id === op.id))].slice(0, 2048);
+    for (const [name, entry] of this.#blocked) { const op=combined.find(op=>op.id===name);if(entry.until<=now||!op||entry.signature!==opSignature(op))this.#blocked.delete(name); }
     const operators = combined.filter(op => skills.includes(op.action.skill) && !this.#blocked.has(op.id) && !this.#options.experience?.assess(op.action, observation).blocked);
     const pointers = [...new Set([...conditionFacts(goal.desired), ...operators.flatMap(op => [...conditionFacts(op.requires), ...op.effects.map(e => e.fact)])])].sort();
     const signature = fingerprint({ facts: projectFacts(observation, pointers), operators, skills });
@@ -70,10 +78,18 @@ export class GoalBrain {
     const context = buildPlannerContext({ observation, goal, operators, skills });
     const block = reason => { state.status = 'blocked'; state.reason = reason; state.retryAt = now + this.#options.retryDelayMs; this.#cache = null; return { ...candidate, blocked: reason }; };
     if (!this.#cache || this.#cache.goalId !== goal.id || this.#cache.signature !== signature || !this.#cache.steps.length) {
+      const previous=this.#cache;
+      if(previous?.steps.length&&this.#options.repair&&(this.#repairAttempts.get(goal.id)||0)<this.#options.repair.maxRepairs){
+        this.#repairAttempts.set(goal.id,(this.#repairAttempts.get(goal.id)||0)+1);this.#repairs.attempted++;
+        const repaired=await repairPlan(context,previous.steps,{...this.#options.repair,signal});signal.throwIfAborted();this.#repairs.last={...repaired,goalId:goal.id};
+        if(repaired.status==='repaired'){this.#repairs.repaired++;this.#cache={goalId:goal.id,steps:repaired.steps,reason:repaired.reason,signature};}else this.#repairs.fallback++;
+      }
+      if(!this.#cache||this.#cache.signature!==signature||!this.#cache.steps.length){
       this.#cache = null;
       if (this.#calls >= this.#options.maxCalls) return block("Planner call budget exhausted.");
       if (this.#lastCall !== null && now - this.#lastCall < this.#options.minIntervalMs) return block("Limiting the frequency of calls Planner.");
       this.#calls++; this.#lastCall = now;
+      this.#repairAttempts.delete(goal.id);
       let result;
       try {
         // Custom/LLM planners receive JSON data and a signal, never the executor itself.
@@ -86,6 +102,7 @@ export class GoalBrain {
       }
       if (!result.steps.length) return block(result.reason);
       this.#cache = { goalId: goal.id, steps: result.steps, reason: result.reason, signature };
+      }
     }
     const op = operators.find(o => o.id === this.#cache.steps[0]);
     const predicted = op && applyOperator(observation, op);
@@ -94,10 +111,11 @@ export class GoalBrain {
     return { ...candidate, operatorId: op.id, action: op.action, memoryKey: JSON.stringify(['goal', goal.id]),
       predicted, effectFacts: op.effects.map(e => e.fact), pointers, operatorIds: operators.map(o => o.id), operators, skills,
       observedSignature: fingerprint(projectFacts(observation, pointers)),
+      operatorSignature:opSignature(op),
       description: this.#cache.reason, blocked: null };
   }
   begin(plan) { const s = this.#states[plan.goalId]; s.inFlight = true; s.actions++; }
-  finish(plan, outcome, observation, detail) {
+  finish(plan, outcome, observation, detail, failure) {
     const s = this.#states[plan.goalId]; s.inFlight = false;
     if (outcome === 'cancelled') { s.actions--; s.status = 'pending'; this.#cache = null; return outcome; }
     if (outcome !== 'failure' && fingerprint(projectFacts(observation, plan.effectFacts)) !== fingerprint(projectFacts(plan.predicted, plan.effectFacts))) {
@@ -106,7 +124,8 @@ export class GoalBrain {
     if (outcome === 'failure') {
       s.status = s.actions >= this.#goals.find(g => g.id === plan.goalId).maxActions ? 'failed' : 'blocked';
       s.reason = detail; s.retryAt = this.#clock() + this.#options.retryDelayMs;
-      this.#blocked.set(plan.operatorId, this.#clock() + this.#options.retryDelayMs * 4); this.#cache = null;
+      if(!['STALE_WORLD','SERVER_CORRECTION','OCCUPIED','SUPPORT_CHANGED','UNLOADED','DYNAMIC_OBSTACLE'].includes(failure?.code))this.#blocked.set(plan.operatorId,{until:this.#clock()+this.#options.retryDelayMs*4,signature:plan.operatorSignature});
+      if(!this.#options.repair)this.#cache = null;
       return outcome;
     }
     const reached = matches(this.#goals.find(g => g.id === plan.goalId).desired, observation);

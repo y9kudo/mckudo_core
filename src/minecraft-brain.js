@@ -62,14 +62,14 @@ export function createMinecraftBrain({ client, worldId, actionEvidence = createA
   const huntingReactor=hunting===false?null:createHuntingReactor(hunting);
   const recoveryReactor=recovery===false?null:createNavigationRecoveryReactor({client,...recovery});
   const needsReactor=needs===false?null:createNeedsReactor({client,...needs});
-  const adapter = createOMAdapter(client, { ...adapterOptions, catalog:adapterCatalog,taxonomy:adapterTaxonomy,trackedBlocks });
+  const adapter = createOMAdapter(client, { verifyResults:true,...adapterOptions, catalog:adapterCatalog,taxonomy:adapterTaxonomy,trackedBlocks });
   const combatReactor=createCombatReactor({ attackPlayers: true, retaliationHits: 2, retaliationWindowMs: 10000, pathRetreat:client.describe?.().skills?.includes('evade')??false, ...defense });
   if (atlas) {
     const observe = adapter.observe;
     let lastFlush=0;
     adapter.observe = async context => { const o = await observe(context); (worldAtlas||atlas).observe(o, { getBlock: p => client.world.blockAt(p) }); if(worldAtlas&&Date.now()-lastFlush>=5000){worldAtlas.flush();lastFlush=Date.now();}return o; };
   }
-  const brain = createCore({ ...options, learning,
+  const brain = createCore({ ...options, learning,cognitive:options.cognitive===false?false:{...options.cognitive,assess:options.cognitive?.assess||(thinking?((observation,action)=>thinking.assess(observation,action)):undefined)},
     config: { schemaVersion: 4, name: client.options.username, tickIntervalMs: 100, actionTimeoutMs: 30000, ...config, worldId },
     adapter,
     reactors: [combatReactor, ...(equipment?[createEquipmentReactor()]:[]), ...(nightReactor?[nightReactor]:[]),...(huntingReactor?[huntingReactor]:[]),...(recoveryReactor?[recoveryReactor]:[]), ...(storage === false ? [] : [createStorageReactor(storage)]), ...(lootReactor?[lootReactor]:[]),...(needsReactor?[needsReactor]:[]),...(survivalReactor?[survivalReactor]:[]), ...reactors]

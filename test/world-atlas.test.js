@@ -136,9 +136,9 @@ test('manager shutdown/restart preserves atlas, legacy landmarks and schema-thre
     createBrain:settings=>{const b=createMinecraftBrain(settings);b.start=()=>{};return b;}};
   try{
     manager=createAgentManager(options);await manager.ready;await manager.execute('Alice','connect');await manager.execute('Alice','start');
-    let brain=manager.entries.get('Alice').brain;brain.atlas.observe(observation());brain.atlas.recordTransition(transition());brain.neural.record(transition());
+    let brain=manager.entries.get('Alice').brain;brain.atlas.observe(observation());brain.atlas.recordTransition(transition());brain.neural.record(transition());brain.cognitive.record({candidate:{id:'unit',kind:'reactor',priority:10,action:{skill:'dig',args:{}}},before:observation(),outcome:'success',verified:true,durationMs:10});
     await manager.close();manager=createAgentManager(options);await manager.ready;await manager.execute('Alice','connect');await manager.execute('Alice','start');
-    brain=manager.entries.get('Alice').brain;assert.equal(brain.atlas.snapshot().transitions,1);assert.equal(brain.spatial.entries().length,1);assert.equal(brain.neural.snapshot().samples,1);assert.equal(brain.neural.export().schemaVersion,3);assert.equal(manager.snapshot().agents[0].atlas.regions,1);
+    brain=manager.entries.get('Alice').brain;assert.equal(brain.atlas.snapshot().transitions,1);assert.equal(brain.spatial.entries().length,1);assert.equal(brain.neural.snapshot().samples,1);assert.equal(brain.cognitive.snapshot().records,1);assert.equal(brain.neural.export().schemaVersion,3);assert.equal(manager.snapshot().agents[0].atlas.regions,1);
     await manager.close();manager=createAgentManager({...options,connection:{...options.connection,host:'other-server'}});await manager.ready;await assert.rejects(manager.execute('Alice','connect'),/scope/);
   }finally{await manager?.close();await rm(dir,{recursive:true,force:true});}
 });

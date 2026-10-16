@@ -22,3 +22,14 @@ const client=createOMConnect({username:'Typed'}),context=createNavigationContext
 const model=createNeuralNavigator({worldId:'typed'});model.assess({from:{x:0,y:1,z:0},to:{x:1,y:1,z:0},dimension:scope.dimension,context:context.read({x:0,y:1,z:0},{x:1,y:1,z:0})}).expectedDamage;
 createMinecraftBrain({client,worldId:'typed',worldIntelligence:{memory:atlasMemory,scope:atlasScope}}).atlas?.snapshot().regions;
 planFrontierExploration({position:{x:0,y:1,z:0},getBlock:()=>null}).frontier?.visitedNodes;
+import {createCognitiveEngine,createCognitivePlanner,createHTNPlannerAdapter,createMCTSPlannerAdapter,repairPlan,evaluateCognitiveCheckpoint,createNeuralPlanner,createCore,type CognitiveMemory,type PlannerContext} from '../../overmindmc.js';
+import {createHTNPlanner,createMCTSPlanner} from '../../src/intelligence.js';
+const thinking=createNeuralPlanner({worldId:'typed'}),engine=createCognitiveEngine({worldId:'typed',assess:(o,a)=>thinking.assess(o,a)});
+const cognitiveMemory:CognitiveMemory=engine.export();createCognitiveEngine({worldId:'typed',memory:cognitiveMemory});
+engine.rank({},[{id:'work',kind:'reactor',priority:10,action:{skill:'work'}}])[0].action.skill;
+const portfolio=createCognitivePlanner({assess:(o,a)=>thinking.assess(o,a)});portfolio.snapshot().choices[0]?.learnedCost;
+createHTNPlannerAdapter({planner:createHTNPlanner(),tasks:()=>[]});
+createMCTSPlannerAdapter({planner:createMCTSPlanner({model:{actions:()=>[{skill:'work',args:{}}],step:state=>({state,reward:0}),terminal:()=>true}})});
+const ctx={} as PlannerContext;void repairPlan(ctx,[],{maxNodes:128,maxDepth:3});
+thinking.setMode('evaluate');evaluateCognitiveCheckpoint({baseline:thinking.export(),candidate:thinking.export(),evaluation:{split:'evaluation',source:'unit',records:[]}}).memory;
+createCore({config:{schemaVersion:4,name:'Typed',worldId:'typed',rules:[{id:'work',action:{skill:'work'}}]},adapter:{describe:()=>({protocolVersion:1,kind:'test',loader:'vanilla',minecraftVersion:'1.21.1',skills:['work']}),observe:async()=>({}),execute:async()=>({ok:true}),verifyAction:()=>({status:'unknown',reason:'Custom skill.'})},cognitive:{model:engine}}).cognitive?.snapshot().phase;

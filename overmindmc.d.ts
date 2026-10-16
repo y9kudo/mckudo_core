@@ -12,17 +12,18 @@ export interface Goal { id: string; priority?: number; description?: string; des
 export interface AgentConfig { $schema?: string; schemaVersion: 1 | 2 | 3 | 4; name: string; worldId: string; rules?: Rule[]; workflows?: Workflow[]; goals?: Goal[]; tickIntervalMs?: number; actionTimeoutMs?: number; failureBackoffMs?: number; maxHistory?: number; }
 export interface Manifest { protocolVersion: 1; perceptionVersion?: 1; kind: string; loader: string; minecraftVersion: string; skills: readonly string[]; }
 export interface Context { signal: AbortSignal; priority?: number; }
-export interface Adapter { describe(): Manifest; observe(context: Context): Promise<Observation>; observeThreats?(context: Context): Promise<Observation>; subscribeUrgent?(listener: () => void): () => void; execute(action: Action, context: Context): Promise<unknown>; dispose?(): void; }
-export interface Result { at: number; rule: string; skill: string; outcome: 'success' | 'failure' | 'cancelled' | 'progress'; detail: string; failure?: import('./omconnect/index.js').ActionFailure; }
+export interface ActionVerification {status:'confirmed'|'unconfirmed'|'unknown';reason:string;}
+export interface Adapter { describe(): Manifest; observe(context: Context): Promise<Observation>; observeThreats?(context: Context): Promise<Observation>; subscribeUrgent?(listener: () => void): () => void; execute(action: Action, context: Context): Promise<unknown>; verifyAction?(action:Action,context:Context&{before:Observation;after:Observation}):ActionVerification|Promise<ActionVerification>; dispose?(): void; }
+export interface Result { at: number; rule: string; skill: string; outcome: 'success' | 'failure' | 'cancelled' | 'progress'; detail: string; failure?: import('./omconnect/index.js').ActionFailure;verification?:ActionVerification; }
 export interface StepState { status: 'pending' | 'running' | 'completed' | 'failed' | 'interrupted'; attempts: number; retryAt: number; error: string; }
 export interface WorkflowState { id: string; status: 'pending' | 'active' | 'completed' | 'failed' | 'interrupted'; completed: number; total: number; steps: Record<string, StepState>; }
 export interface SavedWorkflow { fingerprint: string; active: boolean; steps: Record<string, StepState>; }
 export interface SavedGoal { status: 'pending' | 'active' | 'achieved' | 'blocked' | 'failed' | 'interrupted'; actions: number; reason: string; retryAt: number; inFlight: boolean; }
 export interface SavedBrain { fingerprint: string; calls: number; goals: Record<string, SavedGoal>; }
-export interface Memory { schemaVersion: 1 | 2 | 3; worldId: string; stats: Record<string, { successes: number; failures: number; streak: number }>; history: Result[]; workflows?: Record<string, SavedWorkflow>; brain?: SavedBrain; }
+export interface Memory { schemaVersion: 1 | 2 | 3; worldId: string; stats: Record<string, { successes: number; failures: number; streak: number }>; history: Result[]; workflows?: Record<string, SavedWorkflow>; brain?: SavedBrain; cognitive?:CognitiveMemory; }
 export interface Decision { id: string; kind: 'rule' | 'workflow' | 'goal' | 'reactor'; workflowId: string | null; stepId: string | null; goalId: string | null; operatorId: string | null; action: Action; priority: number; alternatives: { id: string; blocked: string | null }[]; }
 export interface PluginInfo { id: string; apiVersion: 1; requires: readonly string[]; skills: string[]; }
-export interface Snapshot { performance:Record<string,{calls:number;totalMs:number;lastMs:number;maxMs:number}>; engine: typeof OVERMIND; name: string; worldId: string; status: 'idle' | 'observing' | 'planning' | 'acting' | 'blocked' | 'fault' | 'paused' | 'stopping'; reason: string; paused: boolean; running: boolean; adapter: Manifest; observation: Observation | null; decision: Decision | null; lastResult: Result | null; history: Result[]; workflows: WorkflowState[]; brain: BrainSnapshot | null; trace?: DecisionTrace; plugins: PluginInfo[]; listenerErrors: { event: string; message: string }[]; }
+export interface Snapshot { performance:Record<string,{calls:number;totalMs:number;lastMs:number;maxMs:number}>; engine: typeof OVERMIND; name: string; worldId: string; status: 'idle' | 'observing' | 'planning' | 'acting' | 'blocked' | 'fault' | 'paused' | 'stopping'; reason: string; paused: boolean; running: boolean; adapter: Manifest; observation: Observation | null; decision: Decision | null; lastResult: Result | null; history: Result[]; workflows: WorkflowState[]; brain: BrainSnapshot | null; cognitive?:CognitiveSnapshot;trace?: DecisionTrace; plugins: PluginInfo[]; listenerErrors: { event: string; message: string }[]; }
 export type SkillHandler = (args: Record<string, Json>, context: Context & { observation: Observation }) => unknown | Promise<unknown>;
 export type SkillValidator = (args: Record<string, Json>) => boolean | string | void | Promise<boolean | string | void>;
 export interface SkillDefinition { execute: SkillHandler; validate?: SkillValidator; }
@@ -32,10 +33,11 @@ export declare const OVERMIND: Readonly<{ name: string; id: 'overmindmc'; versio
 export declare class ConfigError extends Error { readonly path: string; }
 export declare function validateConfig(input: unknown): AgentConfig;
 export declare function matches(condition: Condition | undefined, observation: Observation): boolean;
-export interface CoreOptions { config: AgentConfig; adapter: Adapter; planning?: PlanningOptions; learning?: ExperienceModel; reactors?: Reactor[]; preemptionMs?: number; memory?: Memory; clock?: () => number; }
+export interface CoreOptions { config: AgentConfig; adapter: Adapter; planning?: PlanningOptions; cognitive?:false|Omit<CognitiveEngineOptions,'worldId'>&{model?:CognitiveEngine};learning?: ExperienceModel|NeuralPlanner; reactors?: Reactor[]; preemptionMs?: number; memory?: Memory; clock?: () => number; }
 export declare class OvermindCore {
   constructor(options: CoreOptions);
   readonly manifest: Manifest;
+  readonly cognitive:CognitiveEngine|null;
   registerSkill(name: string, handler: SkillHandler, options?: { validate?: SkillValidator }): this;
   use(plugin: Plugin): this;
   removePlugin(id: string): this;
@@ -54,11 +56,13 @@ export declare class OvermindCore {
   on(event: 'action:finish', listener: (result: Result) => void): this;
   on(event: 'decision:trace', listener: (trace: DecisionTrace) => void): this;
   on(event: 'monitor:error', listener: (error: { message: string }) => void): this;
+  on(event:'experience:transition',listener:(sample:ExperienceTransition)=>void):this;
   once(event: 'state', listener: (snapshot: Snapshot) => void): this;
   once(event: 'action:start', listener: (decision: Decision) => void): this;
   once(event: 'action:finish', listener: (result: Result) => void): this;
   once(event: 'decision:trace', listener: (trace: DecisionTrace) => void): this;
   once(event: 'monitor:error', listener: (error: { message: string }) => void): this;
+  once(event:'experience:transition',listener:(sample:ExperienceTransition)=>void):this;
   removeListener(event: string, listener: (...args: any[]) => void): this;
   removeAllListeners(event?: string): this;
 }
@@ -67,8 +71,12 @@ export interface Operator { id: string; cost?: number; action: Action; requires?
 export interface PlannerContext { perceptionVersion: number | null; observation: Observation; goal: Goal; operators: Operator[]; skills: string[]; }
 export interface PlanProposal { steps: string[]; reason?: string; }
 export interface Planner { id: string; apiVersion: 1; plan(context: PlannerContext, cancellation: Context): PlanProposal | Promise<PlanProposal>; }
-export interface PlanningOptions { operators?: Operator[]; experience?: ExperienceModel; planner?: Planner; maxCalls?: number; minIntervalMs?: number; retryDelayMs?: number; }
-export interface ExperienceSample { episodeId: string; action: Action; before: Observation; after?: Observation | null; outcome: 'success' | 'progress' | 'failure' | 'cancelled'; durationMs?: number; }
+export interface RepairOptions {maxNodes?:number;maxDepth?:number;maxSuffixes?:number;}
+export interface RepairResult {status:'repaired'|'blocked';steps:string[];reason:string;retainedSteps:number;connectorSteps:number;replacedSteps:number;visited:number;generated:number;}
+export declare function repairPlan(context:PlannerContext,previousSteps:string[],options?:RepairOptions&{signal?:AbortSignal}):Promise<RepairResult>;
+export interface PlanningOptions { operators?: Operator[]; experience?: ExperienceModel; planner?: Planner; maxCalls?: number; minIntervalMs?: number; retryDelayMs?: number;repair?:false|RepairOptions&{maxRepairs?:number}; }
+export interface ExperienceSample { episodeId: string; action: Action; before: Observation; after?: Observation | null; outcome: 'success' | 'progress' | 'failure' | 'cancelled'; durationMs?: number; verified?:boolean;failureCode?:string; }
+export interface ExperienceTransition extends ExperienceSample {environment:'minecraft'|'external';detail:string;}
 export interface ExperienceAssessment { status: string; blocked: boolean; failures: number; durationMs: number | null; confidence: number; }
 export interface ExperienceModel { readonly worldId: string; record(sample: ExperienceSample): boolean; assess(action: Action, observation: Observation): ExperienceAssessment; operators(): Operator[]; snapshot(): { worldId: string; revision: number; hypotheses: Json[]; journal: Json[] }; }
 export declare function createExperienceModel(options: { worldId: string; facts: string[]; contextFacts?: string[]; minEvidence?: number; retryMs?: number; clock?: () => number }): ExperienceModel;
@@ -76,9 +84,9 @@ export interface AdaptiveStrategy { id: string; when?: Condition; action: Action
 export interface AdaptivePeer { id: string; clock(): number; claim(resource: string): unknown; release(resource: string): unknown; owner(resource: string): string | null; owns(resource: string): boolean; snapshot(): { claims: { resource: string; from: string; release: boolean; expiresAt: number }[] }; }
 export interface AdaptiveScenario { reactor: Reactor; snapshot(): { status: string; revision: number; current: string | null; desired: Condition; journal: Json[] }; dispose(): void; }
 export declare function createAdaptiveScenario(options: { id?: string; desired: Condition; strategies: AdaptiveStrategy[]; model?: ExperienceModel; priority?: number; peer?: AdaptivePeer }): AdaptiveScenario;
-export interface BrainSnapshot { planner: string; calls: number; maxCalls: number; goals: (SavedGoal & { id: string; priority: number })[]; plan: { goalId: string; steps: string[]; reason: string } | null; }
+export interface BrainSnapshot { planner: string; calls: number; maxCalls: number; goals: (SavedGoal & { id: string; priority: number })[]; repairs?:{attempted:number;repaired:number;fallback:number;last:(RepairResult&{goalId:string})|null};plan: { goalId: string; steps: string[]; reason: string } | null; }
 export interface ConditionExplanation { matched: boolean; facts: { fact: string; found: boolean; value: Json; operator: string; expected: Json; matched: boolean }[]; }
-export interface DecisionTrace { tick: number; at: number; rules: (ConditionExplanation & { id: string; priority: number })[]; candidates: { id: string; kind: string; priority: number; blocked: string | null }[]; selected: { id: string; kind: string; operatorId: string | null } | null; deferred?: string; }
+export interface DecisionTrace { tick: number; at: number; rules: (ConditionExplanation & { id: string; priority: number })[]; candidates: { id: string; kind: string; priority: number; blocked: string | null }[]; selected: { id: string; kind: string; operatorId: string | null } | null; deferred?: string; cognitive?:CognitiveRanking[]; }
 export declare function createSymbolicPlanner(options?: { maxDepth?: number; maxNodes?: number }): Planner & {snapshot():{operators:number;relevantOperators:number;expanded:number;generated:number}};
 export declare function validateOperators(input: unknown): Operator[];
 export declare function validatePlan(proposal: unknown, context: PlannerContext): PlanProposal;
@@ -98,7 +106,7 @@ export declare class OvermindRuntime {
   stop(): Promise<void>;
 }
 
-export type Reaction = { action: null; reason: string } | { action: Action; priority: number; reason: string };
+export type Reaction = { action: null; reason: string } | { action: Action; priority: number; reason: string;requires?:Condition;expected?:Condition; };
 export interface Reactor { id: string; apiVersion: 1; preempt?: boolean; failureScope?: 'reactor' | 'action'; managesRetries?:boolean; react(observation: Observation): Reaction; }
 export interface Position { x: number; y: number; z: number; }
 export interface CatalogItem { id: string; numericId?: number; displayName?: string; stackSize?: number; maxDurability?: number | null; }
@@ -324,10 +332,27 @@ export interface NeuralSnapshot {kind:'local-neural-network';architecture:'12-16
 export interface NeuralNavigator {worldId:string;record(event:NavigationExperience):boolean;assess(event:Omit<NavigationExperience,'outcome'>):{failureProbability:number;samples:number;trained:boolean;rememberedFailures:number;cost:number;expectedTimeMs?:number|null;expectedDamage?:number|null;uncertainty?:number};snapshot():NeuralSnapshot;export():NeuralMemory;}
 export declare function createNeuralNavigator(options:{worldId:string;learningRate?:number;memory?:NeuralMemory;clock?:()=>number}):NeuralNavigator;
 export declare function attachNeuralNavigation(client:import('./omconnect/index.js').OMConnect,model:NeuralNavigator,options?:{contextReader?:NavigationContextReader|null}):()=>void;
-export interface CognitionMemory {schemaVersion:1;worldId:string;architecture:'24-24-1';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[];bias:number};replay:{x:number[];y:0|1}[];}
-export interface CognitionSnapshot {kind:'local-neural-planner';architecture:'24-24-1';samples:number;updates:number;loss:number;journal:{at:number;skill:string;item:string;outcome:string;damage:boolean;detail:string}[];}
-export interface NeuralPlanner {worldId:string;assess(observation:Observation,action:Action):{failureProbability:number;trained:boolean;cost:number};record(event:{before:Observation;after?:Observation|null;action:Action;outcome:'success'|'failure'|'cancelled'|'progress';detail?:string}):boolean;snapshot():CognitionSnapshot;export():CognitionMemory;}
-export declare function createNeuralPlanner(options:{worldId:string;memory?:CognitionMemory;learningRate?:number;clock?:()=>number}):NeuralPlanner;
+export interface CognitionMemory {schemaVersion:1|2;worldId:string;architecture:'24-24-1';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[];bias:number};replay:{x:number[];y:0|1}[];provenance?:{complete:boolean;episodeHashes:string[];namespaceHashes?:string[];namespaceCoverageComplete?:boolean};}
+export interface CognitionSnapshot {kind:'local-neural-planner';architecture:'24-24-1';mode?:'train'|'evaluate';samples:number;updates:number;loss:number;provenanceComplete?:boolean;trackedEpisodes?:number;trainingNamespaces?:number;journal:{at:number;skill:string;item:string;outcome:string;damage:boolean;reason?:string;detail:string}[];}
+export interface LearnedPlanAssessment {failureProbability?:number;trained:boolean;cost:number;uncertainty?:number;}
+export interface PlannerExperience {before:Observation;after?:Observation|null;action:Action;outcome:Result['outcome'];detail?:string;episodeId?:string;verified?:boolean;failureCode?:string;}
+export interface NeuralPlanner {worldId:string;readonly mode:'train'|'evaluate';setMode(mode:'train'|'evaluate'):void;assess(observation:Observation,action:Action):LearnedPlanAssessment&{failureProbability:number;uncertainty:number};record(event:PlannerExperience):boolean;snapshot():CognitionSnapshot;export():CognitionMemory;}
+export declare function createNeuralPlanner(options:{worldId:string;memory?:CognitionMemory;learningRate?:number;clock?:()=>number;mode?:'train'|'evaluate'}):NeuralPlanner;
+export type CognitivePhase='observe'|'understand'|'plan'|'act'|'verify'|'reflect'|'replan';
+export interface CognitiveMemory {schemaVersion:1;kind:'cognitive-engine';worldId:string;revision:number;records:{key:string;successes:number;failures:number;timedSamples:number;meanDurationMs:number;lastSeen:number}[];}
+export interface CognitiveCandidate {id:string;kind:string;priority:number;action?:Action;blocked?:string|null;workflowId?:string;stepId?:string;}
+export interface CognitiveRanking {id:string;kind:string;priority:number;blocked:string|null;learnedCost:number;failureCost:number;timeCost:number;uncertainty:number;retained:boolean;estimatedCost:number;error?:string;}
+export interface CognitiveSnapshot {worldId:string;phase:CognitivePhase;revision:number;ranks:number;records:number;maxEntries:number;maxAssessments:number;committed:string|null;ranking:CognitiveRanking[];journal:{at:number;phase:CognitivePhase;kind:string;id?:string;reason?:string;skill?:string;outcome?:string;verified?:boolean}[];}
+export interface CognitiveEngineOptions {worldId:string;assess?:(observation:Observation,action:Action)=>LearnedPlanAssessment;maxEntries?:number;maxAssessments?:number;journalSize?:number;commitmentMargin?:number;memory?:CognitiveMemory;clock?:()=>number;}
+export interface CognitiveEngine {readonly worldId:string;phase(phase:CognitivePhase,detail?:{reason?:string;id?:string}):void;rank<T extends CognitiveCandidate>(observation:Observation,candidates:T[]):T[];commit(candidate:CognitiveCandidate&{action:Action},observation:Observation):void;record(event:{candidate:CognitiveCandidate&{action:Action};before:Observation;outcome:Result['outcome'];durationMs?:number;verified?:boolean;failureCode?:string}):boolean;snapshot():CognitiveSnapshot;export():CognitiveMemory;}
+export declare function createCognitiveEngine(options:CognitiveEngineOptions):CognitiveEngine;
+export interface CognitivePlannerSnapshot {busy:boolean;calls:number;selected:string|null;elapsedMs:number;budgetExpired:boolean;choices:{provider:string;steps:string[];reason:string;baseCost:number;learnedCost:number;uncertain:number;cost:number}[];rejected:{provider:string;reason:string}[];}
+export declare function createCognitivePlanner(options?:{planners?:Planner[];assess?:(observation:Observation,action:Action)=>LearnedPlanAssessment;budgetMs?:number;clock?:()=>number}):Planner&{snapshot():CognitivePlannerSnapshot};
+export declare function createHTNPlannerAdapter(options:{planner:ReturnType<typeof import('./src/intelligence.js').createHTNPlanner>;tasks:(context:PlannerContext)=>import('./src/intelligence.js').HTNTask[];id?:string}):Planner;
+export declare function createMCTSPlannerAdapter(options:{planner:{plan(state:any,options?:{signal?:AbortSignal}):{status:string;action:Action|null}|Promise<{status:string;action:Action|null}>};completion?:Planner;id?:string}):Planner;
+export interface CognitiveEvaluation {split:'evaluation';source:'unit'|'headless'|'minecraft';records:(PlannerExperience&{episodeId:string})[];}
+export interface CognitiveEvaluationResult {decision:'promote'|'retain'|'inconclusive';accepted:boolean;source:CognitiveEvaluation['source'];split:'evaluation';reason:string;memory:CognitionMemory;metrics:{samples:number;baselineBrier:number|null;candidateBrier:number|null;groups:{id:string;samples:number;baselineBrier:number;candidateBrier:number}[]};}
+export declare function evaluateCognitiveCheckpoint(options:{baseline:CognitionMemory;candidate:CognitionMemory;evaluation:CognitiveEvaluation;minSamples?:number;minImprovement?:number;maxRegression?:number}):CognitiveEvaluationResult;
 export type AgentProgramNode={id:string;title?:string;priority?:number}&({type:'action';action:Action&{args:Record<string,Json>}}|{type:'resources';targets:Record<string,number>}|{type:'navigate';position:Position;range?:number;bridge?:boolean;excavate?:boolean}|{type:'scenario';scenario:Scenario}|{type:'sequence'|'parallel';children:AgentProgramNode[]}|{type:'if';condition:Condition;then:AgentProgramNode[];else?:AgentProgramNode[]}|{type:'repeat';count:number;children:AgentProgramNode[]}|{type:'until';condition:Condition;maxIterations:number;children:AgentProgramNode[]});
 export interface AgentProgram {schemaVersion:1;name:string;nodes:AgentProgramNode[];}
 export interface ProgramSnapshot {status:'running'|'completed'|'failed';active:string|null;reason:string;nodes:{id:string;status:'pending'|'completed'|'failed'|'blocked';iteration:number;failures:number;branch?:'then'|'else';reason?:string}[];}
@@ -343,7 +368,7 @@ export declare function createVisionSnapshot(client:import('./omconnect/index.js
 export interface TaskQueue {reactor:Reactor;definition():AgentTask[];snapshot():TaskState[];retry(id:string):void;attach(core:OvermindCore):()=>void;}
 export declare function validateTasks(input:unknown,options?:{skills?:readonly string[]}):AgentTask[];
 export declare function createTaskQueue(options?:{tasks?:AgentTask[];skills?:readonly string[];scenarioFactory?:(scenario:Scenario)=>ScenarioController;resume?:TaskState[]}):TaskQueue;
-export declare function createAgentMemory(directory:string,worldId:string,options?:{maxBytes?:number}):{load(name:string):Promise<{schemaVersion:1;worldId:string;name:string;spatial?:SpatialMemoryData;atlas?:WorldAtlasMemory;neural?:NeuralMemory;cognition?:CognitionMemory;tasks?:AgentTask[];taskState?:TaskState[];goal?:SurvivalTarget}|null>;save(name:string,state:{spatial?:SpatialMemoryData;atlas?:WorldAtlasMemory;neural?:NeuralMemory;cognition?:CognitionMemory;tasks?:AgentTask[];taskState?:TaskState[];goal?:SurvivalTarget}):Promise<void>;flush():Promise<void>};
+export declare function createAgentMemory(directory:string,worldId:string,options?:{maxBytes?:number}):{load(name:string):Promise<{schemaVersion:1;worldId:string;name:string;spatial?:SpatialMemoryData;atlas?:WorldAtlasMemory;cognitive?:CognitiveMemory;neural?:NeuralMemory;cognition?:CognitionMemory;tasks?:AgentTask[];taskState?:TaskState[];goal?:SurvivalTarget}|null>;save(name:string,state:{spatial?:SpatialMemoryData;atlas?:WorldAtlasMemory;cognitive?:CognitiveMemory;neural?:NeuralMemory;cognition?:CognitionMemory;tasks?:AgentTask[];taskState?:TaskState[];goal?:SurvivalTarget}):Promise<void>;flush():Promise<void>};
 export interface BrewingRecipe {from:string;to:string;ingredient:string;station:string;fuel:string;bottlesPerBatch:number;brewTicks:number;}
 export declare function brewingRecipes(registry:any):BrewingRecipe[];
 export type BrewingPlan={status:'blocked';reason:string;steps:[]}|{status:'planned';potion:string;form:'potion'|'splash_potion'|'lingering_potion';bottles:number;steps:({from:string;to:string;ingredient:string;bottles:number;container?:string})[];ingredients:Record<string,number>;fuel:{item:string;count:number};station:string;requiresExecutor:'brew'};

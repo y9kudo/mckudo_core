@@ -44,6 +44,10 @@ export {createNetherReactor,netherCapabilities,NETHER_TRACKED_BLOCKS} from './sr
 export {createDragonPolicy} from './src/dragon-brain.js';
 export {createNeuralNavigator,attachNeuralNavigation} from './src/neural-navigation.js';
 export {createNeuralPlanner} from './src/neural-planning.js';
+export {createCognitiveEngine} from './src/cognitive-engine.js';
+export {createCognitivePlanner,createHTNPlannerAdapter,createMCTSPlannerAdapter} from './src/cognitive-planner.js';
+export {repairPlan} from './src/plan-repair.js';
+export {evaluateCognitiveCheckpoint} from './src/cognitive-evaluation.js';
 export {createTaskQueue,validateTasks} from './src/task-queue.js';
 export {createAgentProgram,validateAgentProgram} from './src/agent-program.js';
 export {createVisionVolume,createVisionSnapshot} from './src/vision.js';
