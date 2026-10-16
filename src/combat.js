@@ -8,7 +8,9 @@ export function createCombatReactor(options = {}) {
   const ranged=options.ranged??true,rangedDistance=options.rangedDistance??8;
   if(typeof ranged!=='boolean'||!Number.isFinite(rangedDistance)||rangedDistance<4||rangedDistance>24)throw new Error('Combat: ranged must be boolean and rangedDistance must be 4–24.');
   const defense = createDefenseReactor(options);
-  const clock=options.clock??Date.now,failed=new Map(),rangedBlocked=new Map(),retreatBlocked=new Map(),waterAttempted=new Map();let latest=null,selected=null;
+  const focusMs=options.focusMs??600,switchMargin=options.switchMargin??1.5;
+  if(!Number.isInteger(focusMs)||focusMs<0||focusMs>2000||!Number.isFinite(switchMargin)||switchMargin<0||switchMargin>4)throw new Error('Combat focus: 0–2000 ms and switchMargin 0–4.');
+  const clock=options.clock??Date.now,failed=new Map(),rangedBlocked=new Map(),retreatBlocked=new Map(),waterAttempted=new Map();let latest=null,selected=null,focus=null,focusUntil=0,focusAt=0;
   const distance=(a,b)=>a&&b?Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z):Infinity;
   const reactor={ id: 'overmind:combat', apiVersion: 1, preempt: true, failureScope:'action',
     react(observation) {
@@ -29,7 +31,20 @@ export function createCombatReactor(options = {}) {
         if(clock()>=f.until||f.dimension!==observation.dimension||newHit||distance(f.target,e.position)>=2||distance(f.self,observation.self?.position)>=2){failed.delete(String(e.id));return true;}
         return observation.self?.health==null||observation.self.health<=(options.retreatHealth??8)||e.name==='creeper';
       });
-      const response = defense.react({ ...observation, entities });
+      let response = defense.react({ ...observation, entities });
+      const explosive=defense.react({...observation,entities:entities?.filter(e=>e.name==='creeper'&&distance(e.position,observation.self?.position)<=5)});
+      if(explosive.action)response=explosive;
+      const next=entities?.find(e=>String(e.id)===String(response.action?.args.entityId));
+      if(focus?.dimension===observation.dimension&&clock()<focusUntil&&next&&String(next.id)!==focus.id){
+        const current=entities.find(e=>String(e.id)===focus.id),hit=(observation.combat?.attackers||[]).some(a=>String(a.entityId)===String(next.id)&&a.lastHitAt>focusAt);
+        const emergency=next.name==='creeper'&&distance(next.position,observation.self?.position)<=5||hit;
+        if(current&&!emergency&&current.visible!==false&&distance(current.position,observation.self?.position)<=distance(next.position,observation.self?.position)+switchMargin){
+          const held=defense.react({...observation,entities:[current]});if(held.action)response=held;
+        }
+      }
+      const chosen=response.action?.args.entityId;
+      if(chosen!=null&&(!focus||focus.id!==String(chosen)||focus.dimension!==observation.dimension)){focus={id:String(chosen),dimension:observation.dimension};focusAt=clock();focusUntil=focusAt+focusMs;}
+      if(chosen==null)focus=null;
       selected=response.action?{ skill: 'combat', args: { ...response.action.args, allowPlayer: options.attackPlayers === true, retreatHealth: options.retreatHealth ?? 8, durationMs: 400 } }:null;
       const threat=selected&&entities?.find(e=>String(e.id)===String(selected.args.entityId));
       const inventory=observation.inventory??{},hasMelee=Object.entries(inventory).some(([id,n])=>n>0&&/_(?:sword|axe)$/.test(id));
@@ -56,6 +71,7 @@ export function createCombatReactor(options = {}) {
       return selected?{ ...response, priority: 990, action:selected }:{...response,action:null};
     },
     recordResult(result,action=selected){
+      if(result.outcome==='failure'&&String(action?.args?.entityId)===focus?.id)focus=null;
       if(action?.skill==='waterGuard'){waterAttempted.set(String(action.args.entityId),clock()+10000);return;}
       if(!action||!['combat','evade','shoot'].includes(action.skill)||result.outcome!=='failure')return;
       if(action.skill==='shoot'){
@@ -71,6 +87,7 @@ export function createCombatReactor(options = {}) {
       failed.set(String(action.args.entityId),{at:clock(),until:clock()+5000,transientAim:/aim|turn|target moved/i.test(result.detail||''),dimension:latest?.dimension,self:latest?.self?.position?{...latest.self.position}:null,target:entity?.position?{...entity.position}:null});
       while(failed.size>64)failed.delete(failed.keys().next().value);
     },
+    snapshot:()=>({focus:focus?{...focus,until:focusUntil}:null,mode:selected?.skill||'idle',failedTargets:failed.size,blockedShots:rangedBlocked.size,blockedRetreats:retreatBlocked.size}),
     attach(core){
       reactor.managesRetries=true;
       let current=null;

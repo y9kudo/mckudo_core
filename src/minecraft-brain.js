@@ -93,11 +93,11 @@ export function createMinecraftBrain({ client, worldId, actionEvidence = createA
     if(worldAtlas&&!detachAtlas)detachAtlas=attachWorldAtlas(client,worldAtlas);
     client.off('end',onEnd);client.once('end',onEnd);
   };
-  const detach=()=>{detachNeural?.();detachAtlas?.();detachNeural=detachAtlas=null;contextReader?.clear();client.off('end',onEnd);explorer?.invalidate();};
+  const detach=()=>{adapter.dispose();detachNeural?.();detachAtlas?.();detachNeural=detachAtlas=null;contextReader?.clear();client.off('end',onEnd);explorer?.invalidate();};
   const onEnd=()=>{detach();explorer?.close();};
   attach();
   const start=brain.start.bind(brain),stop=brain.stop.bind(brain);
   brain.start=(...args)=>{attach();return start(...args);};
   brain.stop=async()=>{try{return await stop();}finally{detach();let remaining=worldAtlas?.snapshot().pendingWrites||0;while(remaining>0){const written=worldAtlas.flush({limit:256});if(!written)break;remaining-=written;}}};
-  brain.actionEvidence=actionEvidence;brain.computation=explorer;brain.spatial=atlas;brain.atlas=worldAtlas;brain.navigationContext=contextReader;brain.cognition=thinking;brain.survival=survivalReactor;brain.loot=lootReactor;return brain;
+  brain.perception=adapter.perception;brain.combatPolicy=combatReactor;brain.actionEvidence=actionEvidence;brain.computation=explorer;brain.spatial=atlas;brain.atlas=worldAtlas;brain.navigationContext=contextReader;brain.cognition=thinking;brain.survival=survivalReactor;brain.loot=lootReactor;return brain;
 }

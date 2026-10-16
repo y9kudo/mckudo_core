@@ -69,3 +69,5 @@ export {createNavigationSession,RegionalRouteGraph,IncrementalRegionPlanner,coll
 export {STORAGE_CATEGORIES,storageCategory,findLabelledStorage,storageForSign,sortStorage} from './src/storage.js';
 
 export {createMissionRecovery} from './src/mission-recovery.js';
+
+export {createPerceptionTracker,semanticCategories} from './src/perception-tracker.js';

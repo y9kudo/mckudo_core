@@ -40,3 +40,9 @@ const queue=createTaskQueue({tasks,skills:['wait'],checkpoint:async checkpoint=>
 createTaskQueue({tasks,skills:['wait'],resume:taskCheckpoint}).snapshot()[0]?.uncertain;
 const disk=createAgentMemory('data/typed','typed');void disk.saveTasks('Typed',{tasks,taskCheckpoint});void disk.loadTasks('Typed');disk.diagnostics('Typed').recovered;
 const recovery=createMissionRecovery({recover:async({signal})=>{signal.throwIfAborted();}});recovery.enable();void recovery.request('disconnected');void recovery.close();
+
+import {createPerceptionTracker,semanticCategories,createCombatReactor,type PerceptionSnapshot} from '../../overmindmc.js';
+import {createOMAdapter} from '../../adapters/omconnect.js';
+const perceptions=createPerceptionTracker({maxEntities:512,maxChanges:128});perceptions.setScope('minecraft:overworld');perceptions.observeEntity({id:'one',name:'cow',position:{x:0,y:1,z:0}});const perceptionState:PerceptionSnapshot=perceptions.snapshot();perceptionState.changes[0]?.categories;
+semanticCategories('minecraft:birch_log');createCombatReactor({focusMs:600,switchMargin:1.5}).snapshot().focus?.id;
+createOMAdapter(client,{trackedBlocks:[],perception:{maxRays:24,visibilityDistance:48}}).perception?.evidence('one').confidence;
