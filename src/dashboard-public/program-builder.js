@@ -5,6 +5,7 @@ const nested=node=>node.type==='if'?['then','else']:['sequence','parallel','repe
 const uid=()=> 'block-'+crypto.randomUUID().slice(0,8);
 export const emptyProgram=()=>({schemaVersion:1,name:'My agent program',nodes:[]});
 export function tasksToProgram(tasks=[]){
+  if(tasks.some(t=>['dependsOn','requires','expected','priorityWhen','retry','timeoutMs','resumePolicy'].some(key=>t[key]!==undefined)))throw new Error('Dependency queues retain their policies in JSON mode.');
   if(tasks.length===1&&tasks[0].type==='program')return copy(tasks[0].program);
   let serial=0;
   const rename=nodes=>nodes.map(value=>{const node={...copy(value),id:'imported-'+(++serial)};for(const key of nested(node))node[key]=rename(node[key]||[]);return node;});
@@ -19,7 +20,7 @@ function validateShape(value){
   const visit=(nodes,depth)=>{if(!Array.isArray(nodes)||nodes.length>64||depth>8)throw new Error('Program nesting is limited to 8 levels and 64 blocks per group.');for(const node of nodes){if(++count>128||!node||!Object.hasOwn(titles,node.type)||typeof node.id!=='string'||ids.has(node.id))throw new Error('Use at most 128 blocks, known types and unique IDs.');ids.add(node.id);for(const key of nested(node))visit(node[key]||[],depth+1);}};
   visit(value.nodes,0);
 }
-export function programSource(program){return `import { createMinecraftAgent } from 'overmindmc';\n\nconst agent = createMinecraftAgent({\n  name: 'Atlas', worldId: 'my-survival-world',\n  connection: { host: '127.0.0.1', port: 25565, version: '1.21.1', auth: 'offline' }\n});\n\nconst program = ${JSON.stringify(program,null,2)};\n\ntry {\n  await agent.runProgram(program, { timeoutMs: 1800000 });\n} finally {\n  await agent.close();\n}\n`;}
+export function programSource(program){if(Array.isArray(program))throw new Error('Export dependency queues as JSON and run them with createAgentManager.');return `import { createMinecraftAgent } from 'overmindmc';\n\nconst agent = createMinecraftAgent({\n  name: 'Atlas', worldId: 'my-survival-world',\n  connection: { host: '127.0.0.1', port: 25565, version: '1.21.1', auth: 'offline' }\n});\n\nconst program = ${JSON.stringify(program,null,2)};\n\ntry {\n  await agent.runProgram(program, { timeoutMs: 1800000 });\n} finally {\n  await agent.close();\n}\n`;}
 
 export class ProgramBuilder {
   constructor(root,{onChange=()=>{},onMessage=()=>{}}={}){
