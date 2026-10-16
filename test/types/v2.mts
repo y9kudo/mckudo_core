@@ -51,3 +51,7 @@ import {createSwarmCoordinator,attachSwarmAgent,type SwarmSnapshot} from '../../
 const swarm=createSwarmCoordinator({worldId:'typed',members:['Typed','Blake'],capacity:64});
 const detachSwarm=attachSwarmAgent(client,{coordinator:swarm,maxWaitMs:1000});
 const swarmState:SwarmSnapshot=swarm.snapshot();swarmState.leases[0]?.token;detachSwarm();swarm.close();
+
+import {createTeamStorageAllocator,type TeamStorageSnapshot} from '../../overmindmc.js';
+const supplies=createTeamStorageAllocator({worldId:'typed',clients:[client],targets:()=>({'#logs':4,apple:8})});
+const detachSupplies=supplies.attach(client);const supplyState:TeamStorageSnapshot=supplies.snapshot();supplyState.plans[0]?.amounts;detachSupplies();

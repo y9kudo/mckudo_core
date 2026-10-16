@@ -114,7 +114,10 @@ export interface NavigationCoordinator {
   reserve(request:{dimension:string;positions:Position[]}):{status:'granted';token:string;expiresAt:number}|{status:'blocked';owner:string|null;reason:string}|Promise<{status:'granted';token:string;expiresAt:number}|{status:'blocked';owner:string|null;reason:string}>;
   release(token?:string):void;
 }
+export interface StorageAllocationContext {dimension:string;position:Position;identity:{key:string;positions:Position[];kind:string}|null;contents:{item:string;name:string;count:number}[];serverConfirmed:true;}
+export interface StorageAllocationPolicy {id:string;allocate(context:StorageAllocationContext):Record<string,number>;}
 export declare class OMConnect {
+  storagePolicy?:StorageAllocationPolicy;
   actionCoordinator?:ActionCoordinator;
   navigationCoordinator?:NavigationCoordinator;
   constructor(options?: OMOptions, components?: { createProtocolClient?: (options: Record<string, unknown>) => any; physics?: typeof stepPhysics;versionProfile?:OMVersionProfile;navigationBackend?:GroundNavigationBackend|null });

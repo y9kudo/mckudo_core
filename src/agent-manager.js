@@ -4,6 +4,7 @@ import {createTaskQueue,validateTasks} from './task-queue.js';
 import {createMissionRecovery} from './mission-recovery.js';
 import {createSwarmCoordinator} from './swarm-coordinator.js';
 import {attachSwarmAgent} from './swarm-integration.js';
+import {createTeamStorageAllocator} from './team-storage.js';
 import {createAgentMemory} from './agent-memory.js';
 import {createNeuralNavigator} from './neural-navigation.js';
 import {createNeuralPlanner} from './neural-planning.js';
@@ -27,12 +28,15 @@ import {createNetherReactor} from './nether.js';
 /** Application-level lifecycle, independent of the HTTP presentation layer. */
 export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','Mason','Lucas','Ethan','James','Oliver','Henry','Logan','Alice','Blake','Charlie','Dylan','Ella','Finn','Grace','Ivy','Jack','Kai'].slice(0,count), connection = {}, worldId = 'local-survival', createClient = createOMConnect, createBrain = createMinecraftBrain, memoryDirectory, brainOptions = {},supplyTargets={}, recovery=false, cooperation=names.length>1 } = {}) {
   if (!brainOptions || typeof brainOptions !== 'object' || Array.isArray(brainOptions)) throw new Error("brainOptions: brain object.");
+  if(brainOptions.storage!==undefined&&brainOptions.storage!==false&&(!brainOptions.storage||typeof brainOptions.storage!=='object'||Array.isArray(brainOptions.storage)))throw new Error('storage: options or false.');
   const actionEvidence=brainOptions.actionEvidence||createActionEvidenceMemory({worldId});
   if(actionEvidence.worldId!==worldId)throw new Error("Failure memory belongs to another world.");
   if(!supplyTargets||typeof supplyTargets!=='object'||Array.isArray(supplyTargets)||Object.entries(supplyTargets).some(([item,n])=>!/^minecraft:[a-z0-9_]+$/.test(item)||!Number.isInteger(n)||n<0||n>4096))throw new Error("supplyTargets: map minecraft:item and stock 0–4096.");
   if(cooperation!==false&&cooperation!==true&&(!cooperation||typeof cooperation!=='object'||Array.isArray(cooperation)))throw new Error('cooperation: boolean or lease options.');
   const swarm=cooperation===false?null:createSwarmCoordinator({worldId,members:names,capacity:cooperation.capacity,ttlMs:cooperation.ttlMs});
   const fleet = createFleet({count,names,connection,createClient}), entries = new Map(), log = [], blockedTrades=new Map();
+  for(const [name,c]of fleet.agents){c.options||={};c.options.username??=name;}
+  const storageAllocator=swarm?createTeamStorageAllocator({worldId,clients:()=>[...fleet.agents.values()],targets:c=>storageTargets(entries.get(c.options.username))}):null;
   const recoveries=new Map();
   if(recovery!==false&&(!recovery||typeof recovery!=='object'||Array.isArray(recovery)))throw new Error('recovery: false or recovery options.');
   let closed=false, closing;const memory=memoryDirectory?createAgentMemory(memoryDirectory,worldId,{maxBytes:8*1024*1024}):null;
@@ -46,9 +50,10 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
   };
   const note = (name,event,detail='') => {log.push({at:Date.now(),name,event,detail:String(detail).slice(0,500)});if(log.length>200)log.shift();};
   const wire = (name,client) => {
-    client.options||={};
+    client.options||={};client.options.username??=name;
     const old = entries.get(name), entry = {client,brain:null,busy:false,error:'',goal:old?.goal || 'diamond_set',survival:null,tasks:old?.tasks||[],taskState:old?.taskState||[],taskCheckpoint:old?.taskCheckpoint,queue:null,schematic:old?.schematic||null,schematicOrigin:old?.schematicOrigin||null,neuralMemory:old?.neuralMemory,cognitionMemory:old?.cognitionMemory,cognitiveMemory:old?.cognitiveMemory,spatialMemory:old?.spatialMemory,atlasMemory:old?.atlasMemory,settings:old?.settings||{humanizeMode:Boolean(client.options.humanizeMode),viewDistance:client.options.viewDistance||24},loaded:old?.loaded||false};
     client.options.humanizeMode=entry.settings.humanizeMode;client.options.viewDistance=entry.settings.viewDistance;
+    old?.detachStorage?.();entry.detachStorage=storageAllocator?.attach(client);
     old?.detachSwarm?.();entry.detachSwarm=swarm?attachSwarmAgent(client,{coordinator:swarm,name,maxWaitMs:cooperation.maxWaitMs}):null;
     entry.runRequested=false;entry.intentVersion=0;
     entries.set(name,entry);client.managedNames=new Set(names.map(n=>n.toLowerCase()));
@@ -68,7 +73,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
     return entry;
   };
   for(const [name,client]of fleet.agents)wire(name,client);
-  const snapshot = () => ({worldId,cooperation:swarm?.snapshot()||null,agents:[...entries].map(([name,e])=>({name,busy:e.busy,error:e.error,perception:e.brain?.perception?.snapshot()||null,combat:e.brain?.combatPolicy?.snapshot()||null,recovery:recoveries.get(name)?.snapshot()||null,goal:e.goal,settings:{...e.settings},attention:e.client.humanize?.last||null,schematic:e.schematic?{format:e.schematic.format,blockCount:e.schematic.blockCount,size:e.schematic.size,unsupportedStates:e.schematic.unsupportedStates,origin:e.schematicOrigin}:null,state:e.client.snapshot(),inventory:(e.client.dataLoaded===false?[]:e.client.inventory.items()).map(i=>({item:i.item,name:i.name,count:i.count,slot:i.slot})),brain:e.brain?.snapshot() || null,survival:e.brain?.survival?.snapshot() || null,skills:e.client.describe().skills,tasks:e.tasks,taskState:e.queue?.snapshot()||e.taskState,learning:e.brain?.neural?.snapshot()||null,cognition:e.brain?.cognition?.snapshot()||null,spatial:e.brain?.spatial?.snapshot()||null,atlas:e.brain?.atlas?.snapshot()||null,recipes:e.client.dataLoaded===false?null:e.client.recipeBook?.snapshot()||null})),log:[...log]});
+  const snapshot = () => ({worldId,cooperation:swarm?.snapshot()||null,storageAllocation:storageAllocator?.snapshot()||null,agents:[...entries].map(([name,e])=>({name,busy:e.busy,error:e.error,perception:e.brain?.perception?.snapshot()||null,combat:e.brain?.combatPolicy?.snapshot()||null,recovery:recoveries.get(name)?.snapshot()||null,goal:e.goal,settings:{...e.settings},attention:e.client.humanize?.last||null,schematic:e.schematic?{format:e.schematic.format,blockCount:e.schematic.blockCount,size:e.schematic.size,unsupportedStates:e.schematic.unsupportedStates,origin:e.schematicOrigin}:null,state:e.client.snapshot(),inventory:(e.client.dataLoaded===false?[]:e.client.inventory.items()).map(i=>({item:i.item,name:i.name,count:i.count,slot:i.slot})),brain:e.brain?.snapshot() || null,survival:e.brain?.survival?.snapshot() || null,skills:e.client.describe().skills,tasks:e.tasks,taskState:e.queue?.snapshot()||e.taskState,learning:e.brain?.neural?.snapshot()||null,cognition:e.brain?.cognition?.snapshot()||null,spatial:e.brain?.spatial?.snapshot()||null,atlas:e.brain?.atlas?.snapshot()||null,recipes:e.client.dataLoaded===false?null:e.client.recipeBook?.snapshot()||null})),log:[...log]});
   const importSchematic=(name,buffer,filename)=>{const e=entries.get(name);if(!e)throw new Error("Unknown agent.");const schematic=parseSchematic(buffer,{filename});e.schematic=schematic;e.schematicOrigin=null;note(name,'schematic',`${schematic.format}: ${schematic.blockCount} blocks`);return {format:schematic.format,blockCount:schematic.blockCount,size:schematic.size,unsupportedStates:schematic.unsupportedStates};};
   const execute = async(name,command,args={},cancellation,automatic=false) => {
     if(closed)throw new Error("Manager closed. Create a new instance.");
@@ -92,12 +97,15 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
         if(e.client.state.status!=='ready')throw new Error("First, connect or re-enact the agent.");
         if(!e.brain){
           const catalog=e.tasks.length?catalogFromMinecraftData(e.client.registry,{recipeBook:e.client.recipeBook}):null;
-          const resourceFactory=targets=>createSurvivalReactor({client:e.client,catalog,targets,priority:20,peer:fleet.peers.get(name),actionEvidence,spatial:e.brain?.spatial,explorationPlanner:e.brain?.computation});
+          const resourceFactory=targets=>{
+            const r=createSurvivalReactor({client:e.client,catalog,targets,priority:20,peer:fleet.peers.get(name),actionEvidence,spatial:e.brain?.spatial,explorationPlanner:e.brain?.computation}),react=r.react;
+            r.react=o=>{e.resourceDemand={reactor:r,targets:{...targets}};return react(o);};return r;
+          };
           e.queue=e.tasks.length?createTaskQueue({tasks:e.tasks,skills:e.client.describe().skills,resume:e.taskCheckpoint||e.taskState,checkpoint:memory?async()=>saveTasks(name,e):undefined,scenarioFactory:(scenario,memory)=>createScenario({scenario,memory,catalog,getBlock:p=>e.client.world.blockAt(p),explorationPlanner:e.brain?.computation,resourceFactory,
             netherFactory:(step,memory)=>createNetherReactor({client:e.client,catalog,targets:step.targets,exploreDistance:step.exploreDistance,memory,resourceFactory,explorationPlanner:e.brain?.computation}),
             navigationFactory:step=>createNavigationGoal({client:e.client,catalog,...step,resourceFactory}),dragonCombat:createDragonPolicy({client:e.client})})}):null;
           const modelOptions=(key,saved)=>brainOptions[key]===false?false:{...brainOptions[key],...(saved?{memory:saved}:{})};
-          e.brain=createBrain({...brainOptions,actionEvidence,client:e.client,worldId,spatial:modelOptions('spatial',e.spatialMemory),worldIntelligence:modelOptions('worldIntelligence',e.atlasMemory),neural:modelOptions('neural',e.neuralMemory),cognition:modelOptions('cognition',e.cognitionMemory),cognitive:modelOptions('cognitive',e.cognitiveMemory),survival:e.queue?false:brainOptions.survival===false?false:{...brainOptions.survival,target:e.goal,peer:fleet.peers.get(name)},reactors:[...(e.queue?[e.queue.reactor]:[]),...(brainOptions.reactors||[])]});e.queue?.attach(e.brain);
+          e.brain=createBrain({...brainOptions,storage:brainOptions.storage===false?false:{...(storageAllocator?{mode:'team'}:{}),...brainOptions.storage},actionEvidence,client:e.client,worldId,spatial:modelOptions('spatial',e.spatialMemory),worldIntelligence:modelOptions('worldIntelligence',e.atlasMemory),neural:modelOptions('neural',e.neuralMemory),cognition:modelOptions('cognition',e.cognitionMemory),cognitive:modelOptions('cognitive',e.cognitiveMemory),survival:e.queue?false:brainOptions.survival===false?false:{...brainOptions.survival,target:e.goal,peer:fleet.peers.get(name)},reactors:[...(e.queue?[e.queue.reactor]:[]),...(brainOptions.reactors||[])]});e.queue?.attach(e.brain);
         }
         cancellation?.throwIfAborted();recoveries.get(name)?.enable();e.runRequested=true;e.intentVersion++;e.brain.start();
       } else if(command==='settings'){
@@ -122,7 +130,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
         note(name,'buildSchematic',`${result.status}: ${result.actions} actions`);return {...result,origin};
       } else if(command==='tasks'){
         const tasks=validateTasks(args.tasks,{skills:e.client.describe().skills});
-        await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.tasks=tasks;e.taskState=[];e.taskCheckpoint=undefined;await save(name,e);note(name,'tasks',`Objectives: ${tasks.length}`);
+        await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.resourceDemand=null;e.tasks=tasks;e.taskState=[];e.taskCheckpoint=undefined;await save(name,e);note(name,'tasks',`Objectives: ${tasks.length}`);
       } else if(command==='taskRetry'){
         await e.brain?.pause();if(!e.queue)throw new Error("Start the line first.");e.queue.retry(args.id);await save(name,e);
       } else if(command==='goal') {
@@ -146,7 +154,8 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
     } catch(error){e.error=String(error.message);note(name,'error',e.error);throw error;}
     finally{e.busy=false;}
   };
-  const targets=e=>{const s=e.brain?.survival?.snapshot();return equipmentTradeTargets(e.client,{...s?.targets,...Object.fromEntries((s?.plan||[]).map(p=>[p.item,p.required])),...(s?.stage?{[s.stage.includes(':')?s.stage:'minecraft:'+s.stage]:1}:{}),...supplyTargets});};
+  const targets=e=>{const s=e.brain?.survival?.snapshot()||e.resourceDemand?.reactor.snapshot();return equipmentTradeTargets(e.client,{...s?.targets,...Object.fromEntries((s?.plan||[]).map(p=>[p.item,p.required])),...(s?.stage?{[s.stage.includes(':')?s.stage:'minecraft:'+s.stage]:1}:{}),...supplyTargets});};
+  const storageTargets=e=>e.resourceDemand?equipmentTradeTargets(e.client,{...e.resourceDemand.targets,...supplyTargets}):targets(e);
   let tradeTickRunning=false;
   const timer=setInterval(async()=>{
     if(closed||tradeTickRunning)return;tradeTickRunning=true;
@@ -188,7 +197,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
           try{if(e.loaded)await save(name,e);}catch(error){errors.push(error);}
         }
         try{await fleet.close();}catch(error){errors.push(error);}
-        for(const e of entries.values())e.detachSwarm?.();swarm?.close();
+        for(const e of entries.values()){e.detachStorage?.();e.detachSwarm?.();}swarm?.close();
         try{await memory?.flush();}catch(error){if(!errors.includes(error))errors.push(error);}
         if(errors.length)throw new AggregateError(errors,"Clients closed, but the work's work is wrong.");
       })();

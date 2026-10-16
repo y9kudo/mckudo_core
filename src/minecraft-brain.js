@@ -20,8 +20,8 @@ import {createWorldAtlas,attachWorldAtlas,worldAtlasScope} from './world-atlas.j
 import {createNavigationContextReader} from './navigation-context.js';
 
 /** Policy belongs to OvermindMC; the transport only executes confirmed storage operations. */
-export function createStorageReactor({ radius = 16, recheckMs = 60000, maxStacks = 54, items, clock = Date.now } = {}) {
-  if (!Number.isFinite(radius) || radius < 1 || radius > 64 || !Number.isInteger(recheckMs) || recheckMs < 1000 || !Number.isInteger(maxStacks) || maxStacks < 1 || maxStacks > 54 || items !== undefined && (!Array.isArray(items) || !items.length || items.length > 128 || items.some(i => typeof i !== 'string' || !/^(minecraft:)?[a-z0-9_]+$/.test(i)))) throw new Error("Wrong storage policy.");
+export function createStorageReactor({ radius = 16, recheckMs = 60000, maxStacks = 54, items, mode = 'all', clock = Date.now } = {}) {
+  if (!['all','team'].includes(mode) || !Number.isFinite(radius) || radius < 1 || radius > 64 || !Number.isInteger(recheckMs) || recheckMs < 1000 || !Number.isInteger(maxStacks) || maxStacks < 1 || maxStacks > 54 || items !== undefined && (!Array.isArray(items) || !items.length || items.length > 128 || items.some(i => typeof i !== 'string' || !/^(minecraft:)?[a-z0-9_]+$/.test(i)))) throw new Error("Wrong storage policy.");
   return { id: 'overmind:storage', apiVersion: 1,
     react(o) {
       if (!o.self?.position || o.self.health == null || o.self.health <= 8 || o.self.freeInventorySlots === 0) return { action: null, reason: "No safe way to pick up objects." };
@@ -30,7 +30,7 @@ export function createStorageReactor({ radius = 16, recheckMs = 60000, maxStacks
         .map(b => ({ ...b, distance: Math.hypot(b.position.x - p.x, b.position.y - p.y, b.position.z - p.z) }))
         .filter(b => b.distance <= radius && !(o.storage || []).some(s => s.dimension === o.dimension && (b.key && b.key === s.key || (s.positions || [s.position]).some(p=>p.x===b.position.x&&p.y===b.position.y&&p.z===b.position.z)) && now - s.observedAt >= 0 && now - s.observedAt < recheckMs))
         .sort((a,b) => a.distance - b.distance);
-      return candidates[0] ? { priority: 10, action: { skill: 'lootChest', args: { ...candidates[0].position, maxStacks, ...(items ? { items: [...items] } : {}) } }, reason: "Check the nearest observed storage." } : { action: null, reason: "No vault to check." };
+      return candidates[0] ? { priority: mode==='team'?35:10, action: { skill: mode==='team'?'takeStorage':'lootChest', args: { ...candidates[0].position, maxStacks, ...(mode==='team'?{allocation:'team-supplies'}:{}), ...(items ? { items: [...items] } : {}) } }, reason: "Check the nearest observed storage." } : { action: null, reason: "No vault to check." };
     }
   };
 }

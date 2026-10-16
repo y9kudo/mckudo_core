@@ -74,3 +74,5 @@ export {createPerceptionTracker,semanticCategories} from './src/perception-track
 
 export {createSwarmCoordinator} from './src/swarm-coordinator.js';
 export {attachSwarmAgent} from './src/swarm-integration.js';
+
+export {createTeamStorageAllocator} from './src/team-storage.js';

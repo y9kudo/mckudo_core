@@ -223,7 +223,7 @@ export declare function expeditionLearningEvidence(options?:{planner?:NeuralPlan
 export interface ExpeditionReleaseReadiness {status:'in-progress'|'blocked'|'needs-review';checks:Record<string,boolean>;blockers:string[];releaseEligible:false;reviewRequired:string;deaths:number;otherPlayersObserved:number;}
 export declare function assessExpeditionRelease(report:Record<string,any>,scenario:Scenario):ExpeditionReleaseReadiness;
 export declare function createEndExpedition(options:{client:import('./omconnect/index.js').OMConnect;worldId:string;scenario?:Scenario;config?:Partial<Omit<AgentConfig,'worldId'>>;cognitionMemory?:unknown;neuralMemory?:unknown;checkpoint?:ScenarioMemory;clock?:()=>number}):{brain:MinecraftBrain;controller:ScenarioController;snapshot():{scenario:ScenarioState;progress:CampaignProgress;dragon:ReturnType<DragonPolicy['snapshot']>;failures:{action:Action;attempts:number;until:number;reason:string}[]}};
-export interface StorageOptions { radius?: number; recheckMs?: number; maxStacks?: number; items?: string[]; clock?: () => number; }
+export interface StorageOptions { mode?:'all'|'team'; radius?: number; recheckMs?: number; maxStacks?: number; items?: string[]; clock?: () => number; }
 export interface NavigationRecoveryOptions {failuresRequired?:number;clock?:()=>number;}
 export declare function createNavigationRecoveryReactor(options:NavigationRecoveryOptions&{client:import('./omconnect/index.js').OMConnect}):StatefulReactor;
 export declare function createStorageReactor(options?: StorageOptions): Reactor;
@@ -301,7 +301,7 @@ export interface MissionRecoverySnapshot {phase:'paused'|'working'|'recovering'|
 export declare function createMissionRecovery(options:MissionRecoveryOptions&{recover:(context:{reason:'death'|'disconnected';attempt:number;signal:AbortSignal})=>void|Promise<void>}):{enable():void;pause():void;request(reason:'death'|'disconnected'):Promise<void>;snapshot():MissionRecoverySnapshot;close():Promise<void>};
 export interface AgentManagerOptions { cooperation?:boolean|{capacity?:number;ttlMs?:number;maxWaitMs?:number}; recovery?:false|MissionRecoveryOptions; brainOptions?:Omit<MinecraftBrainOptions,'client'|'worldId'>; supplyTargets?:Record<string,number>;memoryDirectory?:string; count?:number;names?:string[];connection?:import('./omconnect/index.js').OMOptions;worldId?:string;createClient?:typeof import('./omconnect/index.js').createOMConnect;createBrain?:typeof createMinecraftBrain; }
 export interface ManagedAgent {perception:PerceptionSnapshot|null;combat:CombatPolicySnapshot|null; recovery:MissionRecoverySnapshot|null; atlas:WorldAtlasSnapshot|null;spatial:SpatialMemorySnapshot|null; tasks:AgentTask[];taskState:TaskState[];learning:NeuralSnapshot|null;cognition:CognitionSnapshot|null;recipes:import("./omconnect/index.js").RecipeBookSnapshot|null; name:string;busy:boolean;error:string;goal:SurvivalTarget;settings:{humanizeMode:boolean;viewDistance:number};attention:unknown|null;schematic:({format:ImportedSchematic['format'];blockCount:number;size:Position;unsupportedStates:number;origin:Position|null})|null;state:import('./omconnect/index.js').OMSnapshot;inventory:{item:string;name:string;count:number;slot:number}[];brain:Snapshot|null;survival:SurvivalSnapshot|null;skills:string[]; }
-export interface ManagerSnapshot { worldId:string;cooperation:SwarmSnapshot|null;agents:ManagedAgent[];log:{at:number;name:string;event:string;detail:string}[]; }
+export interface ManagerSnapshot { worldId:string;cooperation:SwarmSnapshot|null;storageAllocation:TeamStorageSnapshot|null;agents:ManagedAgent[];log:{at:number;name:string;event:string;detail:string}[]; }
 export interface AgentManager { ready:Promise<unknown>; fleet:ReturnType<typeof import('./omconnect/index.js').createFleet>;snapshot():ManagerSnapshot;catalog(name:string):{status:'waiting'|'ready';items:{id:string;name:string}[]};importSchematic(name:string,buffer:Buffer|Uint8Array,filename:string):Pick<ImportedSchematic,'format'|'blockCount'|'size'|'unsupportedStates'>;vision(name:string,options?:{radius?:number}):unknown;vision3d(name:string,options?:VisionVolumeOptions):Promise<VisionVolume>;execute(name:string,command:'connect'|'disconnect'|'respawn'|'start'|'pause'|'goal'|'action'|'give'|'trade'|'tasks'|'taskRetry'|'settings'|'buildSchematic',args?:Record<string,unknown>):Promise<unknown>;close():Promise<void>; }
 export declare function createAgentManager(options?:AgentManagerOptions):AgentManager;
 export interface MinecraftAgentOptions extends Omit<AgentManagerOptions,'count'|'names'|'worldId'> {name?:string;worldId:string;}
@@ -462,3 +462,13 @@ export interface SwarmCoordinator {
 }
 export declare function createSwarmCoordinator(options:{worldId:string;members:string[];capacity?:number;ttlMs?:number;clock?:()=>number}):SwarmCoordinator;
 export declare function attachSwarmAgent(client:import('./omconnect/index.js').OMConnect,options:{coordinator:SwarmCoordinator;name?:string;maxWaitMs?:number}):()=>void;
+
+export interface TeamStoragePlan {agent:string;at:number;dimension:string;position:Position;members:string[];amounts:Record<string,number>;remainingForTeam:Record<string,number>;}
+export interface TeamStorageSnapshot {worldId:string;policyId:'team-supplies';calls:number;plans:TeamStoragePlan[];}
+export interface TeamStorageAllocator {
+  readonly worldId:string;readonly policyId:'team-supplies';
+  allocate(context:{agent:string;dimension:string;position:Position;contents:{item?:string;name?:string;count:number}[]}):Record<string,number>;
+  attach(client:import('./omconnect/index.js').OMConnect):()=>void;
+  snapshot():TeamStorageSnapshot;
+}
+export declare function createTeamStorageAllocator(options:{worldId:string;clients:import('./omconnect/index.js').OMConnect[]|(()=>import('./omconnect/index.js').OMConnect[]);targets?:(client:import('./omconnect/index.js').OMConnect)=>Record<string,number>;defaults?:boolean;maxDistance?:number;clock?:()=>number}):TeamStorageAllocator;
