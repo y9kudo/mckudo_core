@@ -7,6 +7,7 @@
 - Execute long goals through bounded ground segments; detect insufficient progress and expose typed recovery decisions.
 - Keep existing APIs and deprecated aliases. Full fractional-height ground locomotion and mixed-transport execution remain separate work.
 - Capture optional pre-traversal policy context and measured duration in navigation events. Mark approximate per-waypoint time/damage explicitly so downstream learning does not treat them as measurements.
+- Add the shared `EFFECT_UNCONFIRMED` failure code for downstream observed-effect verification; packet and physical execution ownership remain unchanged.
 
 ## 1.0.0-Arthas-beta1 · 2026-10-15 · beta
 

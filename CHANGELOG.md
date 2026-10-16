@@ -1,7 +1,13 @@
 # Changelog
 
-## 1.0.0-Arthas-beta2 · V2 navigation and World Intelligence development
+## 1.0.0-Arthas-beta2 · Navigation, World Intelligence and Cognitive V2 development
 
+- Added the Cognitive V2 decision cycle with shared arbitration, hard emergency priority ordering, bounded learned assessment and an observable decision journal.
+- Added explicit reactor prerequisite/effect contracts, optional adapter outcome verification and `EFFECT_UNCONFIRMED`; verified symbolic `progress` now trains the neural planner.
+- Added bounded symbolic suffix/connector repair, independent per-goal caches and context-sensitive temporary operator exclusions, with full-planning fallback.
+- Added validated cognitive planner portfolios and adapters for existing HTN/MCTS implementations. All proposals remain subject to the action model and fresh observations.
+- Added immutable cognitive checkpoint comparisons, train/evaluation modes, session-scoped provenance, regression rejection and schema-1-to-2 neural-planner memory compatibility.
+- Added `experience:transition` evidence events, cognitive history persistence, dashboard decision diagnostics and the explicitly offline `benchmark:cognition` comparison in CI.
 - Audited module dependencies and captured the beta1 planning baseline; added the V2 migration and compatibility plan.
 - Added directed regional route hints, incremental LPA* graph repair and bounded long-distance navigation sessions.
 - Added expiring scoped route memory, live revalidation of imported hints and cancellation of superseded searches.

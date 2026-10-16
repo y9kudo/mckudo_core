@@ -93,6 +93,18 @@ The first increment does not complete all of Phase A. Work proceeds incrementall
 
 The configured Java 1.21.1 server passed a short non-destructive movement plus on-disk atlas/reconnection check. It does not establish long-distance autonomy or improved gameplay from two transitions. [World Intelligence V2](WORLD-INTELLIGENCE-V2.md) documents APIs, migrations and current boundaries.
 
+## Phase C increment status
+
+| Area | Implemented integration | Remaining acceptance |
+| --- | --- | --- |
+| Cognitive cycle | Shared core arbitration, strict urgency, optional expected effects, verification/reflection journal and dashboard diagnostics | Long mission-level policy arbitration trials |
+| Plan repair | Projected-fact suffix/connector search, per-goal caches, bounded retries and full-planning fallback | Unifying every specialized resource/scenario recovery strategy |
+| Planner composition | Complete-proposal validation, bounded provider portfolio and HTN/MCTS adapters | Broader game-domain HTN methods and calibrated MCTS models |
+| Learning control | Verified intermediate samples, frozen cognition inference, provenance-aware held-out comparisons and retained baseline checkpoints | Global RL/navigation policy freeze, extended unseen-world learning evaluation |
+| Evidence | Public transition stream, deterministic labeled comparisons and a two-checkpoint Java 1.21.1 integration check | Long fixed-build campaigns and autonomous Dragon acceptance |
+
+The cognitive service is enabled by default in the standard Minecraft brain and opt-in for the lower-level core. It does not replace the existing physical executor or assume that a provider's prediction happened in the world. [Cognitive Intelligence V2](COGNITIVE-V2.md) documents the public contracts and migration details.
+
 ## Algorithm references
 
 - [Koenig and Likhachev: incremental heuristic search](https://idm-lab.org/project-a-content.html).
