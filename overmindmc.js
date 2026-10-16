@@ -71,3 +71,6 @@ export {STORAGE_CATEGORIES,storageCategory,findLabelledStorage,storageForSign,so
 export {createMissionRecovery} from './src/mission-recovery.js';
 
 export {createPerceptionTracker,semanticCategories} from './src/perception-tracker.js';
+
+export {createSwarmCoordinator} from './src/swarm-coordinator.js';
+export {attachSwarmAgent} from './src/swarm-integration.js';

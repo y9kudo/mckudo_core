@@ -82,7 +82,7 @@ export interface AuthCode {user_code:string;verification_uri:string;expires_in:n
 export interface AuthenticationState {mode:'offline'|'microsoft';status:'offline'|'pending'|'device-code'|'authenticated';profile:{name:string;uuid:string}|null;}
 export interface OMOptions { host?: string; port?: number; username?: string; version?: string; auth?: 'offline'|'microsoft'; profilesFolder?:string;authTimeoutMs?:number;onMsaCode?:(code:AuthCode)=>void;realms?:{realmId:number}; viewDistance?: number; humanizeMode?:boolean; connectTimeoutMs?: number; fallSafety?:boolean; maxDrop?: number; fallHealthReserve?: number; maxFallDamage?: number; bridgeReserve?: number; bridgeItemValue?: (name: string,item: OMItem) => number; protection?:ProtectionOptions; }
 export interface OMState { status: 'disconnected' | 'connecting' | 'ready' | 'dead'; entityId: number | null; position: Position | null; velocity: Position; yaw: number; pitch: number; onGround: boolean; health: number | null; food: number | null; dimension: string | null; gameMode: string | number | null; allowFlying?:boolean; creativeFlying?:boolean; flyingSpeed?:number; environment?: Environment; sleeping?: boolean; sprinting?: boolean; sneaking?:boolean; frozen?: boolean; horizontalCollision?: boolean; shield?:boolean;shieldAvailable?:boolean;shieldDisabled?:boolean; }
-export interface OMMetrics { packetsSent: number; corrections: number; actions: number; failures: number; maxTickMs: number; timing?: TickTimingSnapshot; navigation?: WorkSchedulerSnapshot; decoderWarnings: { message: string; at: number }[]; reactions: unknown[]; }
+export interface OMMetrics { coordinationWaits?:number; packetsSent: number; corrections: number; actions: number; failures: number; maxTickMs: number; timing?: TickTimingSnapshot; navigation?: WorkSchedulerSnapshot; decoderWarnings: { message: string; at: number }[]; reactions: unknown[]; }
 export interface OMItem { name: string; item: string; type: number; count: number; slot: number; raw: any; }
 export interface OMTime { timeOfDay:number|null; isDay:boolean|null; age:number|null; }
 export interface EyeFlight {entityId:string;dimension:string;launched:Position;origin:Position;end:Position;samples:number;at:number;}
@@ -107,7 +107,16 @@ export declare function planRouteToAnyAsync(options:MultiGoalRouteOptions,schedu
 export interface OMVersionProfile {version:string;experimental?:boolean;loadRegistry:(version:string)=>any;createProtocolClient:(options:Record<string,unknown>)=>any;worldOptions?:{chunkFactory?:(registry:any)=>any;blockFactory?:(registry:any)=>any};normalizeIncoming?:(name:string,packet:any,client:OMConnect)=>void;encodePacket?:(name:string,packet:any,client:OMConnect)=>{name?:string;packet?:any;skip?:boolean};install?:(client:OMConnect,transport:any)=>void;readRecipes?:(client:OMConnect,packet:any)=>void;afterTick?:(client:OMConnect)=>void;}
 export declare function createJava263Profile(options:{loadRegistry:OMVersionProfile['loadRegistry'];createProtocolClient:OMVersionProfile['createProtocolClient'];chunkFactory:(registry:any)=>any;blockFactory?:(registry:any)=>any}):OMVersionProfile;
 export declare function createVanillaCompatibilityProfile(version:string):OMVersionProfile;
+/** Optional permission hooks; the existing execute() job remains the only dispatcher. */
+export interface ActionCoordinator {run(action:Action,context:{signal:AbortSignal;priority:number},perform:(extraSignal?:AbortSignal)=>Promise<unknown>):Promise<unknown>;}
+export interface NavigationCoordinator {
+  maxWaitMs:number;
+  reserve(request:{dimension:string;positions:Position[]}):{status:'granted';token:string;expiresAt:number}|{status:'blocked';owner:string|null;reason:string}|Promise<{status:'granted';token:string;expiresAt:number}|{status:'blocked';owner:string|null;reason:string}>;
+  release(token?:string):void;
+}
 export declare class OMConnect {
+  actionCoordinator?:ActionCoordinator;
+  navigationCoordinator?:NavigationCoordinator;
   constructor(options?: OMOptions, components?: { createProtocolClient?: (options: Record<string, unknown>) => any; physics?: typeof stepPhysics;versionProfile?:OMVersionProfile;navigationBackend?:GroundNavigationBackend|null });
   readonly options: Required<OMOptions>;
   readonly registry: any;

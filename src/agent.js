@@ -5,9 +5,9 @@ import { defineMission } from './mission.js';
 import {validateAgentProgram} from './agent-program.js';
 
 /** A small application facade. Planning and execution still belong to the reusable core/client. */
-export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {}, memoryDirectory, brainOptions = {}, recovery = false, createClient, createBrain } = {}) {
+export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {}, memoryDirectory, brainOptions = {}, recovery = false, cooperation = false, createClient, createBrain } = {}) {
   if (typeof worldId !== 'string' || !worldId.trim()) throw new Error("Show me the constant worldId to remember this world.");
-  const manager = createAgentManager({ count: 1, names: [name], worldId, connection, memoryDirectory, brainOptions, recovery, createClient, createBrain });
+  const manager = createAgentManager({ count: 1, names: [name], worldId, connection, memoryDirectory, brainOptions, recovery, cooperation, createClient, createBrain });
   let connecting, active, closing, closed = false;
   const entry = () => manager.entries.get(name);
   const ensureOpen = () => { if (closed) throw new Error("Agent closed. Create a new instance."); };

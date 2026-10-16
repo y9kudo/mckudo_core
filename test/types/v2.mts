@@ -46,3 +46,8 @@ import {createOMAdapter} from '../../adapters/omconnect.js';
 const perceptions=createPerceptionTracker({maxEntities:512,maxChanges:128});perceptions.setScope('minecraft:overworld');perceptions.observeEntity({id:'one',name:'cow',position:{x:0,y:1,z:0}});const perceptionState:PerceptionSnapshot=perceptions.snapshot();perceptionState.changes[0]?.categories;
 semanticCategories('minecraft:birch_log');createCombatReactor({focusMs:600,switchMargin:1.5}).snapshot().focus?.id;
 createOMAdapter(client,{trackedBlocks:[],perception:{maxRays:24,visibilityDistance:48}}).perception?.evidence('one').confidence;
+
+import {createSwarmCoordinator,attachSwarmAgent,type SwarmSnapshot} from '../../overmindmc.js';
+const swarm=createSwarmCoordinator({worldId:'typed',members:['Typed','Blake'],capacity:64});
+const detachSwarm=attachSwarmAgent(client,{coordinator:swarm,maxWaitMs:1000});
+const swarmState:SwarmSnapshot=swarm.snapshot();swarmState.leases[0]?.token;detachSwarm();swarm.close();

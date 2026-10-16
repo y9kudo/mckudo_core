@@ -350,7 +350,28 @@ export class OMConnect extends EventEmitter {
     const job = { abort, priority, skill: action.skill,action, signal:combined, promise: null };
     this.pending = job;
     let outcome = 'success', detail = '';
-    job.promise = Promise.resolve().then(() => this.skills.has(action.skill) ? this.skills.get(action.skill)(action.args || {}, { client: this, signal: combined }) : runAction(this, action, combined))
+    // Coordination grants permission; this pending job remains the only physical executor.
+    job.promise = Promise.resolve().then(async () => {
+      let dispatched=false,accepting=true,physical;
+      const perform=extraSignal=>{
+        if(dispatched||!accepting)throw new Error('An action coordinator may dispatch only once, while its hook is active.');
+        dispatched=true;
+        const executionSignal=extraSignal?AbortSignal.any([combined,extraSignal]):combined;
+        physical=Promise.resolve().then(()=>{
+          executionSignal.throwIfAborted();
+          return this.skills.has(action.skill)?this.skills.get(action.skill)(action.args||{},{client:this,signal:executionSignal}):runAction(this,action,executionSignal);
+        }).then(result=>{executionSignal.throwIfAborted();return result;}).catch(error=>{throw executionSignal.aborted?executionSignal.reason:error;});
+        physical.catch(()=>{});return physical;
+      };
+      if(!this.actionCoordinator)return perform();
+      let coordinationError,coordinationFailed=false;
+      try{await this.actionCoordinator.run(action,{signal:combined,priority},perform);}catch(error){coordinationError=error;coordinationFailed=true;}finally{accepting=false;}
+      // Even a malformed hook cannot release the executor while a dispatch is in flight.
+      const result=physical?await physical:undefined;
+      if(coordinationFailed)throw coordinationError;
+      if(!dispatched)throw new Error('An action coordinator returned without dispatching.');
+      return result;
+    })
       .then(result => { combined.throwIfAborted(); return result; })
       .catch(error => { outcome = combined.aborted ? 'cancelled' : 'failure'; detail = String((combined.aborted ? combined.reason : error)?.message || error).slice(0, 300); if (!combined.aborted) this.metrics.failures++; throw combined.aborted ? combined.reason : error; })
       .finally(() => {
