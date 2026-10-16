@@ -32,6 +32,8 @@ try {
     import {OMVECTORIZE as coreVector, OMVectorize} from 'overmindmc/vectorize';
     import {OMVECTORIZE as clientVector} from 'omconnect/vectorize';
     import {createMachineGraph,planMachineResources,createCampaignJournal} from 'overmindmc';
+    import {createNavigationSession,RegionalRouteGraph,IncrementalRegionPlanner,createNavigationRecovery} from 'overmindmc';
+    import {createNavigationSession as standaloneNavigation} from 'omconnect/vectorize';
     import {createDQN,createVectorEnvironment,openWorldStore} from 'overmindmc/intelligence';
     import {loadNativeKernel,createNativeNavigationBackend,NativeFrameDecoder} from 'overmindmc/native';
     assert.equal(typeof createNativeNavigationBackend,'function');assert.equal(typeof NativeFrameDecoder,'function');
@@ -41,6 +43,12 @@ try {
     assert.equal(OVERMIND.version, ${JSON.stringify(version)});
     assert.equal(OMCONNECT.version, OVERMIND.version); assert.equal(bundled.version, OVERMIND.version);
     assert.equal(coreVector.version, OVERMIND.version); assert.equal(clientVector.version, OVERMIND.version);
+    const navigationScope={server:'installed',worldId:'smoke',dimension:'minecraft:overworld',minecraftVersion:'1.21.1'};
+    const navigation=createNavigationSession({scope:navigationScope,getBlock:()=>null});
+    assert.equal((await navigation.plan({start:{x:0,y:1,z:0},goal:{x:2,y:1,z:0}})).status,'blocked');
+    const resumedNavigation=standaloneNavigation({scope:navigationScope,getBlock:()=>null,memory:navigation.exportMemory()});navigation.close();resumedNavigation.close();
+    const regions=new RegionalRouteGraph();regions.setEdge('a','b',1);assert.equal((await new IncrementalRegionPlanner(regions).plan('a','b')).cost,1);
+    assert.equal(createNavigationRecovery().decide({code:'SERVER_CORRECTION'}).strategy,'reobserve');
     assert.equal(createDQN({inputs:2,actions:2}).predict([0,1]).length,2);
     const environments=createVectorEnvironment({count:4,workers:1});
     try{assert.equal((await environments.reset()).length,4);assert.equal((await environments.step([10,10,10,10])).length,4);}finally{await environments.close();}

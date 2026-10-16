@@ -87,3 +87,15 @@ test('a blocked search is cached across time and reopened by terrain, inventory,
   f.client.entities.set(9,{id:9,kind:'player',position:{x:2,y:101,z:0}});controller.react(f.observation());await planned(controller);assert.equal(calls,4);
   f.client.world.revision++;controller.react(f.observation());await planned(controller);assert.equal(calls,5);
 });
+
+test('repeated execution failure blocks one unchanged goal context until explicitly reset',async()=>{
+  const f=fixture(p=>p.y===100?stone:air);let now=1000;
+  const controller=createNavigationGoal({...f,position:{x:4,y:101,z:0},clock:()=>now,planner:async()=>({status:'planned',target:{x:4,y:101,z:0},steps:[],visited:1,unknown:[],bridgeUsed:0})});
+  for(let n=0;n<4;n++){
+    controller.react(f.observation());await planned(controller);const action=controller.react(f.observation()).action;assert.equal(action.skill,'navigate');
+    controller.recordResult({outcome:'failure',failure:{code:'STEP_STALLED'}},action);now+=11000;
+  }
+  assert.equal(controller.react(f.observation()).action,null);assert.match(controller.snapshot().reason,/retry budget/);assert.equal(controller.snapshot().status,'blocked');
+  f.client.world.revision++;controller.react(f.observation());await planned(controller);assert.equal(controller.react(f.observation()).action.skill,'navigate','relevant changed terrain reopens the retry budget');
+  controller.resetRecovery();controller.react(f.observation());await planned(controller);assert.equal(controller.react(f.observation()).action.skill,'navigate');
+});

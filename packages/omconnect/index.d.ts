@@ -1,4 +1,6 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+export * from './src/navigation-v2.js';
+import type {NavigationScope,NavigationSegment,NavigationSessionStats} from './src/navigation-v2.js';
 export interface VehicleObservation {entityId:string;name:string|null;position:Position|null;serverConfirmed:true;}
 export interface FallLanding {ticks:number;position:Position;support:Position;block:NavigationBlock;height:number;}
 export interface PearlEscapePlan {yaw:number;pitch:number;ticks:number;landing:Position;impactBlock:Position;score:number;}
@@ -15,7 +17,7 @@ export declare function findMenuSlot(menu:MenuObservation,selector:{item?:string
 export interface SwimRouteOptions {start:Position;goal:Position;getBlock:(p:Position)=>NavigationBlock|null;signal?:AbortSignal;maxNodes?:number;maxDistance?:number;airTicks?:number;airReserveTicks?:number;ticksPerBlock?:number;waterBreathing?:boolean;}
 export interface SwimRouteResult {status:'planned'|'blocked';reason:string;mode?:'swim';waypoints:Position[];visited:number;cost?:number;airRemainingTicks?:number;}
 export interface VolumeResult {clear:boolean;reason:string;position?:Position;water?:boolean;submerged?:boolean;fraction?:number;submergedSamples?:number;samples?:number;}
-export declare const OMVECTORIZE:Readonly<{name:'OMVectorize';author:'y9kudo';version:string;versionName:'Version Arthas';displayVersion:'v1.0.0Arthas-beta1';modes:readonly string[];predictions:readonly string[]}>;
+export declare const OMVECTORIZE:Readonly<{name:'OMVectorize';author:'y9kudo';version:string;versionName:'Version Arthas';displayVersion:'v1.0.0Arthas-beta2';modes:readonly string[];predictions:readonly string[]}>;
 export declare function volumeClearance(options:{position:Position;getBlock:SwimRouteOptions['getBlock'];height?:number;radius?:number}):VolumeResult;
 export declare function traceVolume(options:{from:Position;to:Position;getBlock:SwimRouteOptions['getBlock'];height?:number;radius?:number}):VolumeResult;
 export declare function planSwimRoute(options:SwimRouteOptions):SwimRouteResult;
@@ -34,13 +36,16 @@ export declare function findSigns(world:OMWorld,options?:SignSearch):SignObserva
 export declare function readSign(world:OMWorld,position:Position):SignObservation|null;
 export interface StorageTransferOptions extends Position {items?:string[];amounts?:Record<string,number>;all?:boolean;maxStacks?:number;}
 export declare class OMVectorize {
+  planGroundSegmentAsync(options:Omit<Parameters<typeof planRoute>[0],'getBlock'>&{getBlock?:Parameters<typeof planRoute>[0]['getBlock'];staticGeometry?:boolean},scheduling?:RouteScheduling):Promise<NavigationSegment>;
+  resetNavigation(scope?:NavigationScope):void;
+  navigationSnapshot():NavigationSessionStats;
   planGround(options:Omit<Parameters<typeof planRoute>[0],'getBlock'>&{getBlock?:Parameters<typeof planRoute>[0]['getBlock']}):RoutePlan;
   planGroundAsync(options:Omit<Parameters<typeof planRoute>[0],'getBlock'>&{getBlock?:Parameters<typeof planRoute>[0]['getBlock']},scheduling?:RouteScheduling):Promise<RoutePlan>;
   planGroundToAny(options:Omit<MultiGoalRouteOptions,'getBlock'>&{getBlock?:MultiGoalRouteOptions['getBlock']}):RoutePlan;
   planGroundToAnyAsync(options:Omit<MultiGoalRouteOptions,'getBlock'>&{getBlock?:MultiGoalRouteOptions['getBlock']},scheduling?:RouteScheduling):Promise<RoutePlan>;
   planSwim(options:Omit<SwimRouteOptions,'getBlock'>):SwimRouteResult;
   planSwimAsync(options:Omit<SwimRouteOptions,'getBlock'>):Promise<SwimRouteResult>;
-  constructor(options:{getBlock:SwimRouteOptions['getBlock'];getRevision?:()=>unknown;groundBackend?:GroundNavigationBackend|null});
+  constructor(options:{getBlock:SwimRouteOptions['getBlock'];getRevision?:()=>unknown;groundBackend?:GroundNavigationBackend|null;scope?:NavigationScope});
   plan(options:Omit<SwimRouteOptions,'getBlock'>):SwimRouteResult;
   planAsync(options:Omit<SwimRouteOptions,'getBlock'>):Promise<SwimRouteResult>;
   clearance(position:Position):VolumeResult;
@@ -48,7 +53,7 @@ export declare class OMVectorize {
 }
 export interface Action { skill: string; args?: Record<string, Json>; }
 export interface Position { x: number; y: number; z: number; }
-export type ActionFailureCode = 'START_UNSUPPORTED'|'NO_PATH'|'SEARCH_BUDGET'|'STALE_WORLD'|'STEP_STALLED'|'OCCUPIED'|'SERVER_CORRECTION'|'SUPPORT_CHANGED'|'ACTION_FAILED';
+export type ActionFailureCode = 'START_UNSUPPORTED'|'NO_PATH'|'SEARCH_BUDGET'|'STALE_WORLD'|'STEP_STALLED'|'OCCUPIED'|'SERVER_CORRECTION'|'SUPPORT_CHANGED'|'ACTION_FAILED'|'STUCK'|'BLOCKED'|'UNLOADED'|'INVALID_SUPPORT'|'INSUFFICIENT_RESOURCES'|'UNSAFE_ROUTE'|'DYNAMIC_OBSTACLE'|'ACTION_TIMEOUT';
 export interface ActionFailure {code:ActionFailureCode;evidence?:{complete:boolean;facts:Record<string,string|number|boolean|null>};}
 export declare const ACTION_FAILURE_CODES:readonly ActionFailureCode[];
 export declare class OMActionError extends Error {readonly code:ActionFailureCode;readonly evidence?:ActionFailure['evidence'];constructor(code:ActionFailureCode,message:string,evidence?:ActionFailure['evidence']);}
@@ -85,7 +90,7 @@ export interface EndEvidence {eyes:EyeFlight[];crystals:{entityId:string;positio
 export interface PillarArgs {count?:number;block?:string;}
 export interface PillarResult {ok:true;serverConfirmed:true;placed:(Position & {block:string})[];position:Position;}
 export interface OMSnapshot extends OMState { authentication:AuthenticationState; time:OMTime; equipment:ReturnType<OMInventory["equipment"]>; identity: typeof OMCONNECT; inventory: Record<string, number>; loadedChunks: number; metrics: OMMetrics; }
-export declare const OMCONNECT: Readonly<{ name: 'OMConnect'; version: '1.0.0-Arthas-beta1'; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-beta1'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
+export declare const OMCONNECT: Readonly<{ name: 'OMConnect'; version: '1.0.0-Arthas-beta2'; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-beta2'; author: 'y9kudo'; apiVersion: 1; minecraftVersions: readonly string[]; authentication: readonly string[] }>;
 export declare const OM_SKILLS: readonly string[];
 export interface FallPolicy { health?:number; minHealthAfter?:number; maxDamage?:number; slowFalling?:boolean; sneaking?:boolean; }
 export interface FallAssessment { height:number; landing:string|null; estimatedDamage:number|null; healthAfter:number|null; survivable:boolean; allowed:boolean; reason:string; }

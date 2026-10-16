@@ -2,17 +2,19 @@
 
 ### Build Minecraft agents with visual programs or JavaScript.
 
-**Version Arthas · `1.0.0-Arthas-beta1` · Minecraft Java agent platform · Created by y9kudo · MIT**
+**Version Arthas · `1.0.0-Arthas-beta2` · Minecraft Java agent platform · Created by y9kudo · MIT**
 
 [Quick start](#start-with-the-web-dashboard) · [Program builder](docs/PROGRAMS.md) · [API](docs/API.md) · [Planning](docs/PLANNING.md) · [Quality](docs/QUALITY.md) · [Contribute](CONTRIBUTING.md)
 
 OvermindMC is a reusable library for building Minecraft agents. Give an agent a resource goal, a sequence of tasks or a conditional program. The kernel plans prerequisites, reads the connected world and asks its client to execute actions. You can build programs in the local web dashboard or write JavaScript using the same public API.
 
-This is a public beta. An independently verified autonomous run from an empty inventory to an own Ender Dragon victory remains a requirement for stable 1.0.0. [Download beta1](https://github.com/y9kudo/mckudo_core/releases/tag/v1.0.0-Arthas-beta1) · [Release notes](docs/releases/1.0.0-Arthas-beta1.md) · [Changelog](CHANGELOG.md) · [Readiness criteria](docs/V1-READINESS.md).
+This beta2 source starts the V2 navigation migration. Stable Arthas still requires a verified autonomous Survival campaign ending in the agent's own Ender Dragon victory. [V2 architecture](docs/V2-ARCHITECTURE.md) · [Beta2 changes](docs/releases/1.0.0-Arthas-beta2.md) · [Changelog](CHANGELOG.md) · [Readiness criteria](docs/V1-READINESS.md).
 
 **Start small:** ask for `#logs`, then a stone pickaxe and a furnace. Inspect what the agent observes, how it chooses actions and which outcomes the server confirms. Build a larger program from those same blocks.
 
 ## Core capabilities
+
+- **Navigation V2:** bounded long-distance segments, directed regional hints, incremental LPA* graph repair, scoped route memory and explicit recovery budgets. [V2 API and integration boundaries](docs/NAVIGATION-V2.md).
 
 - **Goal-driven resources:** plan tool, crafting and smelting prerequisites, select interchangeable block classes, gather construction stock and build supported access to elevated minerals.
 - **Shared spatial search:** evaluate multiple destination candidates in one A* search and hand the selected route to OMConnect. The symbolic planner supports causal filtering and a stable cost frontier for larger operator domains.
@@ -46,7 +48,7 @@ The data flow is **server observation → kernel decision → spatial plan → c
 Use Node.js 24. From a checkout of this build, open a terminal in the project folder:
 
 ```powershell
-git clone https://github.com/y9kudo/mckudo_core.git
+git clone --branch feat/arthas-beta2-v2 https://github.com/y9kudo/mckudo_core.git
 cd mckudo_core
 npm.cmd ci
 $env:MC_HOST='127.0.0.1'
@@ -82,7 +84,7 @@ Switch to **JSON** to edit the same program directly. **JavaScript** shows an ap
 
 ## Use the library in JavaScript
 
-Build an installation archive from this checkout with `npm.cmd pack --ignore-scripts`. Install the resulting `overmindmc-1.0.0-Arthas-beta1.tgz` into your application with `npm.cmd install <path-to-archive>`. Add `"type": "module"` to that application's `package.json`.
+Build an installation archive from this checkout with `npm.cmd pack --ignore-scripts`. Install the resulting `overmindmc-1.0.0-Arthas-beta2.tgz` into your application with `npm.cmd install <path-to-archive>`. Add `"type": "module"` to that application's `package.json`.
 
 ```js
 import { createMinecraftAgent } from 'overmindmc';

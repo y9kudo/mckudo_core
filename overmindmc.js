@@ -58,4 +58,5 @@ export {createCampaignJournal} from './src/campaign-journal.js';
 export {expeditionLearningEvidence,assessExpeditionRelease} from './src/expedition-evidence.js';
 export {createNavigationRecoveryReactor} from './src/navigation-recovery.js';
 export {OMVECTORIZE,OMVectorize,volumeClearance,traceVolume,planSwimRoute,planSwimRouteAsync,predictElytraTick,planElytraFlight,elytraControl} from './packages/omconnect/src/vectorize.js';
+export {createNavigationSession,RegionalRouteGraph,IncrementalRegionPlanner,collisionShapes,bodyBounds,supportAt,BODY_POSES,predictMotion,createMotionProgress,createNavigationRecovery,NAVIGATION_FAILURE_CODES} from './packages/omconnect/index.js';
 export {STORAGE_CATEGORIES,storageCategory,findLabelledStorage,storageForSign,sortStorage} from './src/storage.js';

@@ -1,6 +1,7 @@
 import {assessFall} from './fall.js';
 import { navigationScheduler } from './scheduler.js';
 import { blockEvidenceValue, OMActionError } from './failures.js';
+import {volumeClearance} from './traversal.js';
 const key = p => `${p.x},${p.y},${p.z}`;
 const point = p => p && ['x', 'y', 'z'].every(k => Number.isInteger(p[k]) && Math.abs(p[k]) <= 30000000);
 const directions = [[1, 0], [-1, 0], [0, 1], [0, -1], [1,1], [1,-1], [-1,1], [-1,-1]];
@@ -42,7 +43,7 @@ function* routeSearch({ start, goal, goals, getBlock, occupied = () => false, ed
     if (neighbors.some(q => { const v = read(q); return !v || isHazard(v) || /(?:sand|gravel|concrete_powder|anvil|dripstone)$/.test(v.name || v.id); })) return null;
     steps.push({ kind: 'dig', position: cell, expected: b.name || b.id }); change(cell,emptyBlock); excavated++; return 5 + Math.max(0, b.hardness || 0);
   };
-  if (!air(start) || !air({ ...start, y: start.y + 1 }) || !isFullBlock(read({ ...start, y: start.y - 1 }))) return {
+  if (!air(start) || !air({ ...start, y: start.y + 1 }) || !isFullBlock(read({ ...start, y: start.y - 1 })) || !volumeClearance({position:{x:start.x+.5,y:start.y,z:start.z+.5},getBlock:read}).clear) return {
     status: 'blocked', reason: "Start cell is not confirmed clear and supported.", steps: [], visited: 0, unknown: [...unknown.values()],
     failure: { code: 'START_UNSUPPORTED', evidence: { complete: unknown.size === 0,
       facts: { position: key(start), navigationMode: 'ground', ...Object.fromEntries([...cache].map(([cell, block]) => ['block:' + cell, blockEvidenceValue(block)])) } } }

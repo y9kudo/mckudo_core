@@ -9,6 +9,8 @@ import {OMActionError} from './failures.js';
 import {routeFacingTarget} from './route-facing.js';
 import {walkTarget,continuesWalk} from './route-cursor.js';
 import {consumeNavigationRoute} from './route-lease.js';
+import {volumeClearance} from './traversal.js';
+import {predictMotion,createMotionProgress} from './motion-v2.js';
 
 /** Deliberate route excavation only consumes common terrain with an appropriate tool. */
 export const routeCanDig = (c,{requireHarvest=true}={}) => {
@@ -186,7 +188,7 @@ export function personalSpaceControl(state,control,entities,getBlock,ownId,{canM
   return {x:0,z:0,sprint:false,jump:false};
 }
 
-export async function executeNavigate(c, args, signal, { place, dig, replans=0 } = {}) {
+export async function executeNavigate(c, args, signal, { place, dig, replans=0, segments=0 } = {}) {
   if (!validPoint(args)) throw new Error("Navigation: requires x/y/z.");
   if(c.state.gameMode==='creative'&&c.state.allowFlying&&args.creativeFlight!==false&&args.excavate!==true&&Math.hypot(args.x-c.state.position.x,args.z-c.state.position.z)>3){
     return executeCreativeFly(c,{x:Math.floor(args.x),y:Math.floor(args.y),z:Math.floor(args.z),land:true},signal);
@@ -204,7 +206,7 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
   const fallPolicy={health:c.state.health,minHealthAfter:c.options?.fallHealthReserve??6,maxDamage:c.options?.maxFallDamage??6};
   const dimensionDrop=c.state.dimension==='minecraft:overworld'?16:3;
   const view = readRouteWorld(c.world);
-  const search=(options,scheduling)=>c.vectorize?.planGroundAsync?c.vectorize.planGroundAsync(options,scheduling):planRouteAsync(options,scheduling);
+  const search=(options,scheduling)=>c.vectorize?.planGroundSegmentAsync&&args.navigationV2!==false?c.vectorize.planGroundSegmentAsync(options,scheduling):c.vectorize?.planGroundAsync?c.vectorize.planGroundAsync(options,scheduling):planRouteAsync(options,scheduling);
   const prepared=consumeNavigationRoute(c,start,args);
   if(prepared)c.metrics.routePlansReused=(c.metrics.routePlansReused||0)+1;
   const route = prepared ?? await search({ start, goal: floor(args), range, occupied, staticGeometry:args.excavate!==true&&budget===0,canDig:args.excavate===true?routeCanDig(c):()=>false, edgeCost:c.navigationPolicy?.cost, getBlock: view.getBlock, maxDistance: 128, maxNodes: 12000, maxDrop:args.maxDrop??c.options?.maxDrop??dimensionDrop,fallPolicy,
@@ -212,7 +214,7 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
   alive();
   if (c.metrics.corrections !== plannedCorrections || ['x', 'y', 'z'].some(axis => Math.floor(c.state.position[axis]) !== start[axis])) throw new OMActionError('STALE_WORLD', "Start position changed during route search; replanning is required.");
   if (route.status !== 'planned') throw new OMActionError(route.failure?.code || 'NO_PATH', route.reason, route.failure?.evidence);
-  c.navigationDebug={dimension:c.state.dimension,status:'running',startedAt:Date.now(),goal:floor(args),index:0,steps:route.steps.slice(0,512).map(step=>({kind:step.kind,position:{...step.position}})),truncated:route.steps.length>512};
+  c.navigationDebug={dimension:c.state.dimension,status:'running',startedAt:Date.now(),goal:floor(args),strategy:route.strategy||'local-astar',partial:route.partial===true,segment:segments,index:0,steps:route.steps.slice(0,512).map(step=>({kind:step.kind,position:{...step.position}})),truncated:route.steps.length>512};
   const corrections = c.metrics.corrections;let segment=null, bridgeWalk=false;
   try {
     for (let i = 0; i < route.steps.length; i++) {
@@ -239,17 +241,20 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
       // Keep crouching across narrow spans; verified wide ground permits running.
       const endpoint = route.steps[last].position, target = { x: endpoint.x + .5, y: endpoint.y, z: endpoint.z + .5 }, until = Date.now() + 5000 + (last - i) * (bridgeWalk ? 1200 : 700);
       segment={from:floor(c.state.position),to:{...endpoint},kind:step.kind,dimension:c.state.dimension,health:c.state.health,food:c.state.food};
+      const progress=createMotionProgress({timeoutMs:2500});
+      let predicted=false;
       while (Math.hypot(c.state.position.x - target.x, c.state.position.z - target.z) > (continuing?.4:.18) || Math.abs(c.state.position.y - target.y) > .12 || !c.state.onGround) {
         alive(); if (Date.now() > until) throw new OMActionError('STEP_STALLED', "Movement step time budget expired.");
+        if(progress.update(c.state.position,target).stuck)throw new OMActionError('STUCK','No progress toward the local route endpoint.');
         if (c.metrics.corrections !== corrections) throw new OMActionError('SERVER_CORRECTION', 'The server corrected the position; replan from the corrected location.');
         if(c.state.onGround&&route.steps.slice(i,last+1).some(s=>occupied(s.position)&&Math.hypot(s.position.x+.5-c.state.position.x,s.position.z+.5-c.state.position.z)>.9)){
           c.stopMovement();if(replans>=4)throw new OMActionError('OCCUPIED', "The route is occupied by other players; Need a new goal.");
-          await delay(100,undefined,{signal});return await executeNavigate(c,args,signal,{place,dig,replans:replans+1});
+          await delay(100,undefined,{signal});return await executeNavigate(c,args,signal,{place,dig,replans:replans+1,segments});
         }
         // Recheck the entire segment: a block may vanish while the bot is running.
         for (let check = i; check <= last; check++) {
           const p = route.steps[check].position;
-          if (!isAir(c.world.blockAt(p)) || !isAir(c.world.blockAt({ ...p, y: p.y + 1 })) || !isFullBlock(c.world.blockAt({ ...p, y: p.y - 1 }))) throw new OMActionError('SUPPORT_CHANGED', "Support/The route has changed.");
+          if (!isAir(c.world.blockAt(p)) || !isAir(c.world.blockAt({ ...p, y: p.y + 1 })) || !isFullBlock(c.world.blockAt({ ...p, y: p.y - 1 })) || !volumeClearance({position:{x:p.x+.5,y:p.y,z:p.z+.5},getBlock:q=>c.world.blockAt(q)}).clear) throw new OMActionError('SUPPORT_CHANGED', "Support/The route has changed.");
         }
         if(shortcut) {
           const origin={...c.state.position,y:target.y},delta={x:target.x-origin.x,z:target.z-origin.z};
@@ -279,6 +284,7 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
           control.sprint=false;control.jump=false;
         }
         c.control = personalSpaceControl(c.state,control,[...c.entities.values()],p=>c.world.blockAt(p),c.state.entityId,{canMove,lookAhead:Math.min(1.2,Math.hypot(target.x-c.state.position.x,target.z-c.state.position.z))});
+        if(!predicted){c.navigationDebug.prediction=predictMotion({state:c.state,control:c.control,getBlock:p=>c.world.blockAt(p),ticks:4}).samples;predicted=true;}
         await delay(25, undefined, { signal });
       }
       if(!continuing) {
@@ -295,5 +301,10 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0 }
     c.navigationDebug.status='completed';c.navigationDebug.index=route.steps.length;
   } catch(error){c.navigationDebug.status=signal.aborted?'cancelled':'failed';c.navigationDebug.reason=error.message;if(segment)c.emit('navigationStep',{...segment,outcome:signal.aborted?'cancelled':'failure',healthAfter:c.state.health,reason:error.message,failureCode:error.code||'ACTION_FAILED'});throw error;
   } finally { c.stopMovement(); }
+  if(route.partial&&Math.max(...['x','y','z'].map(k=>Math.abs(Math.floor(c.state.position[k])-Math.floor(args[k]))))>range){
+    if(segments>=255||Math.hypot(c.state.position.x-start.x-.5,c.state.position.y-start.y,c.state.position.z-start.z-.5)<.5)throw new OMActionError('STUCK','The segmented route did not make bounded progress toward its goal.');
+    const next=await executeNavigate(c,{...args,routeLease:undefined},signal,{place,dig,replans,segments:segments+1});
+    return {...next,steps:route.steps.length+next.steps,bridgeUsed:(route.bridgeUsed||0)+(next.bridgeUsed||0),estimatedFallDamage:(route.fallDamage||0)+(next.estimatedFallDamage||0),segments:(next.segments||1)+1};
+  }
   return { ok: true, position: { ...c.state.position }, steps: route.steps.length, bridgeUsed: route.bridgeUsed || 0,estimatedFallDamage:route.fallDamage||0 };
 }

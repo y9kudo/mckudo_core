@@ -16,6 +16,11 @@ export { rotateToward, bridgeMaterials, travelControl, combatControl } from './s
 export { craftingRecipes, chooseCraftingRecipe, smeltingRecipe, fuelItems } from './src/crafting.js';
 export {assessFall} from './src/fall.js';
 export {planRoute, planRouteAsync,planRouteToAny,planRouteToAnyAsync} from './src/navigation.js';
+export {createNavigationSession} from './src/navigation-session.js';
+export {RegionalRouteGraph,IncrementalRegionPlanner} from './src/regional-navigation.js';
+export {collisionShapes,bodyBounds,supportAt,BODY_POSES} from './src/traversal.js';
+export {predictMotion,createMotionProgress} from './src/motion-v2.js';
+export {createNavigationRecovery,NAVIGATION_FAILURE_CODES} from './src/navigation-recovery.js';
 export {createWorkScheduler} from './src/scheduler.js';
 export {WorldRecipeBook} from './src/recipes.js';
 export {traceVisibility} from './src/visibility.js';

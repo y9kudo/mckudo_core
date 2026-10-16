@@ -28,7 +28,7 @@ export type SkillValidator = (args: Record<string, Json>) => boolean | string | 
 export interface SkillDefinition { execute: SkillHandler; validate?: SkillValidator; }
 export interface Plugin { readonly id: string; readonly apiVersion: 1; readonly requires?: readonly string[]; readonly skills: Readonly<Record<string, SkillHandler | SkillDefinition>>; }
 export declare function definePlugin(plugin: Plugin): Plugin;
-export declare const OVERMIND: Readonly<{ name: string; id: 'overmindmc'; version: string; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-beta1'; author: 'y9kudo'; protocolVersion: 1 }>;
+export declare const OVERMIND: Readonly<{ name: string; id: 'overmindmc'; version: string; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-beta2'; author: 'y9kudo'; protocolVersion: 1 }>;
 export declare class ConfigError extends Error { readonly path: string; }
 export declare function validateConfig(input: unknown): AgentConfig;
 export declare function matches(condition: Condition | undefined, observation: Observation): boolean;
@@ -354,6 +354,7 @@ export interface SpatialMemory {
 }
 export declare function createSpatialMemory(options:{worldId:string;maxEntries?:number;maxAgeMs?:number;memory?:SpatialMemoryData;clock?:()=>number}):SpatialMemory;
 export {OMVECTORIZE,OMVectorize,volumeClearance,traceVolume,planSwimRoute,planSwimRouteAsync,predictElytraTick} from './packages/omconnect/index.js';
+export * from './packages/omconnect/src/navigation-v2.js';
 export type {SwimRouteOptions,SwimRouteResult,VolumeResult,ElytraPrediction} from './packages/omconnect/index.js';
 export interface MachineResource {kind?:'item'|'fluid';id:string;amount?:number;}
 export interface MachineRecipe {id:string;machine:string;inputs?:MachineResource[];outputs:MachineResource[];catalysts?:MachineResource[];energy?:{unit:string;amount:number}|null;durationTicks?:number;}

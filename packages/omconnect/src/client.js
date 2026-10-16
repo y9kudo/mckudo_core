@@ -28,7 +28,7 @@ import {decideFallRescue} from './fall-safety.js';
 import {OMHumanize} from './humanize.js';
 import { EntityMotion } from './entity-motion.js';
 
-export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-beta1', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-beta1', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
+export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-beta2', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-beta2', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
 export class OMConnect extends EventEmitter {
   constructor(options = {}, { createProtocolClient, physics = stepPhysics, versionProfile = null,navigationBackend=null } = {}) {
     super();
@@ -119,7 +119,7 @@ export class OMConnect extends EventEmitter {
       if (!['minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end'].includes(dimension)) { this.connectionAbort.abort(new Error("Unknown dimension.")); return; }
       const changed = this.state.dimension !== dimension;
       this.state.dimension = dimension; this.state.gameMode = typeof w.gamemode === 'object' ? w.gamemode.gameMode ?? w.gamemode.gamemode : w.gamemode;
-      if (changed) { this.world.reset(dimension); this.entities.clear(); this.state.vehicleId=null; this.stopMovement(); }
+      if (changed) { this.world.reset(dimension); this.vectorize.resetNavigation({server:this.options.host+':'+this.options.port,worldId:'connection',dimension,minecraftVersion:this.options.version}); this.entities.clear(); this.state.vehicleId=null; this.stopMovement(); }
     };
     c.on('login', p => { this.state.entityId = p.entityId; worldState(p); this.emit('login', this.snapshot()); });
     c.on('abilities',p=>{this.state.allowFlying=Boolean(p.flags&4);this.state.creativeFlying=Boolean(p.flags&2);this.state.flyingSpeed=Number.isFinite(p.flyingSpeed)?p.flyingSpeed:.05;this.emit('abilities',{allowFlying:this.state.allowFlying,flying:this.state.creativeFlying});});
@@ -362,6 +362,7 @@ export class OMConnect extends EventEmitter {
   }
   snapshot() { return { identity: OMCONNECT, ...structuredClone(this.state), authentication: structuredClone(this.authentication), time:structuredClone(this.time), inventory: this.dataLoaded?this.inventory.snapshot():{}, equipment:this.dataLoaded?this.inventory.equipment():{}, loadedChunks: this.dataLoaded?this.world.columns.size:0, metrics: { ...structuredClone(this.metrics), timing: this.tickTiming.snapshot(), navigation: navigationScheduler.snapshot() } }; }
   async close() {
+    this.vectorize.session?.close();
     this.connectionAbort.abort(new Error("Client stopped.")); this.stopMovement(); this.attention.clear(); this.stopClock(); await this.pending?.promise.catch(() => {});
     if (!this.client?.socket?.destroyed) this.client?.end('OMConnect stopped');
     const socket = this.client?.socket;

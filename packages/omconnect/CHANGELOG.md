@@ -1,5 +1,12 @@
 # OMConnect changelog
 
+## 1.0.0-Arthas-beta2 · Navigation V2 development
+
+- Add bounded navigation sessions, scoped route memory and incremental regional LPA* search while retaining local A*.
+- Share body/collision geometry, expose partial support queries and reuse tick physics for motion prediction.
+- Execute long goals through bounded ground segments; detect insufficient progress and expose typed recovery decisions.
+- Keep existing APIs and deprecated aliases. Full fractional-height ground locomotion and mixed-transport execution remain separate work.
+
 ## 1.0.0-Arthas-beta1 · 2026-10-15 · beta
 
 - Continuous compatible ground spans and footprint-checked lookahead retain movement velocity.

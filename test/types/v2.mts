@@ -1,0 +1,13 @@
+import {createNavigationSession,RegionalRouteGraph,IncrementalRegionPlanner,predictMotion,createNavigationRecovery,supportAt,OMVectorize,type NavigationSessionMemory,type NavigationScope} from '../../overmindmc.js';
+import {createNavigationSession as connectSession} from '../../packages/omconnect/index.js';
+import {RegionalRouteGraph as VectorGraph} from '../../packages/omconnect/src/vectorize.js';
+const scope:NavigationScope={server:'localhost:25565',worldId:'test',dimension:'minecraft:overworld',minecraftVersion:'1.21.1'};
+const session=createNavigationSession({scope,getBlock:()=>null});
+const memory:NavigationSessionMemory=session.exportMemory();
+connectSession({scope,getBlock:()=>null,memory});
+const graph=new RegionalRouteGraph();graph.setEdge('a','b',1,{gateway:{x:1,y:1,z:0}});void new IncrementalRegionPlanner(graph).plan('a','b');
+new VectorGraph();
+const vector=new OMVectorize({getBlock:()=>null,scope});void vector.planGroundSegmentAsync({start:{x:0,y:1,z:0},goal:{x:1000,y:1,z:0}});vector.navigationSnapshot().cacheHits;
+supportAt({position:{x:.5,y:1,z:.5},getBlock:()=>null});
+predictMotion({state:{position:{x:0,y:1,z:0},velocity:{x:0,y:0,z:0},onGround:true},getBlock:()=>null,ticks:4});
+createNavigationRecovery().decide({code:'SERVER_CORRECTION'});

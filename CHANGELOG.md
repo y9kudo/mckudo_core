@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-Arthas-beta2 · V2 navigation development
+
+- Audited module dependencies and captured the beta1 planning baseline; added the V2 migration and compatibility plan.
+- Added directed regional route hints, incremental LPA* graph repair and bounded long-distance navigation sessions.
+- Added expiring scoped route memory, live revalidation of imported hints and cancellation of superseded searches.
+- Shared collision/body geometry between physics and volume queries; exposed partial support queries and pure multi-tick predictions.
+- Integrated segmented ground execution, early stuck detection and bounded goal recovery while retaining ordinary A*, native fallback and one physical action executor.
+- Added public V2 JS/TS APIs and deterministic offline navigation benchmarks. Real server trials and remaining Phase A mechanics are separate acceptance work.
+
 ## Arthas release preparation · unreleased
 
 - Multi-goal OMVectorize A* shares one frontier and budget across up to 128 candidate destinations. OMConnect selects block-interaction positions through this search and reuses its validated route.

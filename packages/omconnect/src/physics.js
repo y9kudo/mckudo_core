@@ -1,6 +1,6 @@
 import { environmentAt } from './environment.js';
 import {predictElytraTick} from './vectorize.js';
-const bounds = (p,height=1.8) => ({ minX: p.x - 0.3, maxX: p.x + 0.3, minY: p.y, maxY: p.y + height, minZ: p.z - 0.3, maxZ: p.z + 0.3 });
+import {bodyBounds as bounds,collisionShapes,FULL_CUBE} from './traversal.js';
 const shift = (b, axis, v) => { b['min' + axis] += v; b['max' + axis] += v; };
 const intersects = (a, b, k) => ['X', 'Y', 'Z'].filter(n => n !== k).every(n => a['max' + n] > b['min' + n] + 1e-7 && a['min' + n] < b['max' + n] - 1e-7);
 // Grounded sneaking clips horizontal motion to observed collision support. An
@@ -13,7 +13,7 @@ function holdEdge(box, velocity, getBlock) {
         for (let x = Math.floor(b.minX); x <= Math.floor(b.maxX - 1e-7); x++) {
           const block = getBlock({ x, y, z });
           if (!block) continue;
-          for (const s of block.shapes || (block.boundingBox === 'block' ? [[0,0,0,1,1,1]] : [])) {
+          for (const s of collisionShapes(block) || []) {
             const shape = { minX:x+s[0],minY:y+s[1],minZ:z+s[2],maxX:x+s[3],maxY:y+s[4],maxZ:z+s[5] };
             if (intersects(b, shape, 'Y') && b.minY < shape.maxY - 1e-7 && box.minY >= shape.maxY - 1e-7) return true;
           }
@@ -67,7 +67,7 @@ export function stepPhysics(state, control, getBlock) {
   for (let y = Math.floor(box.minY + Math.min(0, velocity.y)) - 1; y <= Math.floor(box.maxY + Math.max(0, velocity.y)); y++)
     for (let z = Math.floor(box.minZ + Math.min(0, velocity.z)); z <= Math.floor(box.maxZ + Math.max(0, velocity.z)); z++)
       for (let x = Math.floor(box.minX + Math.min(0, velocity.x)); x <= Math.floor(box.maxX + Math.max(0, velocity.x)); x++) {
-        const b = getBlock({ x, y, z }), shapes = b ? b.shapes || (b.boundingBox === 'block' ? [[0, 0, 0, 1, 1, 1]] : []) : [[0, 0, 0, 1, 1, 1]];
+        const b = getBlock({ x, y, z }), shapes = collisionShapes(b) || FULL_CUBE;
         for (const s of shapes) obstacles.push({ minX: x + s[0], minY: y + s[1], minZ: z + s[2], maxX: x + s[3], maxY: y + s[4], maxZ: z + s[5] });
       }
   let onGround = false, horizontalCollision = false;
