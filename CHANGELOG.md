@@ -1,6 +1,15 @@
 # Changelog
 
-## 1.0.0-Arthas-beta2 · Navigation, World Intelligence and Cognitive V2 development
+## 1.0.0-Arthas-beta2 · Navigation, World Intelligence, Cognition and Task V2 development
+
+### Task Orchestration and Recovery V2 increment
+
+- Added task dependency validation, fresh resource guards, bounded dynamic priorities, retry backoff and per-action cancellation deadlines.
+- Added fingerprinted task/program checkpoints, nested scenario memory and conservative reconciliation of interrupted mutations.
+- Await durable preparation before physical dispatch and completion persistence before the next action; storage failure blocks further work.
+- Added checksummed JSON envelopes, beta1 import, one verified backup and separate frequent task-state storage.
+- Added opt-in bounded reconnect/death recovery; explicit pause/disconnect cancels recovery. Dashboard retains dependency queues in JSON and exposes blocked/uncertain states.
+- Verified three navigation tasks across reconnection and a separate Node.js process restart on local Java 1.21.1, with an independent observer and no damage/corrections. This is not autonomous campaign acceptance.
 
 - Added the Cognitive V2 decision cycle with shared arbitration, hard emergency priority ordering, bounded learned assessment and an observable decision journal.
 - Added explicit reactor prerequisite/effect contracts, optional adapter outcome verification and `EFFECT_UNCONFIRMED`; verified symbolic `progress` now trains the neural planner.

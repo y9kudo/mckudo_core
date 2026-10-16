@@ -105,6 +105,17 @@ The configured Java 1.21.1 server passed a short non-destructive movement plus o
 
 The cognitive service is enabled by default in the standard Minecraft brain and opt-in for the lower-level core. It does not replace the existing physical executor or assume that a provider's prediction happened in the world. [Cognitive Intelligence V2](COGNITIVE-V2.md) documents the public contracts and migration details.
 
+## Phase D increment status
+
+| Area | Implemented integration | Remaining acceptance |
+| --- | --- | --- |
+| Memory | Checksummed atomic JSON generations, verified backup recovery, beta1 import and independent task/model stores | Cross-process locking and extended large-memory retention trials |
+| Orchestration | DAG validation, observed guards, dynamic priorities, durable boundaries, nested checkpoints, bounded retries/timeouts | Cross-agent resource reservations and richer graph/block editing |
+| Recovery | Optional bounded reconnect/respawn, fresh controller reconstruction and explicit uncertain-action reconciliation | Full death/inventory/station recovery campaigns and unresponsive custom executor isolation |
+| Evidence | API fault injection plus three server-verified movement tasks across reconnect and separate-process restoration | Long fixed-build Survival/Dragon acceptance |
+
+[Task Orchestration V2](TASK-ORCHESTRATION-V2.md) explains migration, safety boundaries and beginner examples. Historical task completion never substitutes for current resource observations.
+
 ## Algorithm references
 
 - [Koenig and Likhachev: incremental heuristic search](https://idm-lab.org/project-a-content.html).
