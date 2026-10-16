@@ -2,6 +2,14 @@
 
 ## 1.0.0-Arthas-beta2 · Navigation, World Intelligence, Cognition and Task V2 development
 
+### Team Coordination V2 increment
+
+- Added bounded world/dimension-scoped advisory resource leases, FIFO overlap waiting, expiring/fenced tokens and sliding ground-route reservations.
+- Added optional OMConnect permission hooks under the existing single action executor, including cancellation and lease-loss handling; reserve possible double-chest partners across unloaded boundaries.
+- Manager teams install coordination by default and expose reservation diagnostics. Resource scenarios now receive the same peer used by survival goals; expired mining claims can be reacquired.
+- Fixed automatic trading resuming a manually paused/replaced brain, canceled paused management transfers and prevented overlapping auto-trade ticks.
+- A three-agent, server-observed Java 1.21.1 ground/wait check passed without damage or corrections. This does not establish complete joint task planning or fair take-all chest allocation.
+
 ### Perception and Combat V2 increment
 
 - Added bounded/coalesced entity, block and chunk change evidence with overlapping semantic categories and explicit freshness metadata.

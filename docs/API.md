@@ -95,3 +95,7 @@ The regular monitor is passed on JSON, free of juices and class objects. Maximum
 - retryStep(workflowId, stepId) — repeat error or interruption.
 
 These transactions are described in [Plagins](PLUGINS.md) and [objectives](WORKFLOWS.md). TypeScript-The announcements are part of the core package. In a branch 0.x a correct version of the relationship.
+
+## Team coordination
+
+Manager teams enable bounded advisory resource and ground-path leases by default. Set `cooperation: false` for independent execution, or configure `{capacity, ttlMs, maxWaitMs}`. `manager.snapshot().cooperation` contains current lease/wait diagnostics. Standalone clients can use `createSwarmCoordinator()` and `attachSwarmAgent()`; see [Team Coordination V2](SWARM-V2.md) for complete options, cleanup and execution boundaries.

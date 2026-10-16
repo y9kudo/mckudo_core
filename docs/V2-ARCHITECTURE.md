@@ -110,7 +110,7 @@ The cognitive service is enabled by default in the standard Minecraft brain and 
 | Area | Implemented integration | Remaining acceptance |
 | --- | --- | --- |
 | Memory | Checksummed atomic JSON generations, verified backup recovery, beta1 import and independent task/model stores | Cross-process locking and extended large-memory retention trials |
-| Orchestration | DAG validation, observed guards, dynamic priorities, durable boundaries, nested checkpoints, bounded retries/timeouts | Cross-agent resource reservations and richer graph/block editing |
+| Orchestration | DAG validation, observed guards, dynamic priorities, durable boundaries, nested checkpoints, bounded retries/timeouts | Richer graph/block editing and broader cross-agent task planning |
 | Recovery | Optional bounded reconnect/respawn, fresh controller reconstruction and explicit uncertain-action reconciliation | Full death/inventory/station recovery campaigns and unresponsive custom executor isolation |
 | Evidence | API fault injection plus three server-verified movement tasks across reconnect and separate-process restoration | Long fixed-build Survival/Dragon acceptance |
 
@@ -126,6 +126,17 @@ The cognitive service is enabled by default in the standard Minecraft brain and 
 | Evidence | Selection oracle, event/budget/invalidation regressions, synthetic CPU benchmark and server player-motion/removal check | Swarm/construction/mod SDK increments and fixed-build gameplay campaigns |
 
 [Perception and Combat V2](PERCEPTION-V2.md) documents the actual observation/execution boundary. The remaining Phase E services continue as separate increments.
+
+## Phase E team coordination increment status
+
+| Area | Implemented integration | Remaining acceptance |
+| --- | --- | --- |
+| Resources | Bounded world/dimension leases, double-chest partners and scenario mining peer claims | Implicit station/internal edit coordination, fair allocation and joint task assignment |
+| Ground traffic | Sliding validated walk windows, reverse/diagonal gates, bounded waits and cancellation | Vertical/flight traffic, fleet-wide deadlock resolution and busy live bottlenecks |
+| Lifecycle | Lease cleanup, claim reacquisition, pause-safe automatic exchange and non-overlapping trade ticks | Distributed coordination and longer recovery/transfer trials |
+| Evidence | API fault injection, ordinary physics-backed execution and three-client server-observed ground movement | Live storage/transfer contention and fixed-build multi-agent Survival campaigns |
+
+[Team Coordination V2](SWARM-V2.md) describes the default manager integration and public service. These are advisory permissions under existing execution and server checks, not shared authoritative world state.
 
 ## Algorithm references
 
