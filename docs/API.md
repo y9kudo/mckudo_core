@@ -1,6 +1,6 @@
 # OvermindMC API · Arthas beta2
 
-Public entry point: `overmindmc`. Main exports include `createCore`, `OvermindCore`, `OvermindRuntime`, `definePlugin`, `validateConfig`, `ConfigError`, `matches` and `OVERMIND`. See [Navigation V2](NAVIGATION-V2.md) for spatial planning, [World Intelligence V2](WORLD-INTELLIGENCE-V2.md) for the atlas/exploration and [Cognitive V2](COGNITIVE-V2.md) for decisions, plan repair and controlled evaluation. [Task Orchestration V2](TASK-ORCHESTRATION-V2.md) describes dependency queues, durable action hooks, memory recovery and lifecycle controls.
+Public entry point: `overmindmc`. Main exports include `createCore`, `OvermindCore`, `OvermindRuntime`, `definePlugin`, `validateConfig`, `ConfigError`, `matches` and `OVERMIND`. See [Navigation V2](NAVIGATION-V2.md) for spatial planning, [World Intelligence V2](WORLD-INTELLIGENCE-V2.md) for the atlas/exploration and [Cognitive V2](COGNITIVE-V2.md) for decisions, plan repair and controlled evaluation. [Task Orchestration V2](TASK-ORCHESTRATION-V2.md) describes dependency queues, durable action hooks, memory recovery and lifecycle controls. [Perception V2](PERCEPTION-V2.md) covers change evidence, entity budgets and combat diagnostics.
 
 Catalogue, Block classes, Prescriptions, routes, research, Reactor, Food and construction described in [AUTOMATION.md](AUTOMATION.md). The full list of signatures is in [overmindmc.d.ts](../overmindmc.d.ts).
 

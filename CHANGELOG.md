@@ -2,6 +2,15 @@
 
 ## 1.0.0-Arthas-beta2 · Navigation, World Intelligence, Cognition and Task V2 development
 
+### Perception and Combat V2 increment
+
+- Added bounded/coalesced entity, block and chunk change evidence with overlapping semantic categories and explicit freshness metadata.
+- Prioritize relevant entities before the 128-entity observation cap; budget new visibility rays, cache only matching poses/revisions, and distinguish unknown from blocked visibility.
+- Fast threat reads now include fresh inventory, avoiding false unarmed retreat during action preemption.
+- Reuse resource samples across irrelevant edits while preserving geometry invalidation; fix visibility through walls along integer voxel boundaries.
+- Stabilize admissible combat focus briefly, preserving urgent creeper/attributed-hit reselection and player attack permissions.
+- Added perception/combat dashboard diagnostics and a synthetic 4,096-entity benchmark. A non-destructive Java 1.21.1 player-motion/removal check passed; no PvP or campaign result is claimed.
+
 ### Task Orchestration and Recovery V2 increment
 
 - Added task dependency validation, fresh resource guards, bounded dynamic priorities, retry backoff and per-action cancellation deadlines.

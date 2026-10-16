@@ -8,7 +8,7 @@
 
 OvermindMC is a reusable library for building Minecraft agents. Give an agent a resource goal, a sequence of tasks or a conditional program. The kernel plans prerequisites, reads the connected world and asks its client to execute actions. You can build programs in the local web dashboard or write JavaScript using the same public API.
 
-This beta2 source develops V2 navigation, World Intelligence, cognitive decisions and checkpointed task orchestration. Stable Arthas still requires a verified autonomous Survival campaign ending in the agent's own Ender Dragon victory. [V2 architecture](docs/V2-ARCHITECTURE.md) · [World Intelligence](docs/WORLD-INTELLIGENCE-V2.md) · [Cognitive API](docs/COGNITIVE-V2.md) · [Tasks and recovery](docs/TASK-ORCHESTRATION-V2.md) · [Beta2 changes](docs/releases/1.0.0-Arthas-beta2.md) · [Changelog](CHANGELOG.md) · [Readiness criteria](docs/V1-READINESS.md).
+This beta2 source develops V2 navigation, World Intelligence, cognitive decisions and checkpointed task orchestration. Stable Arthas still requires a verified autonomous Survival campaign ending in the agent's own Ender Dragon victory. [V2 architecture](docs/V2-ARCHITECTURE.md) · [World Intelligence](docs/WORLD-INTELLIGENCE-V2.md) · [Cognitive API](docs/COGNITIVE-V2.md) · [Tasks and recovery](docs/TASK-ORCHESTRATION-V2.md) · [Perception](docs/PERCEPTION-V2.md) · [Beta2 changes](docs/releases/1.0.0-Arthas-beta2.md) · [Changelog](CHANGELOG.md) · [Readiness criteria](docs/V1-READINESS.md).
 
 **Start small:** ask for `#logs`, then a stone pickaxe and a furnace. Inspect what the agent observes, how it chooses actions and which outcomes the server confirms. Build a larger program from those same blocks.
 
@@ -18,6 +18,7 @@ This beta2 source develops V2 navigation, World Intelligence, cognitive decision
 - **World Intelligence:** scoped atlas with persistent regions and directed return corridors, worker-based frontier exploration, and a contextual neural model for transition risk, time and damage. [Memory, learning and integration guide](docs/WORLD-INTELLIGENCE-V2.md).
 - **Cognitive decisions:** shared priority/learned-cost arbitration, verified intermediate outcomes, bounded symbolic plan repair, HTN/MCTS proposal adapters and held-out cognitive checkpoint evaluation. Inspect the cycle and candidate scores in dashboard diagnostics. [Cognitive V2 guide](docs/COGNITIVE-V2.md).
 
+- **Perception and defense:** prioritized entity observations, bounded visibility work, incremental change evidence, inventory-aware urgent checks and short target commitment. [Perception V2 guide](docs/PERCEPTION-V2.md).
 - **Task orchestration:** dependency graphs, observed resource guards, dynamic priorities, durable checkpoints, conservative interrupted-action reconciliation and optional bounded reconnect/respawn recovery. [Task V2 guide](docs/TASK-ORCHESTRATION-V2.md).
 - **Goal-driven resources:** plan tool, crafting and smelting prerequisites, select interchangeable block classes, gather construction stock and build supported access to elevated minerals.
 - **Shared spatial search:** evaluate multiple destination candidates in one A* search and hand the selected route to OMConnect. The symbolic planner supports causal filtering and a stable cost frontier for larger operator domains.

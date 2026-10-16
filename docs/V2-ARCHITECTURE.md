@@ -116,6 +116,17 @@ The cognitive service is enabled by default in the standard Minecraft brain and 
 
 [Task Orchestration V2](TASK-ORCHESTRATION-V2.md) explains migration, safety boundaries and beginner examples. Historical task completion never substitutes for current resource observations.
 
+## Phase E perception/combat increment status
+
+| Area | Implemented integration | Remaining acceptance |
+| --- | --- | --- |
+| Perception | Bounded semantic change evidence, relevance-first entity selection, visibility ray/cache budgets and selective resource invalidation | Broader mod semantics and large live-world calibration |
+| Combat | Fresh inventory in urgent observations, bounded target commitment, urgent explosive/attributed-hit reselection and boundary-ray fixes | Extended tactical positioning/cover and controlled PvE/PvP trials |
+| Agent Center | Perception journal/counters and current combat focus in diagnostics | Replay Studio and richer mission comparison tools |
+| Evidence | Selection oracle, event/budget/invalidation regressions, synthetic CPU benchmark and server player-motion/removal check | Swarm/construction/mod SDK increments and fixed-build gameplay campaigns |
+
+[Perception and Combat V2](PERCEPTION-V2.md) documents the actual observation/execution boundary. The remaining Phase E services continue as separate increments.
+
 ## Algorithm references
 
 - [Koenig and Likhachev: incremental heuristic search](https://idm-lab.org/project-a-content.html).
