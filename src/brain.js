@@ -59,7 +59,7 @@ export class GoalBrain {
     const goal = this.#goals.find(g => g.id === candidate.goalId), state = this.#states[goal.id], now = this.#clock();
     for (const [name, until] of this.#blocked) if (until <= now) this.#blocked.delete(name);
     const learned = this.#options.experience?.operators() || [];
-    const combined = [...this.#operators, ...learned.filter(op => !this.#operators.some(s => s.id === op.id))].slice(0, 64);
+    const combined = [...this.#operators, ...learned.filter(op => !this.#operators.some(s => s.id === op.id))].slice(0, 2048);
     const operators = combined.filter(op => skills.includes(op.action.skill) && !this.#blocked.has(op.id) && !this.#options.experience?.assess(op.action, observation).blocked);
     const pointers = [...new Set([...conditionFacts(goal.desired), ...operators.flatMap(op => [...conditionFacts(op.requires), ...op.effects.map(e => e.fact)])])].sort();
     const signature = fingerprint({ facts: projectFacts(observation, pointers), operators, skills });

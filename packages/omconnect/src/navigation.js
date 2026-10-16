@@ -16,9 +16,11 @@ class Heap {
 }
 
 /** Bounded A* on observed voxels. Each node is a feet position; unknown space is never air. */
-function* routeSearch({ start, goal, getBlock, occupied = () => false, edgeCost = () => 0, range = 0, maxNodes = 12000, maxDistance = 128, maxDrop = 3, fallPolicy = {}, bridgeBudget = 0, bridgeBlock = 'minecraft:cobblestone', canDig = () => false, canPlace = () => true, allowPartial = false, signal }) {
+function* routeSearch({ start, goal, goals, getBlock, occupied = () => false, edgeCost = () => 0, range = 0, maxNodes = 12000, maxDistance = 128, maxDrop = 3, fallPolicy = {}, bridgeBudget = 0, bridgeBlock = 'minecraft:cobblestone', canDig = () => false, canPlace = () => true, allowPartial = false, signal }) {
   signal?.throwIfAborted();
   if (!point(start) || !point(goal) || typeof getBlock !== 'function' || typeof canDig !== 'function' || typeof canPlace !== 'function') throw new Error("Route: integers are required start/goal and getBlock/canDig/canPlace.");
+  if(goals!==undefined&&(!Array.isArray(goals)||!goals.length||goals.length>128||goals.some(p=>!point(p))))throw new Error('Route goals: 1–128 integer positions.');
+  const destinations=goals?[...new Map(goals.map(p=>[key(p),{...p}])).values()]:[goal];
   for (const [n, value, min, max] of [['range', range, 0, 16], ['maxNodes', maxNodes, 1, 100000], ['maxDistance', maxDistance, 1, 512], ['maxDrop', maxDrop, 1, 32], ['bridgeBudget', bridgeBudget, 0, 256]]) if (!Number.isInteger(value) || value < min || value > max) throw new Error(`${n}: ${min}–${max}.`);
   if (typeof bridgeBlock !== 'string' || !/^[a-z0-9_.-]+:[a-z0-9_./-]+$/.test(bridgeBlock)) throw new Error('bridgeBlock: namespace:id.');
   if (typeof allowPartial !== 'boolean') throw new Error('allowPartial: boolean.');
@@ -45,14 +47,15 @@ function* routeSearch({ start, goal, getBlock, occupied = () => false, edgeCost 
     failure: { code: 'START_UNSUPPORTED', evidence: { complete: unknown.size === 0,
       facts: { position: key(start), navigationMode: 'ground', ...Object.fromEntries([...cache].map(([cell, block]) => ['block:' + cell, blockEvidenceValue(block)])) } } }
   };
-  const distance = p => Math.max(Math.abs(p.x - goal.x), Math.abs(p.y - goal.y), Math.abs(p.z - goal.z));
-  const heuristic = p => {const dx=Math.max(0,Math.abs(p.x-goal.x)-range),dz=Math.max(0,Math.abs(p.z-goal.z)-range);return Math.max(dx,dz)+(Math.SQRT2-1)*Math.min(dx,dz)+Math.max(0,Math.abs(p.y-goal.y)-range)*.3;};
+  const distance = p => Math.min(...destinations.map(g=>Math.max(Math.abs(p.x-g.x),Math.abs(p.y-g.y),Math.abs(p.z-g.z))));
+  const heuristic = p => {let best=Infinity;for(const g of destinations){const dx=Math.max(0,Math.abs(p.x-g.x)-range),dz=Math.max(0,Math.abs(p.z-g.z)-range);best=Math.min(best,Math.max(dx,dz)+(Math.SQRT2-1)*Math.min(dx,dz)+Math.max(0,Math.abs(p.y-g.y)-range)*.3);}return best;};
   const open = new Heap(), best = new Map(), first = { p: { ...start }, g: 0, f: heuristic(start), used: 0, damage:0, edits:null, excavated:0, parent: null, steps: [] };
   open.push(first); best.set(stateKey(start,0,0,null,0), 0); let visited = 0;
   let partial = null;
   const finish = (node, isPartial = false) => {
     const sections = []; let cursor = node; while (cursor.parent) { sections.push(cursor.steps); cursor = cursor.parent; }
-    return { status: 'planned', reason: isPartial ? "Sub-site by observed blocks; Target not yet achieved." : "Routes through known blocks.", partial:isPartial, target:{...node.p}, steps:sections.reverse().flat(), visited, cost:node.g, fallDamage:node.damage, bridgeUsed:node.used, unknown:[...unknown.values()] };
+    const selectedGoal=destinations.find(g=>Math.max(Math.abs(node.p.x-g.x),Math.abs(node.p.y-g.y),Math.abs(node.p.z-g.z))<=range);
+    return { status: 'planned', reason: isPartial ? "Sub-site by observed blocks; Target not yet achieved." : "Routes through known blocks.", partial:isPartial, target:{...node.p}, ...(goals?{selectedGoal:selectedGoal?{...selectedGoal}:null,goalCount:destinations.length}:{}),steps:sections.reverse().flat(), visited, cost:node.g, fallDamage:node.damage, bridgeUsed:node.used, unknown:[...unknown.values()] };
   };
   const heights = [0, 1, ...Array.from({ length: maxDrop }, (_, i) => -i - 1)];
   while (open.values.length && visited < maxNodes) {
@@ -121,4 +124,12 @@ export async function planRouteAsync(options, { sliceMs = 2, nodesPerSlice = 64,
   return scheduler.submit(routeSearch(options), { signal: options.signal, sliceMs, nodesPerSlice,
     validate() { if (getRevision && getRevision() !== revision) throw new OMActionError('STALE_WORLD', "The world changed in the search for a route; replanning is required."); }
   });
+}
+
+/** One shared A* frontier and node budget for every candidate, rather than N searches. */
+export function planRouteToAny({goals,...options}) {
+  return planRoute({...options,goals,goal:goals?.[0]});
+}
+export function planRouteToAnyAsync({goals,...options},scheduling) {
+  return planRouteAsync({...options,goals,goal:goals?.[0]},scheduling);
 }

@@ -72,4 +72,4 @@ The speed of the event does not guarantee instant physical action: I need a surv
 - [Node.js Performance measurement APIs](https://nodejs.org/docs/latest-v24.x/api/perf_hooks.html): Time measurement and difference between the event cycle and load delays CPU. Line uses `performance.now()`, and the slot intervals are measured separately.
 - [Koenig, Likhachev — D* Lite](https://idm-lab.org/bib/abstracts/papers/aaai02b.pdf): Reuse of prospecting in changing the world. Current implementation retained A* and check the relevance of the readings; Incretionary tree D* Lite does not state.
 
-These sources explain the choice of architecture. Results OvermindMC confirmed by their own [Automatic and game tests](TESTING-06.md).
+These sources explain the choice of architecture. Results OvermindMC confirmed by their own Automatic and game tests.

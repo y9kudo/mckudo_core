@@ -79,7 +79,7 @@ export declare function createAdaptiveScenario(options: { id?: string; desired: 
 export interface BrainSnapshot { planner: string; calls: number; maxCalls: number; goals: (SavedGoal & { id: string; priority: number })[]; plan: { goalId: string; steps: string[]; reason: string } | null; }
 export interface ConditionExplanation { matched: boolean; facts: { fact: string; found: boolean; value: Json; operator: string; expected: Json; matched: boolean }[]; }
 export interface DecisionTrace { tick: number; at: number; rules: (ConditionExplanation & { id: string; priority: number })[]; candidates: { id: string; kind: string; priority: number; blocked: string | null }[]; selected: { id: string; kind: string; operatorId: string | null } | null; deferred?: string; }
-export declare function createSymbolicPlanner(options?: { maxDepth?: number; maxNodes?: number }): Planner;
+export declare function createSymbolicPlanner(options?: { maxDepth?: number; maxNodes?: number }): Planner & {snapshot():{operators:number;relevantOperators:number;expanded:number;generated:number}};
 export declare function validateOperators(input: unknown): Operator[];
 export declare function validatePlan(proposal: unknown, context: PlannerContext): PlanProposal;
 export declare function buildPlannerContext(input: { observation: Observation; goal: Goal; operators: Operator[]; skills: string[] }): PlannerContext;
@@ -145,9 +145,12 @@ export declare function createDefenseReactor(options?: { attackPlayers?: boolean
 export declare function createFoodReactor(options?: { catalog?: Catalog; foodThreshold?: number; allowHunting?: boolean; huntRadius?: number; replant?: boolean }): Reactor;
 export interface NavigationBlock { name?: string; id?: string; boundingBox?: string; shapes?: number[][]; diggable?: boolean; hardness?: number | null; }
 export interface RouteStep { kind: 'dig' | 'bridge' | 'walk' | 'jump' | 'drop'; position: Position; fall?: import('./omconnect/index.js').FallAssessment; block?: string; expected?: string; }
-export interface RoutePlan { status: 'planned' | 'blocked'; reason: string; steps: RouteStep[]; visited: number; cost?: number; fallDamage?: number; bridgeUsed?: number; unknown: Position[]; partial?:boolean; target?:Position; }
+export interface RoutePlan { status: 'planned' | 'blocked'; reason: string; steps: RouteStep[]; visited: number; cost?: number; fallDamage?: number; bridgeUsed?: number; unknown: Position[]; partial?:boolean; target?:Position; selectedGoal?:Position|null;goalCount?:number; }
 export declare function planRoute(options: { start: Position; goal: Position; getBlock(position: Position): NavigationBlock | null; occupied?(position:Position):boolean; edgeCost?(from:Position,to:Position,kind:RouteStep["kind"]):number; range?: number; maxNodes?: number; maxDistance?: number; maxDrop?: number; fallPolicy?: import('./omconnect/index.js').FallPolicy; bridgeBudget?: number; bridgeBlock?: string; canDig?(block: NavigationBlock, position: Position): boolean; canPlace?(position:Position):boolean; allowPartial?:boolean; signal?: AbortSignal }): RoutePlan;
 export declare function planRouteAsync(options: Parameters<typeof planRoute>[0], scheduling?: import('./omconnect/index.js').RouteScheduling): Promise<RoutePlan>;
+export type MultiGoalRouteOptions=Omit<Parameters<typeof planRoute>[0],'goal'>&{goals:Position[]};
+export declare function planRouteToAny(options:MultiGoalRouteOptions):RoutePlan;
+export declare function planRouteToAnyAsync(options:MultiGoalRouteOptions,scheduling?:import('./omconnect/index.js').RouteScheduling):Promise<RoutePlan>;
 export interface ExplorationOptions { getBlock(position: Position): NavigationBlock | null; mode?: 'surface' | 'ores'; radius?: number; maxCandidates?: number; maxNodes?: number; maxDrop?: number; }
 export interface ExplorationPlan { status: 'planned' | 'blocked'; reason: string; target: Position | null; route?: RoutePlan; attempts: number; }
 export declare function planExploration(options: ExplorationOptions & { position: Position; visited?: Position[];candidateCost?:(target:Position)=>number }): ExplorationPlan;
@@ -184,10 +187,10 @@ export type ScenarioStep = { id: string } & (
   { type: 'blazeRods' | 'enderPearls' | 'eyes'; count: number } | { type: 'stronghold' | 'endPortal' | 'dragon' });
 export interface Scenario { schemaVersion: 1; name: string; steps: ScenarioStep[]; }
 export interface ScenarioState { status: 'pending' | 'running' | 'blocked' | 'completed'; current: string | null; completed: string[]; reason: string; }
-export interface ScenarioMemory {schemaVersion:1;definition:Scenario;completed:string[];portals:{dimension:string;name:string;position:Position}[];nether:Record<string,NetherMemory>;}
+export interface ScenarioMemory {schemaVersion:1;definition:Scenario;completed:string[];homeAnchor?:Position|null;homeTrail?:Position[];portals:{dimension:string;name:string;position:Position}[];nether:Record<string,NetherMemory>;}
 export interface ScenarioController { reactor: Reactor; snapshot(): ScenarioState; definition(): Scenario; recordResult(event: any, action: Action): void;exportMemory():ScenarioMemory;restart():void; }
 export declare function validateScenario(input: unknown): Scenario;
-export declare function createScenario(options: { scenario: Scenario; catalog: Catalog; taxonomy?: BlockTaxonomy; stations?: Record<string, true | Position>; getBlock?: ExplorationOptions['getBlock']; explorationRadius?: number; explorationPlanner?:ExplorationPlanner; resourceFactory?: (targets: Record<string, number>) => Reactor & { recordResult?(event: any, action: Action): void }; navigationFactory?:(step:Extract<ScenarioStep,{type:'navigate'}>)=>{react(o:Observation):Reaction|null;recordResult?(event:any,action:Action):void}; strongholdSearch?: (observation: Observation, estimate: {x:number;z:number}) => Reaction | null; dragonCombat?:Pick<DragonPolicy,'react'|'recordResult'>;netherFactory?:(step:ScenarioStep & {targets:Record<string,number>},memory?:NetherMemory)=>NetherReactor;memory?:ScenarioMemory }): ScenarioController;
+export declare function createScenario(options: { scenario: Scenario; catalog: Catalog; taxonomy?: BlockTaxonomy; stations?: Record<string, true | Position>; getBlock?: ExplorationOptions['getBlock']; isOutdoor?:(position:Position)=>boolean;explorationRadius?: number; explorationPlanner?:ExplorationPlanner; resourceFactory?: (targets: Record<string, number>) => Reactor & { recordResult?(event: any, action: Action): void }; navigationFactory?:(step:Extract<ScenarioStep,{type:'navigate'}>)=>{react(o:Observation):Reaction|null;recordResult?(event:any,action:Action):void;snapshot?():{status?:string}}; strongholdSearch?: (observation: Observation, estimate: {x:number;z:number}) => Reaction | null; dragonCombat?:Pick<DragonPolicy,'react'|'recordResult'>;netherFactory?:(step:ScenarioStep & {targets:Record<string,number>},memory?:NetherMemory)=>NetherReactor;memory?:ScenarioMemory }): ScenarioController;
 export {assessFall} from './omconnect/index.js';
 export declare function endExpeditionScenario():Scenario;
 export declare function netherVisitScenario():Scenario;
@@ -304,6 +307,7 @@ export interface MinecraftAgent {
 }
 export declare function createMinecraftAgent(options:MinecraftAgentOptions):MinecraftAgent;
 export declare function startDashboard(options?:{port?:number;manager?:AgentManager;textureArchive?:string;telemetry?:ReturnType<typeof import('./src/intelligence.js').createTelemetry>}):Promise<{url:string;manager:AgentManager;close():Promise<void>}>;
+export declare function startExpeditionMonitor(options:{reportPath:string;port?:number;clock?:()=>number}):Promise<{url:string;snapshot():Promise<Record<string,any>>;close():Promise<void>}>;
 
 export interface NavigationExperience {from:Position;to:Position;dimension:string;kind?:string;health?:number|null;food?:number|null;nearbyPlayers?:number;healthAfter?:number|null;outcome:'success'|'failure'|'cancelled';id?:string;reason?:string;failureCode?:string;}
 export interface NeuralMemory {schemaVersion:1|2;worldId:string;architecture:'12-16-1';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[];bias:number};replay:{x:number[];y:0|1}[];failed:{key:string;until:number;count:number}[];}

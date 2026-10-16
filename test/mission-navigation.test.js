@@ -77,3 +77,13 @@ test('a plan calculated at an old position is discarded and a scenario records o
   assert.equal(scenario.reactor.react(f.observation()).action.skill,'navigate');assert.equal(scenario.snapshot().status,'running');
   f.client.state.position.x=4.5;scenario.reactor.react(f.observation());assert.equal(scenario.snapshot().status,'completed');
 });
+test('a blocked search is cached across time and reopened by terrain, inventory, health or player changes',async()=>{
+  const f=fixture(p=>p.y===100?stone:air);let calls=0,now=1000;
+  const controller=createNavigationGoal({...f,position:{x:10,y:101,z:0},clock:()=>now,planner:async()=>{calls++;return {status:'blocked',reason:'No safe route.',steps:[],visited:1,unknown:[]};}});
+  controller.react(f.observation());await planned(controller);assert.equal(calls,1);
+  now+=100000;for(let n=0;n<10;n++)controller.react(f.observation());await tick();assert.equal(calls,1);
+  f.client.inventory.revision=(f.client.inventory.revision||0)+1;controller.react(f.observation());await planned(controller);assert.equal(calls,2);
+  f.client.state.health=10;controller.react(f.observation());await planned(controller);assert.equal(calls,3);
+  f.client.entities.set(9,{id:9,kind:'player',position:{x:2,y:101,z:0}});controller.react(f.observation());await planned(controller);assert.equal(calls,4);
+  f.client.world.revision++;controller.react(f.observation());await planned(controller);assert.equal(calls,5);
+});

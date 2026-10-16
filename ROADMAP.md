@@ -1,42 +1,34 @@
-# Development OvermindMC
+# Roadmap
 
-OvermindMC — Automation self-sustainment multifunctional core Minecraft. Author: **y9kudo**.
+OvermindMC is a Minecraft Java agent library maintained by y9kudo. The current published build and installation instructions are in [README](README.md); completed changes are recorded in [CHANGELOG](CHANGELOG.md).
 
-## Implemented in 0.6
+## Stable Arthas acceptance
 
-Simple API agent and JSON-Mission, Local navigation and planning neural networks, space memory, CPU worker, common asynchronous A*, Building protection, Battle-by-air and bridge. The server recipe book creates the index on demand; Added potion planners/Non-Zerite Improvement, Tasks and Editor in the Panel. Group expanded to 20 Clients. [Release Checks](docs/TESTING-06.md) Separating simulated mechanics from the game test.
+- Complete a Survival campaign from an empty inventory to the agent's own confirmed Ender Dragon defeat on a fixed build.
+- Resolve observed navigation, resource acquisition, recovery and combat failures through reusable kernel policies and regression tests.
+- Verify the public APIs, type declarations and installation archives on the supported CI platforms.
+- Keep operational worlds and player journals private while publishing reproducible API tests and a clear summary of verified capabilities.
 
-## Implemented in 0.5
+See [release readiness](docs/V1-READINESS.md) and [quality policy](docs/QUALITY.md) for acceptance requirements. An unfinished engineering campaign is not a stable-release result.
 
-Self-contained OMConnect v0.5.0 with a separate package and contract; Group 1–10 and sharing of intentions outside the chat room. Experience model OvermindMC The operator effects are removed and revised after failure. Adaptation scenarios maintain purpose, Changing the Available Strategy. Basic special surfaces and design of the anti-personnel projectiles.
+## Compatibility
 
-Catalogues and Imports of Game Data, Multiple blocks, alternative sources of resources, Production Chain, Modular reactions, own A*, Traffic operator, Bridges, Research into known areas, Protection and nutrition, Drawings and stages of survival. Targets Saved, Workflow, Plagues, memory and Runtime Previous versions.
+- Expand gameplay-tested Minecraft versions separately from protocol/registry discovery.
+- Validate authentication, inventory transactions, movement and recipes for each supported transport profile.
+- Extend mod recipe adapters with explicit machine capabilities and observed execution outcomes.
 
-Description of modules: [AUTOMATION](docs/AUTOMATION.md). Test level of each module: [TESTING-05](docs/TESTING-05.md).
+See the [version API](docs/VERSION-API.md) for the existing compatibility model.
 
-## Next directions
+## Planning and learning
 
-- Knowledge OvermindMC: Increase potion, effects and strength with observed conditions and performers; Cover the mechanics of a particular version with separate tests.
-- Experience: Permanent storage, Controlled experiments to verify causal hypotheses and verified inter-agent transfer.
-- Independent OMConnect: Playing tests of extended physics/Shots fired, Microsoft-Incoming and fashion profiles with a matrix of tested capabilities.
+- Reuse more spatial search work after relevant world changes while preserving safety and cancellation budgets.
+- Improve prerequisite planning, recovery after equipment loss and coordination over shared resources.
+- Evaluate learned policies against fixed baselines with bounded compute and disclosed training evidence.
 
-- Development **OMConnect** as a main client without Mineflayer: Special recipes, potion, effects and additional traffic; Play tests of long cross-measurements.
-- Measured responsiveness: selected time indicators for decision, Sending package and server confirmation; Comparison on identical games.
-- Spatial memory between loaded areas, hierarchical routes and a wider range of crossings: Liquids, stairs, doors and complex conflicts.
-- Performance, food reserves, tools and stations over the long term of production.
-- Re-establishment of interrupted manufacturing operations and contents of own furnaces.
-- Special recipe models, containers and production machinery of fashion packages.
-- Selection of the construction site, Access to boundaries and spatial transformation during construction.
-- Enhancing self-sustainment: Inter-measurement transitions, Neser resources, Search for a fortress and fight in the Kraj. Full pass is checked as an integration scenario, Actual Games Events.
+The [planning guide](docs/PLANNING.md) describes the current implementation and its public interfaces.
 
-## Forge, NeoForge and Fabric
+## Developer tools
 
-Total bridge-contract and namespaced ID Ready for adapters. Next layer — Java-modules for specific modern versions Forge and NeoForge: Modpac registers, Actions on the Game Flow, cancellation, Local transport and game trials. Fabric uses the same contract through his adapter.
-
-## Scale and quality
-
-Coordination of common tasks of several agents, Distribution of locks, Releases, metrics, Transporting worlds and memory migration. The compatibility matrix must contain a truly proven game version, Transport and fashion sets. API The kernel is developed independently of the application, which connect Minecraft-client.
-
-## Direction v1.0.0
-
-Basis for AI-Agents: long-term spatial memory, Selection and revision of objectives, Learning for results, E. Elaborating solutions and models to be included. Scenarios will remain simple entry points API on top of the large kernel. Version 1.0.0 will indicate the readiness of these contracts and the confirmed capacity matrix, Not renaming the demonstration bota.
+- Improve visual program editing, live route inspection and actionable failure explanations.
+- Keep JavaScript applications concise while exposing advanced configuration through documented APIs.
+- Add integrations only when their measured benefit justifies their runtime and maintenance cost.

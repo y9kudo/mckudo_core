@@ -4,14 +4,28 @@ import { factAt, matches } from './conditions.js';
 
 const primitive = x => x === null || ['string', 'number', 'boolean'].includes(typeof x);
 const parts = p => p.slice(1).split('/').map(v => v.replace(/~1/g, '/').replace(/~0/g, '~'));
+class CostFrontier {
+  values=[];serial=0;
+  push(value){const v={...value,order:this.serial++},a=this.values;a.push(v);let i=a.length-1;while(i){const p=(i-1)>>1;if(this.compare(a[p],v)<=0)break;a[i]=a[p];i=p;}a[i]=v;}
+  compare(a,b){return a.cost-b.cost||a.order-b.order;}
+  pop(){const a=this.values,first=a[0],last=a.pop();if(a.length){let i=0;while(i*2+1<a.length){let c=i*2+1;if(c+1<a.length&&this.compare(a[c+1],a[c])<0)c++;if(this.compare(a[c],last)>=0)break;a[i]=a[c];i=c;}a[i]=last;}return first;}
+  get length(){return this.values.length;}
+}
+/** Backward causal slicing retains every producer of a needed fact and its prerequisites. */
+function relevantOperators(operators,desired){
+  const producers=new Map();for(const op of operators)for(const e of op.effects){if(!producers.has(e.fact))producers.set(e.fact,[]);producers.get(e.fact).push(op);}
+  const facts=new Set(conditionFacts(desired)),queue=[...facts],selected=new Set();
+  for(let i=0;i<queue.length;i++)for(const op of producers.get(queue[i])||[]){if(selected.has(op.id))continue;selected.add(op.id);for(const fact of conditionFacts(op.requires))if(!facts.has(fact)){facts.add(fact);queue.push(fact);}}
+  return operators.filter(op=>selected.has(op.id));
+}
 export function conditionFacts(c) {
   if (!c) return [];
   if (c.all || c.any) return (c.all || c.any).flatMap(conditionFacts);
   return c.not ? conditionFacts(c.not) : [c.fact];
 }
 export function validateOperators(input) {
-  const operators = jsonCopy(input);
-  if (!Array.isArray(operators) || !operators.length || operators.length > 64) throw new Error("Requires 1–64 Planning operator.");
+  const operators = jsonCopy(input,'operators',4*1024*1024);
+  if (!Array.isArray(operators) || !operators.length || operators.length > 2048) throw new Error('Requires 1–2048 planning operators.');
   const names = new Set();
   for (const op of operators) {
     if (!object(op) || Object.keys(op).some(k => !['id', 'action', 'requires', 'effects', 'cost'].includes(k)) || !id(op.id) || names.has(op.id)) throw new Error("The operator needs a unique id and permitted fields.");
@@ -73,21 +87,24 @@ export function validatePlan(proposal, context) {
 }
 
 export function buildPlannerContext({ observation, goal, operators, skills }) {
-  const context = jsonCopy({ perceptionVersion: observation.perceptionVersion ?? null, observation, goal, operators: validateOperators(operators), skills });
+  const context = jsonCopy({ perceptionVersion: observation.perceptionVersion ?? null, observation, goal, operators: validateOperators(operators), skills },'plannerContext',4*1024*1024);
   if (!object(context.observation) || !object(context.goal) || !id(context.goal.id) || !Array.isArray(context.skills) || !context.skills.every(id)) throw new Error("Uncorrect context Planner.");
   validateCondition(context.goal.desired, 'goal.desired');
   return context;
 }
 
 export function createSymbolicPlanner({ maxDepth = 16, maxNodes = 2000 } = {}) {
-  if (!Number.isInteger(maxDepth) || maxDepth < 1 || maxDepth > 64 || !Number.isInteger(maxNodes) || maxNodes < 1 || maxNodes > 10000) throw new Error('maxDepth: 1–64, maxNodes: 1–10000.');
+  if (!Number.isInteger(maxDepth) || maxDepth < 1 || maxDepth > 64 || !Number.isInteger(maxNodes) || maxNodes < 1 || maxNodes > 100000) throw new Error('maxDepth: 1–64, maxNodes: 1–100000.');
+  let stats={operators:0,relevantOperators:0,expanded:0,generated:0};
   return Object.freeze({ id: 'overmind:symbolic', apiVersion: 1,
+    snapshot:()=>({...stats}),
     async plan(context, { signal }) {
       signal.throwIfAborted();
       const { goal, observation, operators, skills } = context;
       if (!knownCondition(goal.desired, observation)) throw new Error("The purpose refers to an unknown fact.");
       if (matches(goal.desired, observation)) return { steps: [], reason: "Target already achieved." };
-      const available = operators.filter(o => skills.includes(o.action.skill));
+      const available = relevantOperators(operators.filter(o => skills.includes(o.action.skill)),goal.desired);
+      stats={operators:operators.length,relevantOperators:available.length,expanded:0,generated:1};
       const pointers = [...new Set([...conditionFacts(goal.desired), ...available.flatMap(o => [...conditionFacts(o.requires), ...o.effects.map(e => e.fact)])])].sort();
       // Search only over relevant facts; large entity lists do not multiply search memory.
       const seed = {};
@@ -100,16 +117,18 @@ export function createSymbolicPlanner({ maxDepth = 16, maxNodes = 2000 } = {}) {
       }
       const key = state => JSON.stringify(projectFacts(state, pointers));
       // Depth belongs to the key: a cheaper long route must not hide a valid shorter one.
-      const queue = [{ state: seed, steps: [], cost: 0 }], visited = new Map([[key(seed) + ':0', 0]]);
+      const queue = new CostFrontier(), visited = new Map([[key(seed) + ':0', 0]]);queue.push({state:seed,steps:[],cost:0});
       let generated = 1, expanded = 0, bounded = false;
       while (queue.length) {
         if (++expanded % 64 === 0) await yieldTurn();
         signal.throwIfAborted();
-        queue.sort((a, b) => a.cost - b.cost);
-        const current = queue.shift();
+        const current = queue.pop();stats.expanded=expanded;stats.generated=generated;
+        if(current.cost!==(visited.get(key(current.state)+':'+current.steps.length)??Infinity))continue;
         if (matches(goal.desired, current.state)) return { steps: current.steps, reason: `Model plan: ${current.steps.length} actions, value ${current.cost}, reviewed ${expanded} State.` };
         if (current.steps.length >= maxDepth) { bounded = true; continue; }
-        for (const op of available) {
+        for (let index=0;index<available.length;index++) {
+          if(index&&index%128===0){await yieldTurn();signal.throwIfAborted();}
+          const op=available[index];
           if (generated >= maxNodes) { bounded = true; break; }
           const next = applyOperator(current.state, op); if (!next || key(next) === key(current.state)) continue;
           const cost = current.cost + op.cost, k = key(next) + ':' + (current.steps.length + 1);

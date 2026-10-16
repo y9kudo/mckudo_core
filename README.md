@@ -4,7 +4,7 @@
 
 **Version Arthas · `1.0.0-Arthas-beta1` · Minecraft Java agent platform · Created by y9kudo · MIT**
 
-[Quick start](#start-with-the-web-dashboard) · [Program builder](docs/PROGRAMS.md) · [API](docs/API.md) · [Test evidence](docs/results/arthas-beta1-validation-2026-10-15.md) · [Contribute](CONTRIBUTING.md)
+[Quick start](#start-with-the-web-dashboard) · [Program builder](docs/PROGRAMS.md) · [API](docs/API.md) · [Planning](docs/PLANNING.md) · [Quality](docs/QUALITY.md) · [Contribute](CONTRIBUTING.md)
 
 OvermindMC is a reusable library for building Minecraft agents. Give an agent a resource goal, a sequence of tasks or a conditional program. The kernel plans prerequisites, reads the connected world and asks its client to execute actions. You can build programs in the local web dashboard or write JavaScript using the same public API.
 
@@ -12,21 +12,23 @@ This is a public beta. An independently verified autonomous run from an empty in
 
 **Start small:** ask for `#logs`, then a stone pickaxe and a furnace. Inspect what the agent observes, how it chooses actions and which outcomes the server confirms. Build a larger program from those same blocks.
 
-## New in Arthas beta1
+## Core capabilities
 
-- **Goal-driven elevated mining:** a diamond inventory goal can plan tool and smelting prerequisites, gather building stock, jump-place a side column and attach a platform below floating ore. A prepared Survival trial finished with an iron pickaxe, 11 pillar placements and one collected diamond. [Evidence and restart details](docs/results/sky-diamond-2026-10-15.md) · [Run the trial](docs/SKY-DIAMOND-TRIAL.md).
+- **Goal-driven resources:** plan tool, crafting and smelting prerequisites, select interchangeable block classes, gather construction stock and build supported access to elevated minerals.
+- **Shared spatial search:** evaluate multiple destination candidates in one A* search and hand the selected route to OMConnect. The symbolic planner supports causal filtering and a stable cost frontier for larger operator domains.
 - **Continuous ground steering:** bounded lookahead, verified corner shortcuts and velocity retained between compatible walking spans. Server corrections invalidate the old route immediately.
 - **Reactive combat:** measured target motion, bow/crossbow tracking during charging, shield-aware weapon commitment, directional flanks and safe spacing. An independent projectile guard can interrupt ordinary work or a bow draw; terrain, reach and occlusion checks remain active.
 - **More precise experience:** failed transitions no longer penalize every entrance to a destination. Temporary occupancy and server corrections do not become training failures.
 - **Planner handoff:** the kernel can pass a short-lived, validated route to OMConnect without running the same search twice. LAN configuration ping/pong now completes before world readiness.
 
-[Beta1 navigation and combat guide](docs/BETA1-NAVIGATION-COMBAT.md) explains behavior, tests, sources and remaining engineering work.
+[Planning architecture](docs/PLANNING.md) explains the layers, budgets and public APIs. [Run an expedition](docs/FULL-EXPEDITION.md) or use the local progress monitor without connecting a second agent.
 
 ## Platform tools
 
 - **3D world debugger:** received blocks with local Minecraft textures/models, route steps, program waypoints, current targets, entities, protected regions and the agent's view frustum.
 - **Visual program builder:** resource goals, movement, skills, sequences, parallel goals, if/else, finite repeats and bounded until loops. Blocks and editable JSON share one document; export runnable JavaScript when you want to extend it in an editor.
-- **Version lab:** official release discovery, explicit transport capabilities and opt-in compatibility profiles. Live test results and known failures are recorded separately from codec availability.
+- **Version API:** official release discovery, explicit transport capabilities and opt-in compatibility profiles. Gameplay support is tracked separately from codec availability.
+- **Expedition monitor:** current campaign stage, actions, inventory, health and available computation counters from one configured local report. Start with `npm.cmd run expedition:monitor`.
 
 ## How the components fit together
 
@@ -115,7 +117,7 @@ For short scripts, use `agent.get('#logs', 4)`, `agent.craft('crafting_table', 1
 
 Native high-level profiles currently cover **Java 1.21 and 1.21.1**. The version API distinguishes known catalogs, installed transports, native actions and live test evidence. Discovery can enumerate historical official releases; it does not enable an unsupported wire protocol.
 
-The installed transport supplies 30 protocol families. Automated checks round-trip movement and digging through their actual codecs. Selected local server trials check whether a fresh agent can collect cobblestone. Additional vanilla profiles remain experimental until their gameplay paths pass those trials. [Version API](docs/VERSION-API.md) · [Reproduce the version lab](docs/VERSION-LAB.md).
+The installed transport supplies 30 protocol families. Automated checks round-trip movement and digging through their actual codecs. Selected local server trials check whether a fresh agent can collect cobblestone. Additional vanilla profiles remain experimental until their gameplay paths pass those trials. [Version API](docs/VERSION-API.md) · Reproduce the version lab.
 
 Forge, Fabric and NeoForge integrations use an explicit bridge contract and machine catalogs. Applications register executors for custom mechanisms. [Mod integration](docs/MODS.md) · [Machine recipes](docs/MACHINE-RECIPES.md).
 
@@ -132,7 +134,7 @@ npm.cmd run release:check
 npm.cmd run test:package -- --offline
 ```
 
-The package smoke test installs both archives into a clean consumer; offline mode needs populated npm caches. The beta1 local suite passes **623 tests**. [Navigation evidence](docs/results/arthas-beta1-validation-2026-10-15.md), [combat follow-up](docs/results/arthas-beta1-pvp-tracking-2026-10-15.md) and [sky-diamond trial](docs/results/sky-diamond-2026-10-15.md) distinguish automated coverage from live outcomes. Local worlds, logs, auth caches, texture archives and runtime reports belong in ignored data directories. [Contributing](CONTRIBUTING.md) · [Full expedition instructions](docs/FULL-EXPEDITION.md) · [Roadmap](ROADMAP.md) · [License](LICENSE).
+The package smoke test installs both archives into a clean consumer; offline mode needs populated npm caches. Public source retains API/contract tests and CI. Game trials, personal journals, worlds, auth caches and texture archives stay in ignored local workspaces. [Quality policy](docs/QUALITY.md) · [Contributing](CONTRIBUTING.md) · [Full expedition instructions](docs/FULL-EXPEDITION.md) · [Roadmap](ROADMAP.md) · [License](LICENSE).
 
 ## Help build the platform
 

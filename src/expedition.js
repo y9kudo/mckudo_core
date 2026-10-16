@@ -7,6 +7,8 @@ import {createDragonPolicy} from './dragon-brain.js';
 import {createExplorationPlanner} from './exploration-planner.js';
 import {createCampaignJournal} from './campaign-journal.js';
 import {createNetherReactor,NETHER_TRACKED_BLOCKS} from './nether.js';
+import {createNavigationGoal} from './navigation-goal.js';
+import {hasOpenSky} from './home-route.js';
 
 /** A reusable objective; the launcher only connects, records evidence and enforces a deadline. */
 export function endExpeditionScenario(){
@@ -90,7 +92,8 @@ export function createEndExpedition({client,worldId,scenario=endExpeditionScenar
   let brain;
   const objective=scenario.steps.some(s=>s.type==='dragon')?'defeat-dragon':scenario.steps.at(-1).type==='netherResources'?'visit-nether':'enter-end';
   const journal=createCampaignJournal({clock,objective});
-  const controller=createScenario({scenario,catalog,getBlock:p=>client.world.blockAt(p),strongholdSearch:strongholdSearch(client),explorationPlanner:explorer,memory:checkpoint,
+  const controller=createScenario({scenario,catalog,getBlock:p=>client.world.blockAt(p),strongholdSearch:strongholdSearch(client),explorationPlanner:explorer,memory:checkpoint,isOutdoor:position=>hasOpenSky({position,getBlock:p=>client.world.blockAt(p),maxY:client.world.minY+client.world.height}),
+    navigationFactory:step=>createNavigationGoal({client,position:step.position,range:step.range,bridge:step.bridge,excavate:step.excavate,catalog,clock,resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10,spatial:brain?.spatial,explorationPlanner:explorer})}),
     netherFactory:(step,memory)=>createNetherReactor({client,catalog,targets:step.targets,exploreDistance:step.exploreDistance,explorationPlanner:explorer,memory,clock,resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10,spatial:brain?.spatial,explorationPlanner:explorer})}),
     resourceFactory:targets=>createSurvivalReactor({client,catalog,targets,priority:10,spatial:brain?.spatial,explorationPlanner:explorer}),dragonCombat});
   controller.reactor.failureScope='action';controller.reactor.managesRetries=true;

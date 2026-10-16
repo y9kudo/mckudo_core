@@ -52,3 +52,10 @@ test('fresh attributed hits and low health retain defense despite a previous rou
   now=1001;o.combat.attackers[0].lastHitAt=1001;assert.equal(r.react(o).action.args.entityId,'1');
   r.recordResult({outcome:'failure'},r.react(o).action);o.self.health=6;assert.equal(r.react(o).action.args.entityId,'1');
 });
+test('unarmed recovery avoids pursuing hostiles, including a distant attacker after failed retreat',()=>{
+  const r=createCombatReactor({pathRetreat:true}),o={dimension:'minecraft:overworld',self:{position:{x:0,y:64,z:0},health:20},inventory:{},entities:[{id:'9',kind:'mob',name:'skeleton',hostile:true,visible:true,position:{x:6,y:64,z:0}}]};
+  const decision=r.react(o);assert.equal(decision.action.skill,'evade');r.recordResult({outcome:'failure',detail:'No known safe route found.'},decision.action);
+  assert.equal(r.react(o).action.skill,'evade');
+  o.entities[0].position.x=2;assert.equal(r.react(o).action.skill,'combat');
+  o.inventory['minecraft:iron_sword']=1;o.entities[0].position.x=6;assert.equal(r.react(o).action.skill,'combat');
+});

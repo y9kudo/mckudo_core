@@ -1,7 +1,7 @@
 import { setImmediate as yieldTask } from 'node:timers/promises';
 import {performance} from 'node:perf_hooks';
 import { fluidAt } from './environment.js';
-import {planRoute,planRouteAsync} from './navigation.js';
+import {planRoute,planRouteAsync,planRouteToAny,planRouteToAnyAsync} from './navigation.js';
 
 export const OMVECTORIZE = Object.freeze({ name: 'OMVectorize', author: 'y9kudo', version: '1.0.0-Arthas-beta1', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-beta1', modes: ['ground','swim','elytra'], predictions: ['elytra'] });
 const axes = ['x', 'y', 'z'];
@@ -122,6 +122,8 @@ export function predictElytraTick({position,velocity,yaw,pitch,rocket=false}){
 export class OMVectorize {
   constructor({getBlock,getRevision,groundBackend=null}={}){if(typeof getBlock!=='function')throw new Error("OMVectorize: requires getBlock.");if(groundBackend&&typeof groundBackend.planGroundAsync!=='function')throw new Error('A ground backend must implement planGroundAsync.');this.getBlock=getBlock;this.getRevision=getRevision;this.groundBackend=groundBackend;}
   planGround(options){return planRoute({...options,getBlock:options.getBlock||this.getBlock});}
+  planGroundToAny(options){return planRouteToAny({...options,getBlock:options.getBlock||this.getBlock});}
+  planGroundToAnyAsync(options,scheduling={}){return planRouteToAnyAsync({...options,getBlock:options.getBlock||this.getBlock},{getRevision:this.getRevision,...scheduling});}
   planGroundAsync(options,scheduling={}){const plan=this.groundBackend?this.groundBackend.planGroundAsync.bind(this.groundBackend):planRouteAsync;return plan({...options,getBlock:options.getBlock||this.getBlock},{getRevision:this.getRevision,...scheduling});}
   planSwim(options){return planSwimRoute({...options,getBlock:this.getBlock});}
   planSwimAsync(options){return planSwimRouteAsync({...options,getBlock:this.getBlock},{getRevision:this.getRevision});}

@@ -32,6 +32,9 @@ export function createCombatReactor(options = {}) {
       const response = defense.react({ ...observation, entities });
       selected=response.action?{ skill: 'combat', args: { ...response.action.args, allowPlayer: options.attackPlayers === true, retreatHealth: options.retreatHealth ?? 8, durationMs: 400 } }:null;
       const threat=selected&&entities?.find(e=>String(e.id)===String(selected.args.entityId));
+      const inventory=observation.inventory??{},hasMelee=Object.entries(inventory).some(([id,n])=>n>0&&/_(?:sword|axe)$/.test(id));
+      const hasRanged=(inventory['minecraft:bow']||inventory['minecraft:crossbow'])&&(inventory['minecraft:arrow']||inventory['minecraft:spectral_arrow']||inventory['minecraft:tipped_arrow']);
+      const unprepared=options.pathRetreat===true&&!hasMelee&&!(hasRanged&&threat&&distance(threat.position,observation.self.position)>=rangedDistance);
       const blockedRetreat=threat&&retreatBlocked.has(String(threat.id));
       const canShoot=ranged&&threat&&threat.blocking!==true&&!rangedBlocked.has(String(threat.id));
       if(canShoot&&threat?.visible===true&&observation.self?.health>(options.retreatHealth??8)&&distance(threat.position,observation.self.position)>=rangedDistance){
@@ -45,8 +48,8 @@ export function createCombatReactor(options = {}) {
           else if(options.pathRetreat===true)selected={skill:'evade',args:{from:{...threat.position},entityId:String(threat.id),seekCover:true,digEscape:true}};
           else selected=null;}
       }
-      if(options.pathRetreat===true&&threat?.position&&(observation.self?.health==null||observation.self.health<=(options.retreatHealth??8)||threat.name==='creeper')){
-        if(blockedRetreat)selected={...selected,args:{...selected.args,retreatHealth:0,critical:false}};
+      if(options.pathRetreat===true&&threat?.position&&(unprepared&&selected?.skill!=='shoot'||observation.self?.health==null||observation.self.health<=(options.retreatHealth??8)||threat.name==='creeper')){
+        if(blockedRetreat&&threat.name!=='creeper'&&distance(threat.position,observation.self.position)<=3.5)selected={skill:'combat',args:{entityId:threat.id,maxDistance:3.5,allowPlayer:options.attackPlayers===true,retreatHealth:0,durationMs:400,critical:false}};
         else selected={skill:'evade',args:{from:{...threat.position},entityId:String(threat.id),seekCover:true,digEscape:true}};
       }
       if(threat?.name==='enderman'&&observation.dimension!=='minecraft:the_nether'&&(observation.inventory?.['minecraft:water_bucket']||0)>0&&clock()>=(waterAttempted.get(String(threat.id))||0))selected={skill:'waterGuard',args:{entityId:String(threat.id)}};
@@ -60,7 +63,10 @@ export function createCombatReactor(options = {}) {
         while(rangedBlocked.size>64)rangedBlocked.delete(rangedBlocked.keys().next().value);
         return;
       }
-      if(action.skill==='evade'&&/No route|No known safe route found|Start position changed|route|path/i.test(result.detail||''))retreatBlocked.set(String(action.args.entityId),{until:clock()+1500,dimension:latest?.dimension,self:latest?.self?.position?{...latest.self.position}:null});
+      if(action.skill==='evade'){
+        if(/No route|No known safe route found|Start position changed|route|path/i.test(result.detail||''))retreatBlocked.set(String(action.args.entityId),{until:clock()+1500,dimension:latest?.dimension,self:latest?.self?.position?{...latest.self.position}:null});
+        return;
+      }
       const entity=latest?.entities?.find(e=>String(e.id)===String(action.args.entityId));
       failed.set(String(action.args.entityId),{at:clock(),until:clock()+5000,transientAim:/aim|turn|target moved/i.test(result.detail||''),dimension:latest?.dimension,self:latest?.self?.position?{...latest.self.position}:null,target:entity?.position?{...entity.position}:null});
       while(failed.size>64)failed.delete(failed.keys().next().value);

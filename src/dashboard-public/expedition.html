@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OvermindMC · Expedition</title><link rel="stylesheet" href="/monitor.css"></head>
+<body><header><a href="/">OM · OvermindMC</a><span id="version">Version Arthas</span><span class="badge">LOCAL · LIVE</span></header><main>
+<section class="intro"><div><p class="eyebrow">AUTONOMOUS EXPEDITION</p><h1 id="name">Waiting for the agent</h1><p id="reason">Reading the expedition report…</p></div><span id="status" class="badge">Waiting</span></section>
+<section class="metrics"><article><small>Health / food</small><strong id="vitals">—</strong></article><article><small>Elapsed</small><strong id="elapsed">—</strong></article><article><small>Completed stages</small><strong id="progress">—</strong></article><article><small>Actions / deaths</small><strong id="actions">—</strong></article></section>
+<progress id="bar" max="1" value="0" aria-label="Completed campaign stages"></progress><p id="freshness" class="muted">Waiting for a report.</p>
+<div class="columns"><section class="card"><h2>Campaign</h2><ol id="steps"></ol></section><section class="card"><h2>Current action</h2><pre id="action">—</pre><p id="position" class="muted">—</p><h2>Inventory</h2><div id="inventory" class="inventory"></div><h2>Computation & learning</h2><p id="runtime">—</p></section></div>
+<section class="card"><h2>Recent actions</h2><div id="events"></div></section><details class="card"><summary>Failures under investigation</summary><div id="failures"></div></details>
+<footer>Created by y9kudo · MIT · Progress comes from observed inventory and campaign stages.</footer></main><script type="module" src="/monitor.js"></script></body></html>

@@ -93,6 +93,6 @@ Report: `data/arthas-live/report.json`; The other folder asks `--output=...`. St
 
 ## Results of this assembly
 
-[Measurements and play protocol](results/arthas-curriculum-2026-10-14.md): ArthasTrial03 implemented 6 Survival-from zero to zero 181.064 seconds. Individual DQN-Run to 512000 The transitions have been made validation The first eight stages and stopped at the furnace. Full utilization 20 Unproven.
+Measurements and play protocol: ArthasTrial03 implemented 6 Survival-from zero to zero 181.064 seconds. Individual DQN-Run to 512000 The transitions have been made validation The first eight stages and stopped at the furnace. Full utilization 20 Unproven.
 
-Total API: [management v1](V1-INTELLIGENCE.md), [Types](../src/intelligence.d.ts). Definitions of stages: [stages.js](../src/learning/stages.js); cycle: [training.js](../src/learning/training.js); Game Launch: [curriculum-live.js](../examples/curriculum-live.js).
+Total API: [management v1](V1-INTELLIGENCE.md), [Types](../src/intelligence.d.ts). Definitions of stages: [stages.js](../src/learning/stages.js); cycle: [training.js](../src/learning/training.js); Game Launch: curriculum-live.js.

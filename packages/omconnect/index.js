@@ -15,7 +15,7 @@ export { OMPlayers, gazeAngles, gazeError } from './src/players.js';
 export { rotateToward, bridgeMaterials, travelControl, combatControl } from './src/movement.js';
 export { craftingRecipes, chooseCraftingRecipe, smeltingRecipe, fuelItems } from './src/crafting.js';
 export {assessFall} from './src/fall.js';
-export {planRoute, planRouteAsync} from './src/navigation.js';
+export {planRoute, planRouteAsync,planRouteToAny,planRouteToAnyAsync} from './src/navigation.js';
 export {createWorkScheduler} from './src/scheduler.js';
 export {WorldRecipeBook} from './src/recipes.js';
 export {traceVisibility} from './src/visibility.js';

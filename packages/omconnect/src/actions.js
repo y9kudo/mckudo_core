@@ -1,6 +1,7 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { performance } from 'node:perf_hooks';
-import { planRouteAsync, readRouteWorld, isAir, isFullBlock, isHazard } from './navigation.js';
+import { planRouteAsync,planRouteToAnyAsync, readRouteWorld, isAir, isFullBlock, isHazard } from './navigation.js';
+import {leaseNavigationRoute} from './route-lease.js';
 import { weaponProfile, shieldFaces } from './combat.js';
 import {executeCombat,combatGeometry} from './combat-runtime.js';
 import { solveAim } from './projectiles.js';
@@ -125,18 +126,26 @@ async function approach(c, position, signal, {forPlacement=false,preferFlight=fa
   const maxDrop=c.options?.maxDrop??(c.state.dimension==='minecraft:overworld'?16:3);
   const fallPolicy={health:c.state.health,minHealthAfter:c.options?.fallHealthReserve??6,maxDamage:c.options?.maxFallDamage??6};
   let lastError;
-  for (const excavate of forPlacement?[false]:[false,true]) for (const p of candidates.slice(0, 24)) {
-    const view = readRouteWorld(c.world);
-    const route = await planRouteAsync({ start: floor(c.state.position), goal: p, getBlock: view.getBlock, canDig:excavate?routeCanDig(c):()=>false, maxNodes: 3000, maxDistance: 128, maxDrop,fallPolicy,signal }, { getRevision: view.getRevision });
-    if (route.status !== 'planned') continue;
-    try { await navigate(c, { ...p, range: 0, excavate, maxDrop, bridge:false }, signal); }
-    catch(error) { signal.throwIfAborted(); lastError=error; continue; }
-    if (!occupying()&&distance(eye(), aim) <= 4.3 && visible(c, aim)) return;
+  for (const excavate of forPlacement?[false]:[false,true]) {
+    const remaining=candidates.slice(0,24);
+    while(remaining.length){
+      const view=readRouteWorld(c.world),revision=view.getRevision(),start=floor(c.state.position);
+      const occupied=p=>[...c.entities.values()].some(e=>e.kind==='player'&&e.gameMode!==3&&String(e.id)!==String(c.state.entityId)&&e.position&&Math.abs(e.position.y-p.y)<1.8&&Math.hypot(e.position.x-p.x-.5,e.position.z-p.z-.5)<.8);
+      const route=await planRouteToAnyAsync({start,goals:remaining,getBlock:view.getBlock,occupied,edgeCost:c.navigationPolicy?.cost,canDig:excavate?routeCanDig(c):()=>false,maxNodes:6000,maxDistance:128,maxDrop,fallPolicy,signal},{getRevision:view.getRevision});
+      c.metrics.approachSearches=(c.metrics.approachSearches||0)+1;
+      if(route.status!=='planned')break;
+      const p=route.selectedGoal,index=remaining.findIndex(q=>q.x===p.x&&q.y===p.y&&q.z===p.z);remaining.splice(index,1);
+      const args={...p,range:0,excavate,maxDrop,bridge:false},lease=leaseNavigationRoute(c,route,start,args,()=>view.getRevision()===revision);
+      if(lease)args.routeLease=lease;
+      try{await navigate(c,args,signal);}catch(error){signal.throwIfAborted();lastError=error;continue;}
+      if(!occupying()&&distance(eye(),aim)<=4.3&&visible(c,aim))return;
+    }
   }
   throw lastError || new Error("No reachable position with line of sight to the target block.");
 }
 async function dig(c, args, signal) {
   if (!point(args)) throw new Error("dig: Need coordinates.");
+  if(args.dropRequired!==undefined&&typeof args.dropRequired!=='boolean')throw new Error('dig.dropRequired: boolean.');
   const position = floor(args); assertEdit(c,'dig',position); await approach(c, position, signal); alive(c, signal);
   const b = c.world.blockAt(position); if (!b || args.block && name(args.block) !== b.name) throw new Error("Target block missing or changed.");
   const foot = floor(c.state.position);
@@ -145,12 +154,12 @@ async function dig(c, args, signal) {
     const adjacent = c.world.blockAt({ x: position.x + dx, y: position.y + dy, z: position.z + dz });
     if (!adjacent || isHazard(adjacent) || dy === 1 && ['sand', 'gravel', 'anvil', 'pointed_dripstone'].includes(adjacent.name)) throw new Error("Liquid close by, Falling block or unknown area.");
   }
-  const tool = chooseMiningTool(c.registry, b, c.inventory.items(), { held: c.inventory.held(), onGround: c.state.onGround, preservePickaxeTier:args.preservePickaxeTier });
+  const tool = chooseMiningTool(c.registry, b, c.inventory.items(), { held: c.inventory.held(), onGround: c.state.onGround, preservePickaxeTier:args.preservePickaxeTier,requireHarvest:args.dropRequired!==false });
   if (!tool) throw new Error("No tool capable of harvesting the drop.");
   if (tool.item && tool.item.slot !== c.inventory.held()?.slot) await select(c, tool.item, signal);
   if (!tool.item) await emptyHand(c, signal);
   const timing = miningTime(c.registry, b, c.inventory.held(), { onGround: c.state.onGround });
-  if (!timing.harvestable) throw new Error("No tool capable of harvesting the drop.");
+  if (!timing.harvestable&&args.dropRequired!==false) throw new Error("No tool capable of harvesting the drop.");
   if (timing.milliseconds > 30000) throw new Error("Mining would take too long without a suitable tool.");
   c.lookAt(center(position)); await c.waitForLook?.({ signal }); const original = b.stateId, face = 1; let complete = false;
   const started = performance.now();
@@ -169,7 +178,7 @@ async function dig(c, args, signal) {
     if (c.world.stateAt(position) !== original) throw new Error("The target block changed during mining.");
     c.write('block_dig', { status: 2, location: position, face, sequence: ++c.sequence });
     await c.waitFor(() => c.world.stateAt(position) !== null && c.world.stateAt(position) !== original, { event: 'block', signal, timeoutMs: 3000 }); complete = true;
-    return { ok: true, position, block: b.name, serverConfirmed: true, durationMs: performance.now() - started };
+    return { ok: true, position, block: b.name,harvestable:timing.harvestable, serverConfirmed: true, durationMs: performance.now() - started };
   } finally { clearInterval(swingTimer);if (!complete && c.client.state === 'play') c.write('block_dig', { status: 1, location: position, face, sequence: ++c.sequence }); }
 }
 async function collect(c, args, signal) {
@@ -228,27 +237,39 @@ export async function runAction(c, action, signal) {
       const direction={x:control.x,z:control.z};
       const long=safeCorridor(c.state.position,direction,4,p=>c.world.blockAt(p));
       const medium=long||safeCorridor(c.state.position,direction,2.5,p=>c.world.blockAt(p));
-      c.control={...control,sprint:medium,jump:false};
+      c.control={...control,sprint:medium&&c.state.food>6&&!c.guarding,jump:false};
       try{await delay(long?400:medium?250:150,undefined,{signal});}finally{c.stopMovement();}
       return {ok:true,emergencyStep:true};
     };
     const threat=c.entities.get(Number(args.entityId));
     if(distance(c.state.position,args.from)<4.5||threat?.name==='creeper'&&distance(c.state.position,args.from)<6){const immediate=await localRetreat();if(immediate)return immediate;}
-    for(let dx=-6;dx<=6;dx++)for(let dz=-6;dz<=6;dz++) {
-      const p={x:here.x+dx,y:here.y,z:here.z+dz};
-      if (Math.hypot(dx,dz)<3 || distance(p,args.from)<distance(here,args.from)+2) continue;
+    for(const dy of [0,-1,1])for(let dx=-6;dx<=6;dx++)for(let dz=-6;dz<=6;dz++) {
+      const p={x:here.x+dx,y:here.y+dy,z:here.z+dz};
+      if (Math.hypot(dx,dz)<1 || distance(center(p),args.from)<distance(c.state.position,args.from)+.4) continue;
       if ([...c.entities.values()].some(e=>e.name==='end_crystal' && distance(p,e.position)<12 || e.name==='area_effect_cloud' && distance(p,e.position)<(e.metadata?.radius||3)+2)) continue;
       if(isAir(c.world.blockAt(p))&&isAir(c.world.blockAt({...p,y:p.y+1}))&&isFullBlock(c.world.blockAt({...p,y:p.y-1}))) candidates.push(p);
     }
     const coverCache=new Map();
     const covered=p=>{const id=`${p.x},${p.y},${p.z}`;if(!coverCache.has(id))coverCache.set(id,traceVisibility({origin:{...args.from,y:args.from.y+1.5},target:{...p,x:p.x+.5,y:p.y+1.3,z:p.z+.5},getBlock:q=>c.world.blockAt(q),maxDistance:32}).reason==='blocked');return coverCache.get(id);};
-    candidates.sort((a,b)=>(args.seekCover===true?Number(covered(b))-Number(covered(a)):0)||distance(b,args.from)-distance(a,args.from));
-    for(const p of candidates.slice(0,24)) {
-      const view = readRouteWorld(c.world);
-      if((await planRouteAsync({start:here,goal:p,getBlock:view.getBlock,maxNodes:1000,maxDistance:12,maxDrop:1,signal}, {getRevision:view.getRevision})).status==='planned') return navigate(c,{...p,range:0,bridge:false,sprintJump:false,maxDrop:1},signal);
+    candidates.sort((a,b)=>distance(b,args.from)-distance(a,args.from));
+    // A short uphill exit remains useful when no distant cell can be reached yet.
+    const distant=candidates.filter(p=>Math.hypot(p.x-here.x,p.z-here.z)>=3&&distance(center(p),args.from)>=distance(c.state.position,args.from)+2).slice(0,64);
+    const nearby=candidates.filter(p=>Math.hypot(p.x-here.x,p.z-here.z)<3).slice(0,32);
+    const groups=[...(args.seekCover===true?[distant.filter(covered),distant.filter(p=>!covered(p))]:[distant]),nearby];
+    for(const goals of groups){
+      if(!goals.length)continue;
+      const view=readRouteWorld(c.world),revision=view.getRevision();
+      const occupied=p=>[...c.entities.values()].some(e=>(e.hostile===true||String(e.id)===String(args.entityId))&&e.position&&Math.hypot(e.position.x-p.x-.5,e.position.y-p.y,e.position.z-p.z-.5)<1.3);
+      const route=await planRouteToAnyAsync({start:here,goals,getBlock:view.getBlock,occupied,maxNodes:2500,maxDistance:12,maxDrop:1,signal},{getRevision:view.getRevision});
+      if(route.status!=='planned')continue;
+      const navArgs={...route.selectedGoal,range:0,bridge:false,sprintJump:false,maxDrop:1},lease=leaseNavigationRoute(c,route,here,navArgs,()=>view.getRevision()===revision);if(lease)navArgs.routeLease=lease;
+      return navigate(c,navArgs,signal);
     }
-    if(args.digEscape!==false){const escape=planRetreatExcavation({position:c.state.position,from:args.from,getBlock:p=>c.world.blockAt(p),canDig:routeCanDig(c),miningMs:b=>{const tool=chooseMiningTool(c.registry,b,c.inventory.items(),{held:c.inventory.held(),onGround:c.state.onGround});return tool?.milliseconds??Infinity;}});
-      if(escape){for(const p of escape.dig){signal.throwIfAborted();const hostile=c.entities.get(Number(args.entityId));if(hostile&&distance(c.state.position,hostile.position)<3.5)throw new Error("The threat is coming: Dumping of the waste has been stopped.");await runAction(c,{skill:'dig',args:{...p}},signal);}return navigate(c,{...escape.position,range:0,bridge:false,maxDrop:1},signal);}}
+    if(args.digEscape!==false){
+      const terrain=routeCanDig(c,{requireHarvest:false});
+      const canDig=(b,p)=>terrain(b,p)||/(?:^|:)(?:[a-z_]+_leaves|leaves2?)$/.test(b.name||b.id)&&editDecision(c,'dig',p).allowed;
+      const escape=planRetreatExcavation({position:c.state.position,from:args.from,getBlock:p=>c.world.blockAt(p),canDig,miningMs:b=>{const tool=chooseMiningTool(c.registry,b,c.inventory.items(),{held:c.inventory.held(),onGround:c.state.onGround,requireHarvest:false});return tool?.milliseconds??Infinity;}});
+      if(escape){for(const p of escape.dig){signal.throwIfAborted();const hostile=c.entities.get(Number(args.entityId));if(hostile&&distance(c.state.position,hostile.position)<3.5)throw new Error('The threat reached melee range; stop excavating and reassess.');await runAction(c,{skill:'dig',args:{...p,dropRequired:false}},signal);}return navigate(c,{...escape.position,range:0,bridge:false,maxDrop:1},signal);}}
     // In a narrow excavation a full three-block escape may not exist yet.
     // Take one verified local step, then let the brain re-evaluate the threat.
     const fallback=await localRetreat();if(fallback)return fallback;

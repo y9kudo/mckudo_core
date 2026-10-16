@@ -11,9 +11,10 @@ export function miningTime(registry, block, item, { onGround = true } = {}) {
   const ticks = block.hardness === 0 ? 1 : Math.ceil(block.hardness * (harvestable ? 30 : 100) / speed * (onGround ? 1 : 5));
   return { milliseconds: (ticks + 1) * 50, harvestable };
 }
-export function chooseMiningTool(registry, block, items, { held = null, onGround = true, preservePickaxeTier } = {}) {
+export function chooseMiningTool(registry, block, items, { held = null, onGround = true, preservePickaxeTier,requireHarvest=true } = {}) {
+  if(typeof requireHarvest!=='boolean')throw new Error('requireHarvest: boolean.');
   if(preservePickaxeTier!==undefined&&(!Number.isInteger(preservePickaxeTier)||preservePickaxeTier<1||preservePickaxeTier>4))throw new Error('preservePickaxeTier: 1–4.');
-  const candidates = [null, ...items.filter(i => remainingDurability(i, registry) > 1)].map(item => ({ item, ...miningTime(registry, block, item, { onGround }) })).filter(t => t.harvestable);
+  const candidates = [null, ...items.filter(i => remainingDurability(i, registry) > 1)].map(item => ({ item, ...miningTime(registry, block, item, { onGround }) })).filter(t => !requireHarvest||t.harvestable);
   const material = String(block.material || ''), blockName = String(block.name || '');
   const family = /(?:dirt|grass|sand|gravel|clay|snow|mud|podzol|mycelium|farmland)/.test(material+';'+blockName) ? 'shovel'
     : /(?:wood|log|stem|hyphae)/.test(material+';'+blockName) ? 'axe'

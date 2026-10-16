@@ -133,4 +133,4 @@ Measurement 11 October 2026, Node v24.19.0, Under 30 000 processed knots in each
 | The longest delay in the control timer | 976 ms | 31 ms |
 | Timer activation during search | 0 | 49 |
 
-Both regimes use the same current mode A* And return the same outcome for the same amount of work. This is a comparison of how to implement, Not froze the old version against the new one. Values depend on PCs and load. The parallel search holds several rounds A* In memory, So memory consumption can grow. The result does not confirm the speed of movement, or cooperation in the present Minecraft; selected game results are in [Audit log](TESTING-06.md).
+Both regimes use the same current mode A* And return the same outcome for the same amount of work. This is a comparison of how to implement, Not froze the old version against the new one. Values depend on PCs and load. The parallel search holds several rounds A* In memory, So memory consumption can grow. The result does not confirm the speed of movement, or cooperation in the present Minecraft; selected game results are in Audit log.

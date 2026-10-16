@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {sourceDigest,diamondEvidence,rankRace,sharingCandidate,cleanInventory,raceContinuation} from '../examples/benchmark/race-metrics.js';
+import {sourceDigest,diamondEvidence,rankRace,sharingCandidate,cleanInventory,raceContinuation} from './helpers/race-metrics.js';
 
 test('diamond race rejects gifts, remote pickups and pre-start observations',()=>{
  const observation={startedAt:1000,now:4000,inventory:{'minecraft:diamond':1},mined:[{at:3000,block:'deepslate_diamond_ore',position:{x:0,y:-50,z:0}}]};

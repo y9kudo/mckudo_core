@@ -3,6 +3,7 @@ import { createBlockTaxonomy } from './taxonomy.js';
 import { createResourceReactor, planExploration } from './exploration.js';
 import { createNetherPortalBlueprint, planNetherPortal, observedNetherPortalFrame, triangulateEyes, fortressEvidence, dragonDecision } from './endgame.js';
 import {blockKey,createGroundShelterBlueprint,findGroundShelterSite,planConstruction} from './construction.js';
+import {recordHomeTrail,homeReturnWaypoint} from './home-route.js';
 const fields = { resources: ['targets'], netherResources:['targets','exploreDistance'], shelter:[], swim:['position'], navigate: ['position','range','bridge','excavate'], collect: ['item', 'count'], netherPortal: ['origin', 'axis'], travel: ['dimension'], blazeRods: ['count'], enderPearls: ['count'], eyes: ['count'], stronghold: [], endPortal: [], dragon: [] };
 const namespaced = s => typeof s === 'string' && /^[a-z0-9_.-]+:[a-z0-9_./-]+$/.test(s);
 export function validateScenario(input) {
@@ -36,9 +37,13 @@ export function validateScenario(input) {
 }
 
 /** A scenario is a reactor/controller, not a Minecraft client. The application owns both. */
-export function createScenario({ scenario, catalog, taxonomy = createBlockTaxonomy(catalog), stations = {}, getBlock, explorationRadius = 24, resourceFactory, navigationFactory, strongholdSearch, dragonCombat, explorationPlanner,netherFactory,memory }) {
+export function createScenario({ scenario, catalog, taxonomy = createBlockTaxonomy(catalog), stations = {}, getBlock, explorationRadius = 24, resourceFactory, navigationFactory, strongholdSearch, dragonCombat, explorationPlanner,netherFactory,memory,isOutdoor }) {
   const definition = validateScenario(scenario), completed = [], resources = new Map(), origins = new Map(), shelters=new Map(), visited = [], portals = new Map();
   const navigation=new Map(),nether=new Map();let activeNether=null;
+  let homeAnchor=memory?.homeAnchor??null;
+  const homeTrail=structuredClone(memory?.homeTrail||[]);
+  if(!Array.isArray(homeTrail)||homeTrail.length>2048||homeTrail.some(p=>!p||!['x','y','z'].every(k=>Number.isInteger(p[k])&&Math.abs(p[k])<=30000000)))throw new Error('Invalid scenario home trail.');
+  if(homeAnchor&&(!['x','y','z'].every(k=>Number.isInteger(homeAnchor[k])&&Math.abs(homeAnchor[k])<=30000000)))throw new Error('Invalid scenario home anchor.');
   let index = 0, activeResource = null, activeNavigation=null, state = { status: 'pending', current: definition.steps[0].id, completed: [], reason: "Waiting for observation." };
   if(memory){
     if(memory.schemaVersion!==1||JSON.stringify(memory.definition)!==JSON.stringify(definition)||!Array.isArray(memory.completed)||memory.completed.some((id,n)=>id!==definition.steps[n]?.id)||!Array.isArray(memory.portals)||memory.portals.length>128||memory.portals.some(b=>!['minecraft:overworld','minecraft:the_nether','minecraft:the_end'].includes(b.dimension)||!['minecraft:nether_portal','minecraft:end_portal'].includes(b.name)||!b.position||!['x','y','z'].every(k=>Number.isInteger(b.position[k])&&Math.abs(b.position[k])<=30000000)))throw new Error("Wrong scenario reference point or other scenario.");
@@ -107,6 +112,18 @@ export function createScenario({ scenario, catalog, taxonomy = createBlockTaxono
     }
     if(step.type==='shelter'){
       if(o.dimension!=='minecraft:overworld'||!getBlock)return idle("Building a house requires observed blocks of the conventional world.");
+      if(homeAnchor&&navigationFactory&&o.self.position.y<homeAnchor.y-6&&!isOutdoor?.(o.self.position)){
+        const waypoint=homeReturnWaypoint(homeTrail,o.self.position,homeAnchor);let key=step.id+':return-home:'+blockKey(waypoint);
+        if(!navigation.has(key))navigation.set(key,navigationFactory({id:key,type:'navigate',position:waypoint,range:0,bridge:false,excavate:homeTrail.length===0}));
+        activeNavigation=navigation.get(key);
+        if(homeTrail.length&&activeNavigation.snapshot?.().status==='blocked'){
+          key+=':excavate';
+          if(!navigation.has(key))navigation.set(key,navigationFactory({id:key,type:'navigate',position:waypoint,range:0,bridge:false,excavate:true}));
+          activeNavigation=navigation.get(key);
+        }
+        const result=activeNavigation.react(o);
+        if(result)return {...result,reason:'Return to the observed home area before constructing a shelter. '+(result.reason||'')};
+      }
       let blueprint=shelters.get(step.id);
       if(!blueprint){
         const site=findGroundShelterSite({near:o.self.position,getBlock});
@@ -221,6 +238,8 @@ export function createScenario({ scenario, catalog, taxonomy = createBlockTaxono
   };
   const reactor = { id: 'overmind:scenario', apiVersion: 1, react(o) {
     activeResource=null;activeNavigation=null;activeNether=null;
+    if(!homeAnchor&&index===0&&o.dimension==='minecraft:overworld'&&o.self?.position&&['x','y','z'].every(k=>Number.isFinite(o.self.position[k])))homeAnchor=Object.fromEntries(['x','y','z'].map(k=>[k,Math.floor(o.self.position[k])]));
+    if(o.dimension==='minecraft:overworld'&&o.self?.position&&index<=definition.steps.findIndex(s=>s.type==='shelter')&&definition.steps[index]?.type!=='shelter')recordHomeTrail(homeTrail,o.self.position);
     for (const [key,portal] of portals) if(portal.name==='minecraft:end_portal'&&portal.dimension===o.dimension && getBlock?.(portal.position) && nameAt(portal.position)!==portal.name) portals.delete(key);
     for (const b of o.world?.sampledBlocks || []) if (['minecraft:nether_portal','minecraft:end_portal'].includes(b.name)) {
       const key=o.dimension+'/'+blockKey(b.position);portals.delete(key);portals.set(key,{dimension:o.dimension,name:b.name,position:{...b.position}});
@@ -234,7 +253,7 @@ export function createScenario({ scenario, catalog, taxonomy = createBlockTaxono
     state = { status: 'completed', current: null, completed: [...completed], reason: "All scenario conditions confirmed by observations." }; return idle(state.reason);
   } };
   return { reactor, snapshot: () => jsonCopy(state), definition: () => jsonCopy(definition),
-    exportMemory:()=>jsonCopy({schemaVersion:1,definition,completed,portals:[...portals.values()],nether:{...memory?.nether,...Object.fromEntries([...nether].map(([id,r])=>[id,r.exportMemory()]))}}),
+    exportMemory:()=>jsonCopy({schemaVersion:1,definition,completed,homeAnchor,homeTrail,portals:[...portals.values()],nether:{...memory?.nether,...Object.fromEntries([...nether].map(([id,r])=>[id,r.exportMemory()]))}}),
     restart(){index=0;completed.length=0;resources.clear();navigation.clear();nether.clear();activeResource=null;activeNavigation=null;activeNether=null;state={status:'pending',current:definition.steps[0].id,completed:[],reason:"Rechecking of stock after loss of equipment."};},
     recordResult(event,action) { activeResource?.recordResult?.(event,action);activeNavigation?.recordResult?.(event,action);activeNether?.recordResult?.(event,action);if(definition.steps[index]?.type==='dragon')dragonCombat?.recordResult?.(event,action); } };
 }

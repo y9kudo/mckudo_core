@@ -10,7 +10,8 @@ test('a fed empty-handed agent gathers tools before stockpiling meat, but hunts 
 test('critical-health defense uses a navigation retreat when the adapter supports it',()=>{
   const r=createCombatReactor({attackPlayers:false,pathRetreat:true}),o=base();o.self.health=5;o.entities=[{id:'8',name:'zombie',kind:'entity',hostile:true,position:{x:2,y:64,z:0},health:20}];
   const escape=r.react(o);assert.equal(escape.action.skill,'evade');assert.deepEqual(escape.action.args.from,o.entities[0].position);
-  o.self.health=20;assert.equal(r.react(o).action.skill,'combat');
+  o.self.health=20;assert.equal(r.react(o).action.skill,'evade','health alone does not make an unarmed survivor combat-ready');
+  o.inventory['minecraft:stone_sword']=1;assert.equal(r.react(o).action.skill,'combat');
 });
 test('failed retreat changes to defensive combat instead of repeating the same impossible path',()=>{
   let now=1000;const r=createCombatReactor({attackPlayers:false,pathRetreat:true,clock:()=>now}),o=base();

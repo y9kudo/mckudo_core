@@ -36,6 +36,8 @@ export interface StorageTransferOptions extends Position {items?:string[];amount
 export declare class OMVectorize {
   planGround(options:Omit<Parameters<typeof planRoute>[0],'getBlock'>&{getBlock?:Parameters<typeof planRoute>[0]['getBlock']}):RoutePlan;
   planGroundAsync(options:Omit<Parameters<typeof planRoute>[0],'getBlock'>&{getBlock?:Parameters<typeof planRoute>[0]['getBlock']},scheduling?:RouteScheduling):Promise<RoutePlan>;
+  planGroundToAny(options:Omit<MultiGoalRouteOptions,'getBlock'>&{getBlock?:MultiGoalRouteOptions['getBlock']}):RoutePlan;
+  planGroundToAnyAsync(options:Omit<MultiGoalRouteOptions,'getBlock'>&{getBlock?:MultiGoalRouteOptions['getBlock']},scheduling?:RouteScheduling):Promise<RoutePlan>;
   planSwim(options:Omit<SwimRouteOptions,'getBlock'>):SwimRouteResult;
   planSwimAsync(options:Omit<SwimRouteOptions,'getBlock'>):Promise<SwimRouteResult>;
   constructor(options:{getBlock:SwimRouteOptions['getBlock'];getRevision?:()=>unknown;groundBackend?:GroundNavigationBackend|null});
@@ -89,11 +91,14 @@ export interface FallPolicy { health?:number; minHealthAfter?:number; maxDamage?
 export interface FallAssessment { height:number; landing:string|null; estimatedDamage:number|null; healthAfter:number|null; survivable:boolean; allowed:boolean; reason:string; }
 export declare function assessFall(options:FallPolicy & {height:number;landing:NavigationBlock|null}):FallAssessment;
 export interface RouteStep {kind:'dig'|'bridge'|'walk'|'jump'|'drop';position:Position;block?:string;expected?:string;fall?:FallAssessment;}
-export interface RoutePlan {status:'planned'|'blocked';reason:string;steps:RouteStep[];visited:number;unknown:Position[];cost?:number;bridgeUsed?:number;fallDamage?:number;partial?:boolean;target?:Position;failure?:ActionFailure;}
+export interface RoutePlan {status:'planned'|'blocked';reason:string;steps:RouteStep[];visited:number;unknown:Position[];cost?:number;bridgeUsed?:number;fallDamage?:number;partial?:boolean;target?:Position;selectedGoal?:Position|null;goalCount?:number;failure?:ActionFailure;}
 export declare function planRoute(options:{start:Position;goal:Position;getBlock:(position:Position)=>NavigationBlock|null;occupied?:(position:Position)=>boolean;edgeCost?:(from:Position,to:Position,kind:RouteStep["kind"])=>number;range?:number;maxNodes?:number;maxDistance?:number;maxDrop?:number;fallPolicy?:FallPolicy;bridgeBudget?:number;bridgeBlock?:string;canDig?:(block:NavigationBlock,position:Position)=>boolean;canPlace?:(position:Position)=>boolean;allowPartial?:boolean;signal?:AbortSignal}):RoutePlan;
 export interface RouteScheduling {sliceMs?:number;nodesPerSlice?:number;getRevision?:()=>unknown;scheduler?:WorkScheduler;}
 export interface GroundNavigationBackend {planGroundAsync(options:Parameters<typeof planRoute>[0]&{staticGeometry?:boolean},scheduling?:RouteScheduling):Promise<RoutePlan>;}
 export declare function planRouteAsync(options: Parameters<typeof planRoute>[0], scheduling?: RouteScheduling): Promise<RoutePlan>;
+export type MultiGoalRouteOptions=Omit<Parameters<typeof planRoute>[0],'goal'>&{goals:Position[]};
+export declare function planRouteToAny(options:MultiGoalRouteOptions):RoutePlan;
+export declare function planRouteToAnyAsync(options:MultiGoalRouteOptions,scheduling?:RouteScheduling):Promise<RoutePlan>;
 export interface OMVersionProfile {version:string;experimental?:boolean;loadRegistry:(version:string)=>any;createProtocolClient:(options:Record<string,unknown>)=>any;worldOptions?:{chunkFactory?:(registry:any)=>any;blockFactory?:(registry:any)=>any};normalizeIncoming?:(name:string,packet:any,client:OMConnect)=>void;encodePacket?:(name:string,packet:any,client:OMConnect)=>{name?:string;packet?:any;skip?:boolean};install?:(client:OMConnect,transport:any)=>void;readRecipes?:(client:OMConnect,packet:any)=>void;afterTick?:(client:OMConnect)=>void;}
 export declare function createJava263Profile(options:{loadRegistry:OMVersionProfile['loadRegistry'];createProtocolClient:OMVersionProfile['createProtocolClient'];chunkFactory:(registry:any)=>any;blockFactory?:(registry:any)=>any}):OMVersionProfile;
 export declare function createVanillaCompatibilityProfile(version:string):OMVersionProfile;
@@ -223,7 +228,7 @@ export declare class OMContainers {
   contents(): OMItem[];
   capacity(item: OMItem): number;
 }
-export declare function chooseMiningTool(registry: any, block: any, items: OMItem[], options?: { held?: OMItem | null; onGround?: boolean; preservePickaxeTier?: 1|2|3|4 }): { item: OMItem | null; milliseconds: number; harvestable: boolean } | null;
+export declare function chooseMiningTool(registry: any, block: any, items: OMItem[], options?: { held?: OMItem | null; onGround?: boolean; preservePickaxeTier?: 1|2|3|4;requireHarvest?:boolean }): { item: OMItem | null; milliseconds: number; harvestable: boolean } | null;
 export interface AgentObservation { players: PlayerObservation[]; attention: { status: string; target: string | null; entityId?: string; errorDegrees?: number }; storage: StorageObservation[]; }
 export interface StorageIdentity { key: string; kind: string; positions: Position[]; }
 export interface StorageSearchOptions { radius?: number; count?: number; signal?: AbortSignal; }
