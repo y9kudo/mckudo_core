@@ -240,7 +240,11 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0, 
       const shortcut=step.kind==='walk'&&route.steps.slice(i,last+1).some((s,n,a)=>n>1&&(s.position.x-a[n-1].position.x!==a[1].position.x-a[0].position.x||s.position.z-a[n-1].position.z!==a[1].position.z-a[0].position.z));
       // Keep crouching across narrow spans; verified wide ground permits running.
       const endpoint = route.steps[last].position, target = { x: endpoint.x + .5, y: endpoint.y, z: endpoint.z + .5 }, until = Date.now() + 5000 + (last - i) * (bridgeWalk ? 1200 : 700);
+      const segmentStartedAt=Date.now();
       segment={from:floor(c.state.position),to:{...endpoint},kind:step.kind,dimension:c.state.dimension,health:c.state.health,food:c.state.food};
+      Object.assign(segment,c.navigationPolicy?.describeTransition?.(segment.from,segment.to,segment.kind),{startedAt:segmentStartedAt});
+      const learnedContexts=[];let contextFrom=segment.from;
+      for(let n=i;n<=last;n++){const s=route.steps[n];learnedContexts.push(c.navigationPolicy?.describeTransition?.(contextFrom,s.position,s.kind));contextFrom=s.position;}
       const progress=createMotionProgress({timeoutMs:2500});
       let predicted=false;
       while (Math.hypot(c.state.position.x - target.x, c.state.position.z - target.z) > (continuing?.4:.18) || Math.abs(c.state.position.y - target.y) > .12 || !c.state.onGround) {
@@ -293,13 +297,13 @@ export async function executeNavigate(c, args, signal, { place, dig, replans=0, 
         await c.waitFor(() => Math.hypot(c.state.velocity.x, c.state.velocity.z) < .04, { signal, timeoutMs: 2000 });
       }
       let previous=segment.from;
-      if(shortcut)c.emit('navigationStep',{...segment,outcome:'success',healthAfter:c.state.health,skippedWaypoints:last-i});
-      else for(let learned=i;learned<=last;learned++){const current=route.steps[learned];c.emit('navigationStep',{...segment,from:previous,to:current.position,kind:current.kind,outcome:'success',healthAfter:learned===last?c.state.health:segment.health});previous=current.position;}
+      if(shortcut)c.emit('navigationStep',{...segment,outcome:'success',healthAfter:c.state.health,skippedWaypoints:last-i,durationMs:Date.now()-segmentStartedAt});
+      else for(let learned=i;learned<=last;learned++){const current=route.steps[learned];c.emit('navigationStep',{...segment,...learnedContexts[learned-i],from:previous,to:current.position,kind:current.kind,outcome:'success',healthAfter:learned===last?c.state.health:segment.health,durationMs:Date.now()-segmentStartedAt,timingEstimated:last>i,damageEstimated:last>i});previous=current.position;}
       segment=null;
       i = last;
     }
     c.navigationDebug.status='completed';c.navigationDebug.index=route.steps.length;
-  } catch(error){c.navigationDebug.status=signal.aborted?'cancelled':'failed';c.navigationDebug.reason=error.message;if(segment)c.emit('navigationStep',{...segment,outcome:signal.aborted?'cancelled':'failure',healthAfter:c.state.health,reason:error.message,failureCode:error.code||'ACTION_FAILED'});throw error;
+  } catch(error){c.navigationDebug.status=signal.aborted?'cancelled':'failed';c.navigationDebug.reason=error.message;if(segment)c.emit('navigationStep',{...segment,outcome:signal.aborted?'cancelled':'failure',healthAfter:c.state.health,durationMs:Date.now()-segment.startedAt,reason:error.message,failureCode:error.code||'ACTION_FAILED'});throw error;
   } finally { c.stopMovement(); }
   if(route.partial&&Math.max(...['x','y','z'].map(k=>Math.abs(Math.floor(c.state.position[k])-Math.floor(args[k]))))>range){
     if(segments>=255||Math.hypot(c.state.position.x-start.x-.5,c.state.position.y-start.y,c.state.position.z-start.z-.5)<.5)throw new OMActionError('STUCK','The segmented route did not make bounded progress toward its goal.');

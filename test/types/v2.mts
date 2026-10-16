@@ -11,3 +11,14 @@ const vector=new OMVectorize({getBlock:()=>null,scope});void vector.planGroundSe
 supportAt({position:{x:.5,y:1,z:.5},getBlock:()=>null});
 predictMotion({state:{position:{x:0,y:1,z:0},velocity:{x:0,y:0,z:0},onGround:true},getBlock:()=>null,ticks:4});
 createNavigationRecovery().decide({code:'SERVER_CORRECTION'});
+import {createWorldAtlas,createNavigationContextReader,createNeuralNavigator,createMinecraftBrain,planFrontierExploration,type WorldAtlasMemory} from '../../overmindmc.js';
+import {openWorldStore} from '../../src/intelligence.js';
+import {createOMConnect} from '../../omconnect/index.js';
+const atlasScope={serverId:'localhost:25565',worldId:'typed',minecraftVersion:'1.21.1'};
+const atlas=createWorldAtlas({scope:atlasScope});const atlasMemory:WorldAtlasMemory=atlas.export();
+createWorldAtlas({scope:atlasScope,memory:atlasMemory});atlas.returnCorridor({dimension:scope.dimension,from:{x:0,y:1,z:0},to:{x:1,y:1,z:0}}).requiresRevalidation;
+const store=await openWorldStore({path:':memory:',...atlasScope});createWorldAtlas({scope:atlasScope,store});store.readAtlasRecords({dimension:scope.dimension});store.close();
+const client=createOMConnect({username:'Typed'}),context=createNavigationContextReader({client,atlas});
+const model=createNeuralNavigator({worldId:'typed'});model.assess({from:{x:0,y:1,z:0},to:{x:1,y:1,z:0},dimension:scope.dimension,context:context.read({x:0,y:1,z:0},{x:1,y:1,z:0})}).expectedDamage;
+createMinecraftBrain({client,worldId:'typed',worldIntelligence:{memory:atlasMemory,scope:atlasScope}}).atlas?.snapshot().regions;
+planFrontierExploration({position:{x:0,y:1,z:0},getBlock:()=>null}).frontier?.visitedNodes;

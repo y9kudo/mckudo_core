@@ -39,7 +39,7 @@ test('schema-one memories keep learned weights but discard broad destination ban
   const old={...m.export(),schemaVersion:1};old.failed[0].key='minecraft:overworld/1,1,0';
   const next=createNeuralNavigator({worldId:'migration',memory:old});
   assert.equal(next.snapshot().samples,1);assert.equal(next.snapshot().rememberedFailures,0);
-  assert.equal(next.export().schemaVersion,2);assert.deepEqual(next.export().weights,old.weights);
+  assert.equal(next.export().schemaVersion,3);assert.deepEqual(next.export().weights,old.weights);
 });
 test('attaching a learning policy preserves prior costs and restores the application policy on detach',()=>{
   const client=new EventEmitter();client.state={dimension:walk.dimension,health:20,food:20};client.entities=new Map();

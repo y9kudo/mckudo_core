@@ -51,6 +51,9 @@ export {createAgentMemory} from './src/agent-memory.js';
 export {brewingRecipes,planBrewing,planNetheriteUpgrade,dimensionTravelPolicy} from './src/mechanics.js';
 
 export {createSpatialMemory} from './src/spatial-memory.js';
+export {createWorldAtlas,attachWorldAtlas,worldAtlasScope} from './src/world-atlas.js';
+export {createNavigationContextReader} from './src/navigation-context.js';
+export {frontierCandidates,planFrontierExploration} from './src/frontier-exploration.js';
 export {createCpuPool} from './src/cpu-pool.js';
 export {createExplorationPlanner} from './src/exploration-planner.js';
 export {createMachineGraph,planMachineResources,executeMachinePlan,machineResourceKey} from './src/machines.js';

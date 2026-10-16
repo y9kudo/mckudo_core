@@ -65,7 +65,15 @@ export interface ProposedPlan {actions:SkillAction[];reason:string}
 export declare function createLLMPlanner(options:{request:LLMRequest;skills:string[];validateAction:(action:SkillAction)=>boolean;fallback?:(goal:string,observation:unknown)=>ProposedPlan|Promise<ProposedPlan>;maxCalls?:number;timeoutMs?:number;maxActions?:number}):{plan(goal:string,observation:unknown,options?:{signal?:AbortSignal}):Promise<ProposedPlan&{source:'llm'|'fallback'}>;snapshot():{calls:number;failures:number;maxCalls:number;busy:boolean}};
 export interface BlockPosition {x:number;y:number;z:number}
 export interface WorldHint {name:string;position:BlockPosition;dimension:string;lastSeen:number;agent:string;requiresRevalidation:true}
-export declare function openWorldStore(options:{path:string;worldId:string;serverId:string;minecraftVersion:string;clock?:()=>number}):Promise<{observe(batch:{dimension:string;blocks:{name:string;position:BlockPosition}[];agent?:string;observedAt?:number}):number;query(options:{dimension:string;names?:string[];near:BlockPosition;radius?:number;maxAgeMs?:number;limit?:number}):WorldHint[];prune(options?:{before?:number}):number;close():void}>;
+export interface WorldStore {
+  readonly scope:Readonly<import('../overmindmc.js').WorldAtlasScope>;
+  observe(batch:{dimension:string;blocks:{name:string;position:BlockPosition}[];agent?:string;observedAt?:number}):number;
+  query(options:{dimension:string;names?:string[];near:BlockPosition;radius?:number;maxAgeMs?:number;limit?:number}):WorldHint[];
+  writeAtlasRecords(records:import('../overmindmc.js').AtlasRecord[]):number;
+  readAtlasRecords(options:{dimension:string;kind?:'region'|'transition'|'anchor';limit?:number;maxAgeMs?:number}):import('../overmindmc.js').AtlasRecord[];
+  prune(options?:{before?:number}):number;close():void;
+}
+export declare function openWorldStore(options:{path:string;worldId:string;serverId:string;minecraftVersion:string;clock?:()=>number}):Promise<WorldStore>;
 export declare function createReplayWriter(options:{path:string;featureSchema:string;actionSchema:string;maxBytes?:number}):Promise<{append(transition:Transition):Promise<void>;snapshot():{bytes:number;transitions:number;maxBytes:number;closed:boolean};close():Promise<void>}>;
 export declare function readReplay(path:string,options?:{featureSchema?:string;actionSchema?:string;maxRecords?:number;maxBytes?:number}):AsyncGenerator<Transition&{type:'transition';sequence:number}>;
 export declare function trainOffline(policy:DQNPolicy,path:string,options?:{steps?:number;featureSchema?:string;actionSchema?:string;maxRecords?:number;maxBytes?:number}):Promise<{records:number;loss:number|null;updates:number;replaySize:number}>;

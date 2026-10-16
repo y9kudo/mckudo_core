@@ -33,6 +33,7 @@ try {
     import {OMVECTORIZE as clientVector} from 'omconnect/vectorize';
     import {createMachineGraph,planMachineResources,createCampaignJournal} from 'overmindmc';
     import {createNavigationSession,RegionalRouteGraph,IncrementalRegionPlanner,createNavigationRecovery} from 'overmindmc';
+    import {createWorldAtlas,createNeuralNavigator,planFrontierExploration} from 'overmindmc';
     import {createNavigationSession as standaloneNavigation} from 'omconnect/vectorize';
     import {createDQN,createVectorEnvironment,openWorldStore} from 'overmindmc/intelligence';
     import {loadNativeKernel,createNativeNavigationBackend,NativeFrameDecoder} from 'overmindmc/native';
@@ -52,7 +53,11 @@ try {
     assert.equal(createDQN({inputs:2,actions:2}).predict([0,1]).length,2);
     const environments=createVectorEnvironment({count:4,workers:1});
     try{assert.equal((await environments.reset()).length,4);assert.equal((await environments.step([10,10,10,10])).length,4);}finally{await environments.close();}
-    const map=await openWorldStore({path:':memory:',worldId:'installed',serverId:'test',minecraftVersion:'1.21.1'});map.close();
+    const atlasScope={worldId:'installed',serverId:'test',minecraftVersion:'1.21.1'},map=await openWorldStore({path:':memory:',...atlasScope});
+    const atlas=createWorldAtlas({scope:atlasScope,store:map});atlas.observe({dimension:'minecraft:overworld',world:{sampledBlocks:[{name:'minecraft:stone',position:{x:0,y:0,z:0}}]}});assert.ok(atlas.flush()>0);assert.equal(map.readAtlasRecords({dimension:'minecraft:overworld'}).length,1);
+    const restoredAtlas=createWorldAtlas({scope:atlasScope,memory:atlas.export()});assert.equal(restoredAtlas.landmarks.entries().length,1);map.close();
+    assert.equal(createNeuralNavigator({worldId:'installed'}).export().schemaVersion,3);
+    assert.equal(planFrontierExploration({position:{x:0,y:1,z:0},getBlock:()=>null}).status,'blocked');
     const vector=new OMVectorize({getBlock:()=>null});
     assert.equal(vector.plan({start:{x:0,y:0,z:0},goal:{x:1,y:0,z:0}}).status,'blocked');
     const graph=createMachineGraph({schemaVersion:1,minecraftVersion:'1.21.1',recipes:[]});
