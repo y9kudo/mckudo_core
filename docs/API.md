@@ -99,3 +99,7 @@ These transactions are described in [Plagins](PLUGINS.md) and [objectives](WORKF
 ## Team coordination
 
 Manager teams enable bounded advisory resource and ground-path leases by default. Set `cooperation: false` for independent execution, or configure `{capacity, ttlMs, maxWaitMs}`. `manager.snapshot().cooperation` contains current lease/wait diagnostics. Standalone clients can use `createSwarmCoordinator()` and `attachSwarmAgent()`; see [Team Coordination V2](SWARM-V2.md) for complete options, cleanup and execution boundaries.
+
+## Team storage allocation
+
+Coordinated manager teams default to `storage.mode: 'team'`. `createTeamStorageAllocator({worldId, clients, targets})` provides bounded deficit-based proposals and `.attach(client)` installs the independent OMConnect withdrawal hook. `takeStorage` with `allocation: 'team-supplies'` plans from a freshly confirmed window under normal execution. See [Team Storage V2](TEAM-STORAGE-V2.md) for quantities, classes, filters, cleanup and diagnostic semantics.

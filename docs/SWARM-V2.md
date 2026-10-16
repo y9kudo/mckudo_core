@@ -99,7 +99,7 @@ Reservations are advisory within this process. They are not a server plugin, a d
 
 Only explicitly addressed actions and same-level walking receive these reservations. Implicit workstation selection, internal excavation/placement substeps, flight, jumps and drops do not become fully coordinated by this increment. Container geometry can change during an operation; a lease cannot make external world edits atomic.
 
-Exclusive chest access does not divide its contents fairly. `lootChest` retains its existing take-all behavior. For deficit-based allocation, use `distributeStorageSupplies({ clients, requests })`; for beneficial transfers, use the existing `shareTeamSupplies`/trade policies. Do not interpret a reservation as a promise that an agent will donate everything it takes.
+Exclusive chest access alone does not divide its contents fairly. Manager teams now also install the [Team Storage policy](TEAM-STORAGE-V2.md), which calculates a bounded withdrawal from a fresh confirmed window. Explicit `lootChest` and `storage.mode: 'all'` retain the take-all behavior. For deficit-based allocation, use `distributeStorageSupplies({ clients, requests })`; for beneficial transfers, use the existing `shareTeamSupplies`/trade policies. Do not interpret a reservation as a promise that an agent will donate everything it takes.
 
 The existing peer transport exchanges intents without Minecraft chat. This service does not add shared omniscient terrain, distributed execution or automatic joint mission/role assignment. A custom action coordinator is a trusted permission extension: it must honor cancellation and invoke its provided dispatcher exactly once. OMConnect rejects missing/duplicate dispatch and waits for a started dispatch before releasing the action job.
 

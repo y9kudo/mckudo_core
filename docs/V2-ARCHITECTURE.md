@@ -131,12 +131,13 @@ The cognitive service is enabled by default in the standard Minecraft brain and 
 
 | Area | Implemented integration | Remaining acceptance |
 | --- | --- | --- |
-| Resources | Bounded world/dimension leases, double-chest partners and scenario mining peer claims | Implicit station/internal edit coordination, fair allocation and joint task assignment |
+| Resources | Bounded world/dimension leases, double-chest partners and scenario mining peer claims | Implicit station/internal edit coordination and joint task assignment |
+| Shared storage | Confirmed-window fair withdrawals, current holdings/equipment, original class goals, bounded reserves and explicit take-all opt-out | Historical fairness, distributed warehousing and richer enchantment/durability utility |
 | Ground traffic | Sliding validated walk windows, reverse/diagonal gates, bounded waits and cancellation | Vertical/flight traffic, fleet-wide deadlock resolution and busy live bottlenecks |
 | Lifecycle | Lease cleanup, claim reacquisition, pause-safe automatic exchange and non-overlapping trade ticks | Distributed coordination and longer recovery/transfer trials |
-| Evidence | API fault injection, ordinary physics-backed execution and three-client server-observed ground movement | Live storage/transfer contention and fixed-build multi-agent Survival campaigns |
+| Evidence | API fault injection, ordinary physics-backed execution, three-client ground movement and conserved automatic storage distribution | Extended live transfer contention and fixed-build multi-agent Survival campaigns |
 
-[Team Coordination V2](SWARM-V2.md) describes the default manager integration and public service. These are advisory permissions under existing execution and server checks, not shared authoritative world state.
+[Team Coordination V2](SWARM-V2.md) and [Team Storage V2](TEAM-STORAGE-V2.md) describe default manager integration and public services. These are advisory permissions under existing execution and server checks, not shared authoritative world state.
 
 ## Algorithm references
 

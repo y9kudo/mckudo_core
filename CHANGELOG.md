@@ -2,6 +2,14 @@
 
 ## 1.0.0-Arthas-beta2 · Navigation, World Intelligence, Cognition and Task V2 development
 
+### Team Supplies and Storage V2 increment
+
+- Manager teams now default to bounded fair storage withdrawals, calculated after receiving the real window contents and under the existing resource lease.
+- Added max-min allocation using current team holdings, equipment/cursor counts, nearby eligible members, goal totals and shared wood/food reserves. Surplus and unrelated items can remain in the chest.
+- Preserve resource scenario class targets for storage instead of inheriting a single mining species; respect explicit filters/ceilings and reject missing, asynchronous or invalid allocation policies.
+- Added independent OMConnect withdrawal-policy hooks, selected-agent planned-supply diagnostics and beginner documentation. Explicit take-all and disabled storage modes remain available.
+- Standard reactors on three Java 1.21.1 agents each collected two apples and one iron pickaxe from shared stock, with complete conservation, no damage/corrections and confirmed deposits restoring the fixture.
+
 ### Team Coordination V2 increment
 
 - Added bounded world/dimension-scoped advisory resource leases, FIFO overlap waiting, expiring/fenced tokens and sliding ground-route reservations.
