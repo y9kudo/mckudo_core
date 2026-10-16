@@ -91,7 +91,8 @@ export class OvermindCore extends EventEmitter {
         if(r.expected)validateCondition(r.expected,'reaction.expected');
         const memoryKey = JSON.stringify(['reactor', reactor.id]);
         const cooldownKey = reactor.failureScope === 'action' ? memoryKey + '/' + createHash('sha256').update(JSON.stringify(canonical(r.action))).digest('hex') : memoryKey;
-        return { id: reactor.id, kind: 'reactor', active: true, priority: r.priority, action: r.action, expected:r.expected,description: r.reason, memoryKey, cooldownKey, managesRetries: reactor.managesRetries === true };
+        if(r.timeoutMs!==undefined&&(!Number.isInteger(r.timeoutMs)||r.timeoutMs<100||r.timeoutMs>300000))throw new Error('Reaction timeoutMs: 100–300000.');
+        return { id: reactor.id, kind: 'reactor', active: true, priority: r.priority, action: r.action, expected:r.expected,timeoutMs:r.timeoutMs,description: r.reason, memoryKey, cooldownKey, managesRetries: reactor.managesRetries === true };
       } catch (error) { return { id: reactor.id, kind: 'reactor', active: false, reason: String(error.message).slice(0, 500), error: true }; }
       finally{this.#timing(reactor.id,performance.now()-started);}
     });
@@ -119,7 +120,7 @@ export class OvermindCore extends EventEmitter {
   async #step() {
     if (this.#paused) return this.snapshot();
     const ac = new AbortController(); this.#abort = ac;
-    let timedOut = false, plan = null, context = 'world', began = false, verification,monitoring = false, monitorTimer, monitorPending, beforeAction, startedAt, monitorRunning = false, monitorRequested = false;
+    let timedOut = false, plan = null, context = 'world', began = false, dispatched = false, verification,monitoring = false, monitorTimer, monitorPending, beforeAction, startedAt, monitorRunning = false, monitorRequested = false, reactorTimer;
     const timeout = setTimeout(() => { timedOut = true; ac.abort(new Error("Task timed out.")); }, this.#config.actionTimeoutMs);
     try {
       this.#state.status = 'observing'; this.#state.decision = null;
@@ -178,6 +179,10 @@ export class OvermindCore extends EventEmitter {
       this.#cognitive?.commit(plan,o);this.#cognitive?.phase('act',{id:plan.id});
       this.#notify(); this.#publish('action:start', this.#state.decision);
       ac.signal.throwIfAborted();
+      if(plan.timeoutMs)reactorTimer=setTimeout(()=>{timedOut=true;ac.abort(new Error('Task action timed out.'));},plan.timeoutMs);
+      // A task checkpoint must reach durable storage before any physical side effect.
+      if(plan.kind==='reactor')await this.#reactors.find(r=>r.id===plan.id)?.beforeAction?.({action:jsonCopy(plan.action),observation:jsonCopy(o),signal:ac.signal});
+      ac.signal.throwIfAborted();
       const handler = this.#skills.get(plan.action.skill);
       if (handler?.validate) {
         const valid = await handler.validate(jsonCopy(plan.action.args)); ac.signal.throwIfAborted();
@@ -208,6 +213,7 @@ export class OvermindCore extends EventEmitter {
       if (monitoring) monitorTimer = setTimeout(() => { monitorPending = poll(); }, this.#preemptionMs);
       let result;
       const executionStart=performance.now();
+      dispatched = true;
       try { result = handler ? await handler.execute(jsonCopy(plan.action.args), { signal: ac.signal, observation: jsonCopy(o) }) : await this.#adapter.execute(jsonCopy(plan.action), { signal: ac.signal, priority: plan.priority }); }
       finally {this.#timing('execute',performance.now()-executionStart); monitoring = false; this.#wakeMonitor = null; clearTimeout(monitorTimer); await monitorPending; }
       ac.signal.throwIfAborted();
@@ -230,10 +236,17 @@ export class OvermindCore extends EventEmitter {
       const cancelled = ac.signal.aborted && !timedOut;
       const message = timedOut ? "Task timed out." : String(error?.message || error).slice(0, 300);
       if (plan && began) this.#record(plan, context, cancelled ? 'cancelled' : 'failure', message, !cancelled && !timedOut && error?.code ? normalizeActionFailure(error) : undefined,verification);
-      if (plan && began) this.#learn(plan, beforeAction, null, cancelled ? 'cancelled' : 'failure', startedAt);
+      if (plan && began && dispatched) this.#learn(plan, beforeAction, null, cancelled ? 'cancelled' : 'failure', startedAt);
       this.#state.status = cancelled ? this.#paused ? 'paused' : 'idle' : 'fault'; this.#state.reason = message;
       this.#cognitive?.phase('replan',{reason:message});
-    } finally { monitoring = false; this.#wakeMonitor = null; clearTimeout(monitorTimer); clearTimeout(timeout); if (this.#abort === ac) this.#abort = null; }
+    } finally {
+      monitoring = false; this.#wakeMonitor = null; clearTimeout(monitorTimer); clearTimeout(timeout);clearTimeout(reactorTimer);
+      // Completion persistence is awaited even after cancellation. Never emit a second result
+      // when storage fails after the server has already accepted the action.
+      if(began&&plan?.kind==='reactor')try{await this.#reactors.find(r=>r.id===plan.id)?.afterAction?.({result:this.#state.lastResult});}
+      catch(error){this.#state.status='fault';this.#state.reason='Checkpoint failed: '+String(error.message).slice(0,300);this.#publish('monitor:error',{message:this.#state.reason});}
+      if (this.#abort === ac) this.#abort = null;
+    }
     this.#notify(); return this.snapshot();
   }
   #record(plan, context, outcome, detail = '', failure, verification) {

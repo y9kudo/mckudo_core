@@ -33,3 +33,10 @@ createMCTSPlannerAdapter({planner:createMCTSPlanner({model:{actions:()=>[{skill:
 const ctx={} as PlannerContext;void repairPlan(ctx,[],{maxNodes:128,maxDepth:3});
 thinking.setMode('evaluate');evaluateCognitiveCheckpoint({baseline:thinking.export(),candidate:thinking.export(),evaluation:{split:'evaluation',source:'unit',records:[]}}).memory;
 createCore({config:{schemaVersion:4,name:'Typed',worldId:'typed',rules:[{id:'work',action:{skill:'work'}}]},adapter:{describe:()=>({protocolVersion:1,kind:'test',loader:'vanilla',minecraftVersion:'1.21.1',skills:['work']}),observe:async()=>({}),execute:async()=>({ok:true}),verifyAction:()=>({status:'unknown',reason:'Custom skill.'})},cognitive:{model:engine}}).cognitive?.snapshot().phase;
+
+import {createTaskQueue,createAgentMemory,createMissionRecovery,type AgentTask,type TaskCheckpoint} from '../../overmindmc.js';
+const tasks:AgentTask[]=[{id:'wait',title:'Wait',type:'action',action:{skill:'wait',args:{}},dependsOn:[],requires:{fact:'/self/health',gt:0},retry:{maxAttempts:2,delayMs:100},timeoutMs:1000,priorityWhen:[{condition:{fact:'/self/food',lt:8},boost:10}]}];
+const queue=createTaskQueue({tasks,skills:['wait'],checkpoint:async checkpoint=>{const value:TaskCheckpoint=checkpoint;value.definitionHash;}}),taskCheckpoint:TaskCheckpoint=queue.checkpoint();
+createTaskQueue({tasks,skills:['wait'],resume:taskCheckpoint}).snapshot()[0]?.uncertain;
+const disk=createAgentMemory('data/typed','typed');void disk.saveTasks('Typed',{tasks,taskCheckpoint});void disk.loadTasks('Typed');disk.diagnostics('Typed').recovered;
+const recovery=createMissionRecovery({recover:async({signal})=>{signal.throwIfAborted();}});recovery.enable();void recovery.request('disconnected');void recovery.close();

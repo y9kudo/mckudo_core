@@ -1,6 +1,7 @@
 import {jsonCopy,validateCondition} from './config.js';
 import {matches} from './conditions.js';
 import {validateScenario} from './scenario.js';
+import {createHash} from 'node:crypto';
 
 const fields={action:['action'],resources:['targets'],navigate:['position','range','bridge','excavate'],scenario:['scenario'],sequence:['children'],parallel:['children'],if:['condition','then','else'],repeat:['count','children'],until:['condition','maxIterations','children']};
 const scenarioFor=node=>node.type==='scenario'?node.scenario:{schemaVersion:1,name:node.title||node.type,steps:[{id:'step',type:node.type,...Object.fromEntries(fields[node.type].filter(key=>node[key]!==undefined).map(key=>[key,node[key]]))}]};
@@ -36,18 +37,24 @@ export function validateAgentProgram(input,{skills=[]}={}){
 /** Cooperative control flow; the host still owns the single physical action executor. */
 export function createAgentProgram({program,skills=[],scenarioFactory,resume}={}){
   const definition=validateAgentProgram(program,{skills}),states=new Map(),controllers=new Map();let issued=null,lastSelected=0,reason='Ready.',transitions=0;
+  const definitionHash=createHash('sha256').update(JSON.stringify(definition)).digest('hex');
+  if(resume?.definitionHash&&resume.definitionHash!==definitionHash)throw new Error('Program checkpoint belongs to another definition.');
+  const safeReplay=node=>['wait','look','navigate','goto'].includes(node.action?.skill);
   const state=node=>{if(!states.has(node.id))states.set(node.id,{id:node.id,status:'pending',iteration:0,failures:0});return states.get(node.id);};
   const walk=(nodes,fn)=>{for(const node of nodes){fn(node);walk(node.children||node.then||[],fn);if(node.else)walk(node.else,fn);}};
-  walk(definition.nodes,node=>{const old=resume?.nodes?.find(value=>value.id===node.id);if(old&&['pending','completed','failed','blocked'].includes(old.status)&&Number.isInteger(old.iteration)&&old.iteration>=0&&old.iteration<=64)states.set(node.id,{id:node.id,status:old.status,iteration:old.iteration,failures:0,...(['then','else'].includes(old.branch)?{branch:old.branch}:{})});});
+  walk(definition.nodes,node=>{const old=resume?.nodes?.find(value=>value.id===node.id);if(old&&['pending','completed','failed','blocked'].includes(old.status)&&Number.isInteger(old.iteration)&&old.iteration>=0&&old.iteration<=64)states.set(node.id,{id:node.id,status:old.status,iteration:old.iteration,failures:Number.isInteger(old.failures)?Math.min(3,Math.max(0,old.failures)):0,uncertain:old.uncertain===true||old.inFlight===true,...(['then','else'].includes(old.branch)?{branch:old.branch}:{})});});
   const reset=nodes=>walk(nodes,node=>{states.delete(node.id);controllers.delete(node.id);});
   const sequence=(nodes,o)=>{for(const child of nodes){const result=tick(child,o);if(result||state(child).status!=='completed')return result;}return null;};
   const tick=(node,o)=>{
     if(++transitions>256){reason='Program transition budget reached; continuing on the next observation.';return null;}
     const s=state(node);if(s.status==='completed'||s.status==='failed')return null;
-    if(node.type==='action')return {leaf:node,action:node.action,priority:20+(node.priority||0),reason:node.title||node.action.skill};
+    if(node.type==='action'){
+      if(s.uncertain&&!safeReplay(node)){s.status='blocked';s.reason='Interrupted action has an unknown outcome; explicitly retry the task after reconciliation.';reason=s.reason;return null;}
+      s.uncertain=false;return {leaf:node,action:node.action,priority:20+(node.priority||0),reason:node.title||node.action.skill};
+    }
     if(['resources','navigate','scenario'].includes(node.type)){
       if(!scenarioFactory)throw new Error('Program scenarios require scenarioFactory.');
-      if(!controllers.has(node.id))controllers.set(node.id,scenarioFactory(scenarioFor(node)));
+      if(!controllers.has(node.id))controllers.set(node.id,scenarioFactory(scenarioFor(node),resume?.nodes?.find(value=>value.id===node.id)?.scenario));
       const controller=controllers.get(node.id),decision=controller.reactor.react(o),snapshot=controller.snapshot();
       if(snapshot.status==='completed'){s.status='completed';return null;}
       if(snapshot.status==='failed'){s.status='failed';s.reason=snapshot.reason||'Scenario failed.';reason=s.reason;return null;}
@@ -80,12 +87,14 @@ export function createAgentProgram({program,skills=[],scenarioFactory,resume}={}
   };
   return {
     definition:()=>jsonCopy(definition,'program',60000,48),
+    beginAction(){if(issued)state(issued).inFlight=true;},
     reactor:{id:'overmind:program',apiVersion:1,react(o){transitions=0;issued=null;const result=sequence(definition.nodes,o);if(!result)return {action:null,reason};issued=result.leaf;return {action:result.action,priority:result.priority,reason:result.reason};}},
     recordResult(event,action){if(!issued)return;const node=issued,s=state(node);issued=null;controllers.get(node.id)?.recordResult?.(event,action);
+      s.inFlight=false;s.uncertain=node.type==='action'&&event.outcome!=='success'&&!safeReplay(node);
       if(event.outcome==='success'){s.status=node.type==='action'?'completed':'pending';s.failures=0;s.reason='';}
       else if(event.outcome==='failure'){s.failures++;s.status=s.failures>=3?'failed':'blocked';s.reason=String(event.detail||'Action failed.');reason=s.reason;}
       else s.status='pending';
     },
-    snapshot(){walk(definition.nodes,node=>state(node));const nodes=[...states.values()].map(value=>({...value}));return {status:definition.nodes.every(node=>state(node).status==='completed')?'completed':nodes.some(node=>node.status==='failed')?'failed':'running',active:issued?.id||null,reason,nodes};}
+    snapshot(){walk(definition.nodes,node=>state(node));const nodes=[...states.values()].map(value=>{const scenario=controllers.get(value.id)?.exportMemory?.()||resume?.nodes?.find(n=>n.id===value.id)?.scenario;return {...value,...(scenario?{scenario}:{})};});return {definitionHash,status:definition.nodes.every(node=>state(node).status==='completed')?'completed':nodes.some(node=>node.status==='failed')?'failed':'running',active:issued?.id||null,reason,nodes};}
   };
 }

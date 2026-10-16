@@ -1,6 +1,7 @@
 import { createFleet, createOMConnect } from '../omconnect/index.js';
 import { createMinecraftBrain } from './minecraft-brain.js';
 import {createTaskQueue,validateTasks} from './task-queue.js';
+import {createMissionRecovery} from './mission-recovery.js';
 import {createAgentMemory} from './agent-memory.js';
 import {createNeuralNavigator} from './neural-navigation.js';
 import {createNeuralPlanner} from './neural-planning.js';
@@ -22,38 +23,51 @@ import {createActionEvidenceMemory} from './action-evidence.js';
 import {createNetherReactor} from './nether.js';
 
 /** Application-level lifecycle, independent of the HTTP presentation layer. */
-export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','Mason','Lucas','Ethan','James','Oliver','Henry','Logan','Alice','Blake','Charlie','Dylan','Ella','Finn','Grace','Ivy','Jack','Kai'].slice(0,count), connection = {}, worldId = 'local-survival', createClient = createOMConnect, createBrain = createMinecraftBrain, memoryDirectory, brainOptions = {},supplyTargets={} } = {}) {
+export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','Mason','Lucas','Ethan','James','Oliver','Henry','Logan','Alice','Blake','Charlie','Dylan','Ella','Finn','Grace','Ivy','Jack','Kai'].slice(0,count), connection = {}, worldId = 'local-survival', createClient = createOMConnect, createBrain = createMinecraftBrain, memoryDirectory, brainOptions = {},supplyTargets={}, recovery=false } = {}) {
   if (!brainOptions || typeof brainOptions !== 'object' || Array.isArray(brainOptions)) throw new Error("brainOptions: brain object.");
   const actionEvidence=brainOptions.actionEvidence||createActionEvidenceMemory({worldId});
   if(actionEvidence.worldId!==worldId)throw new Error("Failure memory belongs to another world.");
   if(!supplyTargets||typeof supplyTargets!=='object'||Array.isArray(supplyTargets)||Object.entries(supplyTargets).some(([item,n])=>!/^minecraft:[a-z0-9_]+$/.test(item)||!Number.isInteger(n)||n<0||n>4096))throw new Error("supplyTargets: map minecraft:item and stock 0–4096.");
   const fleet = createFleet({count,names,connection,createClient}), entries = new Map(), log = [], blockedTrades=new Map();
+  const recoveries=new Map();
+  if(recovery!==false&&(!recovery||typeof recovery!=='object'||Array.isArray(recovery)))throw new Error('recovery: false or recovery options.');
   let closed=false, closing;const memory=memoryDirectory?createAgentMemory(memoryDirectory,worldId,{maxBytes:8*1024*1024}):null;
-  const retain=e=>{e.spatialMemory=e.brain?.spatial?.export()||e.spatialMemory;e.atlasMemory=e.brain?.atlas?.export({includeLandmarks:false})||e.atlasMemory;e.neuralMemory=e.brain?.neural?.export()||e.neuralMemory;e.cognitionMemory=e.brain?.cognition?.export()||e.cognitionMemory;e.cognitiveMemory=e.brain?.cognitive?.export()||e.cognitiveMemory;e.taskState=e.queue?.snapshot()||e.taskState;};
-  const save=async(name,e)=>{retain(e);if(memory)await memory.save(name,{spatial:e.spatialMemory,atlas:e.atlasMemory,neural:e.neuralMemory,cognition:e.cognitionMemory,cognitive:e.cognitiveMemory,tasks:e.tasks,taskState:e.taskState,goal:e.goal,settings:e.settings});};
-  const restore=async(name,e)=>{if(e.loaded)return;const m=await memory?.load(name);if(m){const tasks=validateTasks(m.tasks||[],{skills:e.client.describe().skills});if(m.spatial)createSpatialMemory({worldId,memory:m.spatial});if(m.atlas)createWorldAtlas({scope:brainOptions.worldIntelligence?.scope||{...worldAtlasScope(e.client,worldId),...(e.client.state.status!=='ready'?{minecraftVersion:m.atlas.scope?.minecraftVersion}:{})},memory:m.atlas});e.spatialMemory=m.spatial;e.atlasMemory=m.atlas;if(m.neural)createNeuralNavigator({worldId,memory:m.neural});if(m.cognition)createNeuralPlanner({worldId,memory:m.cognition});if(m.cognitive)createCognitiveEngine({worldId,memory:m.cognitive});e.cognitiveMemory=m.cognitive;e.tasks=tasks;e.taskState=m.taskState;e.neuralMemory=m.neural;e.cognitionMemory=m.cognition;if(['wood','stone_tools','iron_pickaxe','diamond_set'].includes(m.goal))e.goal=m.goal;if(typeof m.settings?.humanizeMode==='boolean')e.settings.humanizeMode=m.settings.humanizeMode;if(Number.isInteger(m.settings?.viewDistance)&&m.settings.viewDistance>=2&&m.settings.viewDistance<=32)e.settings.viewDistance=m.settings.viewDistance;}e.client.options.humanizeMode=e.settings.humanizeMode;e.client.options.viewDistance=e.settings.viewDistance;e.loaded=true;};
+  const retain=e=>{e.spatialMemory=e.brain?.spatial?.export()||e.spatialMemory;e.atlasMemory=e.brain?.atlas?.export({includeLandmarks:false})||e.atlasMemory;e.neuralMemory=e.brain?.neural?.export()||e.neuralMemory;e.cognitionMemory=e.brain?.cognition?.export()||e.cognitionMemory;e.cognitiveMemory=e.brain?.cognitive?.export()||e.cognitiveMemory;e.taskState=e.queue?.snapshot()||e.taskState;e.taskCheckpoint=e.queue?.checkpoint()||e.taskCheckpoint;};
+  const saveTasks=async(name,e)=>{e.taskState=e.queue?.snapshot()||e.taskState;e.taskCheckpoint=e.queue?.checkpoint()||e.taskCheckpoint;if(memory)await memory.saveTasks(name,{tasks:e.tasks,taskState:e.taskState,taskCheckpoint:e.taskCheckpoint});};
+  const save=async(name,e)=>{retain(e);await saveTasks(name,e);if(memory)await memory.save(name,{spatial:e.spatialMemory,atlas:e.atlasMemory,neural:e.neuralMemory,cognition:e.cognitionMemory,cognitive:e.cognitiveMemory,tasks:e.tasks,taskState:e.taskState,taskCheckpoint:e.taskCheckpoint,goal:e.goal,settings:e.settings});};
+  const restore=async(name,e)=>{if(e.loaded)return;const base=await memory?.load(name),mission=await memory?.loadTasks(name),m=base||mission?{...base,...(mission?{tasks:mission.tasks,taskState:mission.taskState,taskCheckpoint:mission.taskCheckpoint}:{})}:null;if(m){const tasks=validateTasks(m.tasks||[],{skills:e.client.describe().skills});if(m.spatial)createSpatialMemory({worldId,memory:m.spatial});if(m.atlas)createWorldAtlas({scope:brainOptions.worldIntelligence?.scope||{...worldAtlasScope(e.client,worldId),...(e.client.state.status!=='ready'?{minecraftVersion:m.atlas.scope?.minecraftVersion}:{})},memory:m.atlas});e.spatialMemory=m.spatial;e.atlasMemory=m.atlas;if(m.neural)createNeuralNavigator({worldId,memory:m.neural});if(m.cognition)createNeuralPlanner({worldId,memory:m.cognition});if(m.cognitive)createCognitiveEngine({worldId,memory:m.cognitive});e.cognitiveMemory=m.cognitive;e.tasks=tasks;e.taskState=m.taskState;e.taskCheckpoint=m.taskCheckpoint;e.neuralMemory=m.neural;e.cognitionMemory=m.cognition;if(['wood','stone_tools','iron_pickaxe','diamond_set'].includes(m.goal))e.goal=m.goal;if(typeof m.settings?.humanizeMode==='boolean')e.settings.humanizeMode=m.settings.humanizeMode;if(Number.isInteger(m.settings?.viewDistance)&&m.settings.viewDistance>=2&&m.settings.viewDistance<=32)e.settings.viewDistance=m.settings.viewDistance;}e.client.options.humanizeMode=e.settings.humanizeMode;e.client.options.viewDistance=e.settings.viewDistance;e.loaded=true;};
   const note = (name,event,detail='') => {log.push({at:Date.now(),name,event,detail:String(detail).slice(0,500)});if(log.length>200)log.shift();};
   const wire = (name,client) => {
     client.options||={};
-    const old = entries.get(name), entry = {client,brain:null,busy:false,error:'',goal:old?.goal || 'diamond_set',survival:null,tasks:old?.tasks||[],taskState:old?.taskState||[],queue:null,schematic:old?.schematic||null,schematicOrigin:old?.schematicOrigin||null,neuralMemory:old?.neuralMemory,cognitionMemory:old?.cognitionMemory,cognitiveMemory:old?.cognitiveMemory,spatialMemory:old?.spatialMemory,atlasMemory:old?.atlasMemory,settings:old?.settings||{humanizeMode:Boolean(client.options.humanizeMode),viewDistance:client.options.viewDistance||24},loaded:old?.loaded||false};
+    const old = entries.get(name), entry = {client,brain:null,busy:false,error:'',goal:old?.goal || 'diamond_set',survival:null,tasks:old?.tasks||[],taskState:old?.taskState||[],taskCheckpoint:old?.taskCheckpoint,queue:null,schematic:old?.schematic||null,schematicOrigin:old?.schematicOrigin||null,neuralMemory:old?.neuralMemory,cognitionMemory:old?.cognitionMemory,cognitiveMemory:old?.cognitiveMemory,spatialMemory:old?.spatialMemory,atlasMemory:old?.atlasMemory,settings:old?.settings||{humanizeMode:Boolean(client.options.humanizeMode),viewDistance:client.options.viewDistance||24},loaded:old?.loaded||false};
     client.options.humanizeMode=entry.settings.humanizeMode;client.options.viewDistance=entry.settings.viewDistance;
     entries.set(name,entry);client.managedNames=new Set(names.map(n=>n.toLowerCase()));
     for(const event of ['warning','fault'])client.on(event,e=>{entry.error=String(e.message);note(name,event,e.message);});
     client.on('action',e=>note(name,e.skill,`${e.outcome} ${e.detail}`));
-    client.on('death',()=>{void entry.brain?.stop();note(name,'death');});
-    client.on('end',()=>{void entry.brain?.stop();note(name,'disconnected');});
+    const interrupted=cause=>{if(entries.get(name)!==entry)return;void entry.brain?.stop().catch(error=>note(name,'recovery-error',error.message));note(name,cause);void recoveries.get(name)?.request(cause);};
+    client.on('death',()=>interrupted('death'));
+    client.on('end',()=>interrupted('disconnected'));
+    if(recovery!==false&&!recoveries.has(name))recoveries.set(name,createMissionRecovery({...recovery,recover:async({reason,signal})=>{
+      let current=entries.get(name);await current.brain?.stop();signal.throwIfAborted();await save(name,current);signal.throwIfAborted();
+      current.brain=null;current.queue=null;
+      if(current.client.state.status==='disconnected')await execute(name,'connect',{},signal);
+      signal.throwIfAborted();current=entries.get(name);
+      if(current.client.state.health<=0||current.client.state.status==='dead')await current.client.respawn();
+      signal.throwIfAborted();await execute(name,'start',{},signal);note(name,'recovered',reason);
+    }}));
     return entry;
   };
   for(const [name,client]of fleet.agents)wire(name,client);
-  const snapshot = () => ({worldId,agents:[...entries].map(([name,e])=>({name,busy:e.busy,error:e.error,goal:e.goal,settings:{...e.settings},attention:e.client.humanize?.last||null,schematic:e.schematic?{format:e.schematic.format,blockCount:e.schematic.blockCount,size:e.schematic.size,unsupportedStates:e.schematic.unsupportedStates,origin:e.schematicOrigin}:null,state:e.client.snapshot(),inventory:(e.client.dataLoaded===false?[]:e.client.inventory.items()).map(i=>({item:i.item,name:i.name,count:i.count,slot:i.slot})),brain:e.brain?.snapshot() || null,survival:e.brain?.survival?.snapshot() || null,skills:e.client.describe().skills,tasks:e.tasks,taskState:e.queue?.snapshot()||e.taskState,learning:e.brain?.neural?.snapshot()||null,cognition:e.brain?.cognition?.snapshot()||null,spatial:e.brain?.spatial?.snapshot()||null,atlas:e.brain?.atlas?.snapshot()||null,recipes:e.client.dataLoaded===false?null:e.client.recipeBook?.snapshot()||null})),log:[...log]});
+  const snapshot = () => ({worldId,agents:[...entries].map(([name,e])=>({name,busy:e.busy,error:e.error,recovery:recoveries.get(name)?.snapshot()||null,goal:e.goal,settings:{...e.settings},attention:e.client.humanize?.last||null,schematic:e.schematic?{format:e.schematic.format,blockCount:e.schematic.blockCount,size:e.schematic.size,unsupportedStates:e.schematic.unsupportedStates,origin:e.schematicOrigin}:null,state:e.client.snapshot(),inventory:(e.client.dataLoaded===false?[]:e.client.inventory.items()).map(i=>({item:i.item,name:i.name,count:i.count,slot:i.slot})),brain:e.brain?.snapshot() || null,survival:e.brain?.survival?.snapshot() || null,skills:e.client.describe().skills,tasks:e.tasks,taskState:e.queue?.snapshot()||e.taskState,learning:e.brain?.neural?.snapshot()||null,cognition:e.brain?.cognition?.snapshot()||null,spatial:e.brain?.spatial?.snapshot()||null,atlas:e.brain?.atlas?.snapshot()||null,recipes:e.client.dataLoaded===false?null:e.client.recipeBook?.snapshot()||null})),log:[...log]});
   const importSchematic=(name,buffer,filename)=>{const e=entries.get(name);if(!e)throw new Error("Unknown agent.");const schematic=parseSchematic(buffer,{filename});e.schematic=schematic;e.schematicOrigin=null;note(name,'schematic',`${schematic.format}: ${schematic.blockCount} blocks`);return {format:schematic.format,blockCount:schematic.blockCount,size:schematic.size,unsupportedStates:schematic.unsupportedStates};};
-  const execute = async(name,command,args={}) => {
+  const execute = async(name,command,args={},cancellation) => {
     if(closed)throw new Error("Manager closed. Create a new instance.");
     let e=entries.get(name);if(!e)throw new Error("Unknown agent.");
+    if(['pause','disconnect','tasks','goal'].includes(command))recoveries.get(name)?.pause();
     if(command==='pause'){await e.brain?.pause();e.client.pending?.abort.abort(new Error("Stopped in the panel."));await e.client.pending?.promise.catch(()=>{});return snapshot();}
     if(e.busy)throw new Error("Previous management still in place.");e.busy=true;e.error='';
     try {
-      await ready;
+      await ready;cancellation?.throwIfAborted();
       if(closed)throw new Error("Manager closes.");
       await restore(name,e);
       if(command==='connect') {
@@ -68,13 +82,13 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
         if(!e.brain){
           const catalog=e.tasks.length?catalogFromMinecraftData(e.client.registry,{recipeBook:e.client.recipeBook}):null;
           const resourceFactory=targets=>createSurvivalReactor({client:e.client,catalog,targets,priority:20,actionEvidence,spatial:e.brain?.spatial,explorationPlanner:e.brain?.computation});
-          e.queue=e.tasks.length?createTaskQueue({tasks:e.tasks,skills:e.client.describe().skills,resume:e.taskState,scenarioFactory:scenario=>createScenario({scenario,catalog,getBlock:p=>e.client.world.blockAt(p),explorationPlanner:e.brain?.computation,resourceFactory,
+          e.queue=e.tasks.length?createTaskQueue({tasks:e.tasks,skills:e.client.describe().skills,resume:e.taskCheckpoint||e.taskState,checkpoint:memory?async()=>saveTasks(name,e):undefined,scenarioFactory:(scenario,memory)=>createScenario({scenario,memory,catalog,getBlock:p=>e.client.world.blockAt(p),explorationPlanner:e.brain?.computation,resourceFactory,
             netherFactory:(step,memory)=>createNetherReactor({client:e.client,catalog,targets:step.targets,exploreDistance:step.exploreDistance,memory,resourceFactory,explorationPlanner:e.brain?.computation}),
             navigationFactory:step=>createNavigationGoal({client:e.client,catalog,...step,resourceFactory}),dragonCombat:createDragonPolicy({client:e.client})})}):null;
           const modelOptions=(key,saved)=>brainOptions[key]===false?false:{...brainOptions[key],...(saved?{memory:saved}:{})};
           e.brain=createBrain({...brainOptions,actionEvidence,client:e.client,worldId,spatial:modelOptions('spatial',e.spatialMemory),worldIntelligence:modelOptions('worldIntelligence',e.atlasMemory),neural:modelOptions('neural',e.neuralMemory),cognition:modelOptions('cognition',e.cognitionMemory),cognitive:modelOptions('cognitive',e.cognitiveMemory),survival:e.queue?false:brainOptions.survival===false?false:{...brainOptions.survival,target:e.goal,peer:fleet.peers.get(name)},reactors:[...(e.queue?[e.queue.reactor]:[]),...(brainOptions.reactors||[])]});e.queue?.attach(e.brain);
         }
-        e.brain.start();
+        cancellation?.throwIfAborted();recoveries.get(name)?.enable();e.brain.start();
       } else if(command==='settings'){
         if(typeof args.humanizeMode!=='boolean'||!Number.isInteger(args.viewDistance)||args.viewDistance<2||args.viewDistance>32)throw new Error("Settings: Humanize boolean and review 2–32 The cup.");
         e.settings={humanizeMode:args.humanizeMode,viewDistance:args.viewDistance};
@@ -97,12 +111,12 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
         note(name,'buildSchematic',`${result.status}: ${result.actions} actions`);return {...result,origin};
       } else if(command==='tasks'){
         const tasks=validateTasks(args.tasks,{skills:e.client.describe().skills});
-        await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.tasks=tasks;e.taskState=[];await save(name,e);note(name,'tasks',`Objectives: ${tasks.length}`);
+        await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.tasks=tasks;e.taskState=[];e.taskCheckpoint=undefined;await save(name,e);note(name,'tasks',`Objectives: ${tasks.length}`);
       } else if(command==='taskRetry'){
         await e.brain?.pause();if(!e.queue)throw new Error("Start the line first.");e.queue.retry(args.id);await save(name,e);
       } else if(command==='goal') {
         if(!['wood','stone_tools','iron_pickaxe','diamond_set'].includes(args.target))throw new Error("Goal: wood, stone_tools, iron_pickaxe, diamond_set.");
-        await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.tasks=[];e.taskState=[];e.goal=args.target;await save(name,e);
+        await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.tasks=[];e.taskState=[];e.taskCheckpoint=undefined;e.goal=args.target;await save(name,e);
       } else if(command==='action') {
         await e.brain?.pause();
         return await e.client.execute(args,{priority:500,signal:AbortSignal.timeout(60000)});
@@ -150,6 +164,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
       closing=(async()=>{
         await ready;
         const errors=[];
+        await Promise.all([...recoveries.values()].map(r=>r.close()));
         for(const [name,e]of entries){
           try{await e.brain?.stop();}catch(error){errors.push(error);}
           try{if(e.loaded)await save(name,e);}catch(error){errors.push(error);}

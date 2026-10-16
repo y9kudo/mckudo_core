@@ -5,9 +5,9 @@ import { defineMission } from './mission.js';
 import {validateAgentProgram} from './agent-program.js';
 
 /** A small application facade. Planning and execution still belong to the reusable core/client. */
-export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {}, memoryDirectory, brainOptions = {}, createClient, createBrain } = {}) {
+export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {}, memoryDirectory, brainOptions = {}, recovery = false, createClient, createBrain } = {}) {
   if (typeof worldId !== 'string' || !worldId.trim()) throw new Error("Show me the constant worldId to remember this world.");
-  const manager = createAgentManager({ count: 1, names: [name], worldId, connection, memoryDirectory, brainOptions, createClient, createBrain });
+  const manager = createAgentManager({ count: 1, names: [name], worldId, connection, memoryDirectory, brainOptions, recovery, createClient, createBrain });
   let connecting, active, closing, closed = false;
   const entry = () => manager.entries.get(name);
   const ensureOpen = () => { if (closed) throw new Error("Agent closed. Create a new instance."); };
@@ -74,7 +74,10 @@ export function createMinecraftAgent({ name = 'Atlas', worldId, connection = {},
           await manager.execute(name, 'start');
           while (true) {
             controller.signal.throwIfAborted();
-            const e = entry(), state = e.queue.snapshot();
+            const e = entry(), recovery = manager.snapshot().agents[0].recovery;
+            if(recovery?.phase==='recovering'){await delay(100,undefined,{signal:controller.signal});continue;}
+            if(recovery?.phase==='blocked')throw new Error(recovery.reason+' '+recovery.error);
+            const state = e.queue?.snapshot() || e.taskState;
             if (e.client.state.status !== 'ready' || e.client.state.health != null && e.client.state.health <= 0) throw new Error("Agent died or disconnected. The scenario is incomplete.");
             if (state.length && state.every(t => t.status === 'completed')) break;
             const failed = state.find(t => t.status === 'failed');
