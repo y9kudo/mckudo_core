@@ -1,6 +1,6 @@
-# API OvermindMC 0.4
+# OvermindMC API · Arthas beta2
 
-Public entrance — overmindmc.js. Main exports: createCore, OvermindCore, OvermindRuntime, definePlugin, validateConfig, ConfigError, matches, OVERMIND.
+Public entry point: `overmindmc`. Main exports include `createCore`, `OvermindCore`, `OvermindRuntime`, `definePlugin`, `validateConfig`, `ConfigError`, `matches` and `OVERMIND`. See [Navigation V2](NAVIGATION-V2.md) for spatial planning and [World Intelligence V2](WORLD-INTELLIGENCE-V2.md) for the atlas, exploration and contextual learning services.
 
 Catalogue, Block classes, Prescriptions, routes, research, Reactor, Food and construction described in [AUTOMATION.md](AUTOMATION.md). The full list of signatures is in [overmindmc.d.ts](../overmindmc.d.ts).
 

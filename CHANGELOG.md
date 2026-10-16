@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0-Arthas-beta2 · V2 navigation development
+## 1.0.0-Arthas-beta2 · V2 navigation and World Intelligence development
 
 - Audited module dependencies and captured the beta1 planning baseline; added the V2 migration and compatibility plan.
 - Added directed regional route hints, incremental LPA* graph repair and bounded long-distance navigation sessions.
@@ -8,6 +8,12 @@
 - Shared collision/body geometry between physics and volume queries; exposed partial support queries and pure multi-tick predictions.
 - Integrated segmented ground execution, early stuck detection and bounded goal recovery while retaining ordinary A*, native fallback and one physical action executor.
 - Added public V2 JS/TS APIs and deterministic offline navigation benchmarks. Real server trials and remaining Phase A mechanics are separate acceptance work.
+- Added a scoped, bounded World Atlas with observed region coverage, hazards, anchors, directed transition history, TTL/LRU eviction and invalidated return-route hints.
+- Added transactional SQLite schema-1-to-2 migration and batched atlas persistence while preserving existing observed blocks and air tombstones. Agent JSON checkpoints retain their outer schema and now persist atlas state separately.
+- Added occlusion-aware frontier ranking in CPU workers and multi-goal exploration with one global expansion budget. Visits, policy revisions and atlas changes invalidate cached requests.
+- Added a contextual 24–16–3 network for transition failure, measured duration and damage. Neural memory schema 3 preserves legacy schemas 1/2; geometry-aware failure penalties and masked approximate labels retain deterministic route safety.
+- Captured pre-traversal context and measured/estimated timing flags in OMConnect events; brain stop/start now detaches and restores learning/atlas listeners without duplication.
+- Passed a non-destructive Java 1.21.1 movement and atlas persistence/reconnection check. This is separate from long-distance, learning-quality and autonomous campaign acceptance.
 
 ## Arthas release preparation · unreleased
 

@@ -79,7 +79,19 @@ Each implementation must document its actual integration boundary, run regressio
 | Recovery | Canonical failure classes and bounded goal retries | Full cross-mission recovery integration |
 | Benchmark | Deterministic planning, dynamic edits, cache, long segments and concurrent jobs | Server travel/damage/correction metrics and external comparison |
 
-The first increment does not complete all of Phase A or begin a simultaneous rewrite of Phases B–F.
+The first increment does not complete all of Phase A. Work proceeds incrementally; unfinished traversal and gameplay acceptance remain explicit while the user-requested Phase B services are added.
+
+## Phase B increment status
+
+| Area | Implemented integration | Remaining acceptance |
+| --- | --- | --- |
+| World Atlas | Bounded scoped regions, sampled coverage, anchors, directed transition history and edit invalidation | Extended multi-world retention and autonomous home/supply policies |
+| Persistence | SQLite migration, bounded batched writes, JSON agent checkpoints and legacy memory import | Large-world storage/performance trials |
+| Exploration | Occlusion-aware frontier gain, hazard/revisit penalties, worker ranking and shared multi-goal budgets | Information-gain calibration and mission-level time/material budgets |
+| Contextual learning | Local failure/time/damage network, geometry-sensitive failure memory and label masks | Controlled unseen-world evaluations and frozen-policy comparisons |
+| Integration | Default brain/manager wiring and read-only diagnostics | Unified cognitive decisions and mission-wide plan repair in Phase C |
+
+The configured Java 1.21.1 server passed a short non-destructive movement plus on-disk atlas/reconnection check. It does not establish long-distance autonomy or improved gameplay from two transitions. [World Intelligence V2](WORLD-INTELLIGENCE-V2.md) documents APIs, migrations and current boundaries.
 
 ## Algorithm references
 
