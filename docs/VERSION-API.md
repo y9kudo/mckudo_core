@@ -2,7 +2,7 @@
 
 OMConnect separates four claims: **known data**, **installed transport**, **native actions** and **live verification**. A version appearing in a recipe catalog does not establish that inventory clicks, swimming or combat work on its server.
 
-The [version lab](VERSION-LAB.md) records real server trials, including whether an empty-inventory agent actually collected cobblestone. Version metadata comes from the [official Minecraft launcher manifest](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json); wire schemas come from the installed [PrismarineJS protocol package](https://github.com/PrismarineJS/node-minecraft-protocol/blob/master/docs/README.md). Neither source alone verifies gameplay.
+The version lab records real server trials, including whether an empty-inventory agent actually collected cobblestone. Version metadata comes from the [official Minecraft launcher manifest](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json); wire schemas come from the installed [PrismarineJS protocol package](https://github.com/PrismarineJS/node-minecraft-protocol/blob/master/docs/README.md). Neither source alone verifies gameplay.
 
 ## Discover exact historical releases
 
@@ -143,4 +143,4 @@ The two required functions load the version's registry and create its protocol t
 
 An adapter must cover more than login: chunk geometry and height, item slots and click acknowledgements, entities and relative movement, abilities, chat/auth requirements, block interaction, respawn and dimension changes. Label its status as experimental until these paths have been checked on the corresponding Minecraft version.
 
-Run the codec and package tests with `npm.cmd test` and `npm.cmd run release:check`. Live version evidence belongs in a separate test report with the version, server type, accepted actions and any corrections.
+Run the codec and package tests with `npm.cmd test` and `npm.cmd run release:check`. Keep detailed gameplay compatibility records in a local QA workspace. Public support claims must distinguish the exact version, available transport and confirmed gameplay capabilities.

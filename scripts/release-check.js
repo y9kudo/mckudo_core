@@ -23,6 +23,7 @@ for (const [folder, identity] of [['.', OVERMIND], ['packages/omconnect', OMCONN
   const paths = new Set(pack.files.map(file => file.path));
   for (const path of paths) {
     assert.doesNotMatch(path, /(^|\/)(?:data|node_modules|work|outputs|\.git|world)(\/|$)|(^|\/)\.env(?:\.|$)|\.(?:log|tmp|tgz)$|bot-log\.txt$/i, `Private/runtime file: ${path}`);
+    assert.doesNotMatch(path,/^docs\/results\/|^examples\/benchmark\/|^examples\/.*(?:-live|-trial|-probe)\.js$/i,`Private gameplay QA file: ${path}`);
     if (!/\.(?:js|ts)$/.test(path)) continue;
     const source = await readFile(resolve(directory, path), 'utf8');
     for (const match of source.matchAll(/(?:from\s+|import\s*\(\s*|import\s+)(['"])(\.{1,2}\/[^'"]+)\1/g)) {

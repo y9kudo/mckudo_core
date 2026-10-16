@@ -106,4 +106,4 @@ Set `train: true` only for an intentional live training run. PPO then samples st
 
 Tests check learning, numerical gradients against finite differences, action masks, checkpoint restoration and invalid-state rejection. They also cover fall damage and water landing, walls and lava, zombie pursuit, 128 independent physical environments, live safety masks and input cleanup.
 
-The October 14 trial transferred PPO to Java 1.21.1: `ArthasRL` moved toward a four-block goal through OMConnect, reached the 0.8-block success threshold, retained 20 health and received zero server position corrections. [Recorded evidence](results/overmind-migration-2026-10-14.md) separates this result from the symbolic survival trials.
+The October 14 trial transferred PPO to Java 1.21.1: `ArthasRL` moved toward a four-block goal through OMConnect, reached the 0.8-block success threshold, retained 20 health and received zero server position corrections. Recorded evidence separates this result from the symbolic survival trials.

@@ -115,4 +115,4 @@ HTN decomposes named tasks into approved primitive actions and tries alternative
 | Multi-task RL / PvP self-play | Interfaces permit experiments; verified general multi-task or self-play policies are not supplied |
 | Intrinsic motivation / RND | Visit-count novelty is available; RND is not implemented |
 
-[Measured evidence](results/overmind-migration-2026-10-14.md) · [v1 readiness](V1-READINESS.md) · [Public declarations](../src/intelligence.d.ts).
+Measured evidence · [v1 readiness](V1-READINESS.md) · [Public declarations](../src/intelligence.d.ts).

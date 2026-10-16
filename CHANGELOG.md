@@ -1,5 +1,16 @@
 # Changelog
 
+## Arthas release preparation · unreleased
+
+- Multi-goal OMVectorize A* shares one frontier and budget across up to 128 candidate destinations. OMConnect selects block-interaction positions through this search and reuses its validated route.
+- Symbolic domains support up to 2048 operators with backward causal slicing, a stable binary cost heap, cooperative search and explicit diagnostics. The core no longer silently truncates the domain at 64 operators.
+- Scenario memory retains its observed home origin and loop-erased approach corridor; shelter preparation can follow reverse segments out of a mine instead of repeatedly searching for an underground building site.
+- Route read views and resource indexes invalidate by changed vertical section; duplicate block states and unrelated surface edits preserve valid underground work. Blocked searches remain cached until relevant inputs change.
+- Bounded ascent recovery clears headroom, prepares permitted step support and climbs through ordinary actions. Retreat considers one-block rises/descents through shared search; unarmed recovery avoids chasing distant hostiles and a failed retreat no longer hides its attacker.
+- Terrain clearance explicitly distinguishes breaking a block from harvesting its drops. An unarmed survivor can open a safe ascent without inventing stone loot; short uphill retreats can clear permitted foliage while retaining mining-time and protection limits.
+- Added a read-only local expedition monitor and concise application examples. Moved personal gameplay drivers and reports into an ignored local QA archive while retaining public API tests and CI.
+- Stable Arthas acceptance is still in progress; this entry does not declare an autonomous Dragon victory or publish a new version.
+
 ## 1.0.0-Arthas-beta1 · 2026-10-15 · beta
 
 - Continuous supported walking with bounded lookahead, optional clear-corner shortcuts and immediate route invalidation after a server correction.
@@ -16,7 +27,7 @@
 - Route-cursor integration tests use the real 50 ms physics cadence alongside the 25 ms steering loop, removing an artificial tenfold physics acceleration that caused intermittent CI overshoot without relaxing movement assertions.
 - Core, standalone OMConnect, OMVectorize identities and declarations use `1.0.0-Arthas-beta1`. YourMind remains `alpha1.0`.
 
-See [beta1 details](docs/releases/1.0.0-Arthas-beta1.md) and the [engineering audit](docs/BETA1-NAVIGATION-COMBAT.md).
+See [beta1 details](docs/releases/1.0.0-Arthas-beta1.md) and the engineering audit.
 
 ## 1.0.0-Arthas-dev.3 · 2026-10-15 · development preview
 
@@ -65,7 +76,7 @@ See [beta1 details](docs/releases/1.0.0-Arthas-beta1.md) and the [engineering au
 - The learning cycle is independent greedy validation Before promotion, Saves and Re-establishes the Model/Phase. The successes of the old batch Not certified by new phase.
 - The Game Library contains 20 Resource phases with profiles wood/stone/iron/diamond. Real furnace test Survival 1.21.1: **6/6 for 181.064 with**.
 - Re-choice of unaffordable tree species in class production, crowding out the core problem with a failure and namespacing new objectives.
-- [Instruction](docs/ARTHAS-CURRICULUM.md) and [protocol](docs/results/arthas-curriculum-2026-10-14.md). Learning All Steps DQN and complete passage to the dragon has not yet been confirmed.
+- [Instruction](docs/ARTHAS-CURRICULUM.md) and protocol. Learning All Steps DQN and complete passage to the dragon has not yet been confirmed.
 
 ## 1.0.0-dev.1 · 2026-10-14 (Preassembly)
 
@@ -82,7 +93,7 @@ See [beta1 details](docs/releases/1.0.0-Arthas-beta1.md) and the [engineering au
 - Re-used `createNetherReactor`: Fortress orientations, Resource objectives, Hunting, mature growth, safety research/Tunnels and short bridges. [API and borders](docs/NETHER.md).
 - Indirect exchange OMConnect With adult piglins, limited ingot flow and separate rebound confirmation; Keep gold detail of the armor. Added natural materials of Neser and priority for the gold craft of the nuns.
 - Prohibition of water for protection in Neser, Non-combustible bridge materials/Poles, Re-ignition of the observed entire back-up frame.
-- [`from-zero-to-dragon.js`](examples/from-zero-to-dragon.js): Full test scenario, Damage magazines/attacks/adjustments, Maintaining phases and portals, continued, Stop, Post-death supply re-check. [Starting](docs/FULL-EXPEDITION.md).
+- `from-zero-to-dragon.js`: Full test scenario, Damage magazines/attacks/adjustments, Maintaining phases and portals, continued, Stop, Post-death supply re-check. [Starting](docs/FULL-EXPEDITION.md).
 - The result of the zombie game strike: A swift turn in the closet, Re-use in target displacement without protection off, immediate safe passage from close mob; corrected by double cooldown Protection.
 - Finding a place for home no longer takes the grass for empty building cells. The shield and iron tools are fully profiled before the house.
 - Game run discovered re-mining by a nearly broken brick: Resource planner now only considers suitable tools and orders replacement of worn copy.
@@ -98,10 +109,10 @@ See [beta1 details](docs/releases/1.0.0-Arthas-beta1.md) and the [engineering au
 
 - Support WorldEdit `.schem` v2/v3 and safe sub-compatibility `.schematic`; Volume limits, Test of the palette and VarInt, retention `Offset`. Pistol Creative-The building picks an empty site, transmits properties through the component of the object `minecraft:block_state` and check the server status of each block; [instruction](docs/SCHEMATICS.md). Status support checked in game, a large user file is still being built.
 - Creative-Flight through capability control and a three-dimensional route; Local Tub View and Settings Interface Humanize. Review extended to 24 default and independent task.
-- A self-contained run with empty equipment in the new world started. The long start saves the full log, Interim report and trained models, Allows limited number of full-time rebirths. After the first death, the unreachable cycle was removed in the narrow passage: short safe move and temporary transition to combat instead of repeating one route. After meeting the Kryper, a safe sprint was added immediately without waiting for the full route; Agent makes a stone sword in front of the iron mine, And the first iron is directed to the shield. Watching sheep transmits wool color to prepare the bed. [Test Log](docs/results/full-survival-2026-10-13.md).
+- A self-contained run with empty equipment in the new world started. The long start saves the full log, Interim report and trained models, Allows limited number of full-time rebirths. After the first death, the unreachable cycle was removed in the narrow passage: short safe move and temporary transition to combat instead of repeating one route. After meeting the Kryper, a safe sprint was added immediately without waiting for the full route; Agent makes a stone sword in front of the iron mine, And the first iron is directed to the shield. Watching sheep transmits wool color to prepare the bed. Test Log.
 - OvermindMC Translating the battle with the sitting dragon into the immediate phase and looking for a confirmed ground approach to the head; OMConnect Chooses sword, Waiting for a backfire, Runs a jump to try to crease and checks the server damage. For flying purpose, the target is specified before firing, But charm «Infinity» recognized by wear of onions. Prepared by Avery07 confirmed the death of the dragon and 14 in-house hits on vanilla 1.21.1; critical multiplier and zero passage not separately confirmed.
 - Automatic fall insurance: Support leg forecast, Water installation and recovery, In the event of a emptiness, the calculation of the throwing of pearls on the observed site. Eye protection from endermen also works in intermediate turning frames; Added regression tests. Full zero clearance not yet confirmed.
-- OMVectorize plans limited air corridor and landing point; OMConnect Flying with an elite test, Missiles, flight and landing server flag. New operations of the storage facility carry the exact number, Read and sign the signs. OvermindMC sorts into six categories and resumes work on items in inventory. [Test results](docs/results/flight-storage-2026-10-12.md).
+- OMVectorize plans limited air corridor and landing point; OMConnect Flying with an elite test, Missiles, flight and landing server flag. New operations of the storage facility carry the exact number, Read and sign the signs. OvermindMC sorts into six categories and resumes work on items in inventory. Test results.
 
 - OvermindMC/OMConnect: policy `preservePickaxeTier` Saves iron and more valuable kirks when a small tool is available; Diamond ore and the only fit brick remain acceptable targets/Tools. Brain includes the threshold 2 default.
 - OMConnect `collect`: A failed approach no longer blocks the remaining achievable positions; rejected approaches are not counted on every survey without changing the conditions. Received-still supported by server equipment.
@@ -227,7 +238,7 @@ See [beta1 details](docs/releases/1.0.0-Arthas-beta1.md) and the [engineering au
 - Nutrition, Authorized hunting, mature cultures, Re-planting, Smooth, Coil and melting furnace.
 - The drawing of the hideout, Production of the materials, Construction confirmation and survival phases.
 - Updated types, Documentation of modules, Examples and automatic checks.
-- Data checked vanilla 1.21.1: 1060 blocks, 1333 object and 1290 Reciprocal Files. Detailed separation of model and game tests: [TESTING-04](docs/TESTING-04.md).
+- Data checked vanilla 1.21.1: 1060 blocks, 1333 object and 1290 Reciprocal Files. Detailed separation of model and game tests: TESTING-04.
 
 ## 0.3.0
 

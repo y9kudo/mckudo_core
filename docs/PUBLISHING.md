@@ -15,7 +15,7 @@ git status --short
 
 `release:check` Checks package versions/lock-Files/Public constant, Imports in archives, Local links and lack of documentation runtime-Files. `test:package` Collects both archives, Sets them in a separate provisional annex and checks them API without Mineflayer. By default, the installation uses cache and if necessary npm registry. For unconnected testing: `npm.cmd run test:package -- --offline`; She needs the records of addictions, and their metadata in npm-Cash. One `npm ci` does not guarantee metadata of version ranges.
 
-Playchecks are started separately: `npm.cmd run test:live:agent`. Requires offline-server Java 1.21.1 and a new name through `MC_USER`. Failures maintained; Early survival test is not a victory over a dragon. [Methodology and results](TESTING-06.md).
+Playchecks are started separately: `npm.cmd run test:live:agent`. Requires offline-server Java 1.21.1 and a new name through `MC_USER`. Failures maintained; Early survival test is not a victory over a dragon. Methodology and results.
 
 ## Communications and releases
 

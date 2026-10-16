@@ -1,69 +1,47 @@
-# Connect OvermindMC to OMConnect
+# Connect the kernel to Minecraft
 
-**Two separate libraries · The author y9kudo · MIT**
+**OvermindMC + independent OMConnect · Created by y9kudo · MIT**
 
-OMConnect is in [packages/omconnect](../packages/omconnect/README.md). It connects to the server, Keeps the observed state and performs the actions. OvermindMC Keeps Knowledge of the Game, Resource levels, plans and experiences. The application connects libraries via adapter. New opportunities 0.7-dev: [OMVectorize, Microsoft Auth and extension of the kernel](V0.7-DEVELOPMENT.md).
+OMConnect owns the server session, received chunks, entities, inventory, physics and action execution. OvermindMC owns goals, resource dependencies, survival policy, cooperation and learning. The optional adapter translates between their contracts. Neither library requires Mineflayer; a separate Mineflayer adapter remains available for existing applications.
 
-## Simple application
+## Minimal application
 
-After local installation of both libraries:
+The core package bundles OMConnect through `overmindmc/connect`. The standalone client archive exports the same API from `omconnect`.
 
 ```js
-import { createOMConnect } from 'omconnect';
-import { createCore } from 'overmindmc';
-import { createOMAdapter } from 'overmindmc/adapters/omconnect';
+import {createOMConnect} from 'overmindmc/connect';
+import {createMinecraftBrain} from 'overmindmc';
 
-const client = createOMConnect({ username: 'Alice', auth: 'offline', version: '1.21.1' });
-let core, adapter;
+const client=createOMConnect({
+  username:'Atlas',host:'127.0.0.1',port:25565,
+  version:'1.21.1',auth:'offline'
+});
+let brain;
 try {
   await client.connect();
-  adapter = createOMAdapter(client, { trackedBlocks: ['#logs'], searchRadius: 64 });
-  core = createCore({
-    config: {
-      schemaVersion: 4, name: 'Alice', worldId: 'my-server',
-      actionTimeoutMs: 60000,
-      rules: [{ id: 'wood', action: { skill: 'gather', args: { block: '#logs', count: 1 } } }]
-    },
-    adapter
-  });
-  console.log(await core.tick()); // One step
+  await client.waitFor(()=>client.recipeBook.received,{event:'recipes',timeoutMs:10000});
+  brain=createMinecraftBrain({client,worldId:'my-world',survival:{targets:{'#logs':4}}});
+  for(let i=0;i<100&&brain.survival.snapshot().status!=='completed';i++)await brain.tick();
 } finally {
-  await core?.stop();
-  adapter?.dispose();
+  await brain?.stop();
   await client.close();
 }
 ```
 
-`core.start()` start the continuous cycle. In such an application, process the process stop and call `core.stop()`/`client.close()` at completion. For a group, create `createFleet({ count: 2 })` and one adapter each/Core client.
+For class-independent completion and bounded application runs, prefer `createMinecraftAgent().get('#logs',4)` as shown in [the planning guide](PLANNING.md). Low-level applications decide when to stop their loop. A continuously running application can call `brain.start()` and handle process shutdown by stopping the brain and closing the client.
 
-Imports `overmindmc/connect` retained for compatibility: He exports the same single customer. Package itself `kudoconnect` does not import OvermindMC. It is installed separately from its archives; publications in npm Not yet.
+## What the client guarantees
 
-## Where knowledge is found
+- Unknown chunks remain unknown. Movement and editing use the observed world, collision shapes and permissions.
+- Inventory and confirmed world changes establish results; sending a packet is not success.
+- Actions are bounded and cancellable. One physical executor owns ordinary inputs; urgent defensive policy can preempt work.
+- Block interactions evaluate multiple standing positions through a shared spatial search. A validated route can be consumed once without repeating the search.
+- Read views track the observed sections they depend on. Surface edits do not automatically invalidate an underground route in another section; relevant edits, chunk replacement/unload and dimension changes still invalidate it.
 
-| OvermindMC | OMConnect |
-| --- | --- |
-| Objectives, Planner, rules and adaptive scenarios | Session, Packages, action and cancellation |
-| Complete catalogue of a specific version and classes of material | Cup received, Blocks, and equipment |
-| Resource chains, instruments, Stations and fuel | Realization of only the declared skills |
-| Tactical reactions and experiences | Physics, server trajectory and validation |
-| Decision on joint work | Exchange of messages and intentions outside the chat room |
+## Version and application boundaries
 
-The brain doesn't suggest, I'm sure every client can do everything: `adapter.describe().skills` Shows available performers. Catalogue may know the furnace recipe, Even if the specific adapter hasn't done the work with her window yet. Craft scripts/potions/The relevant perpetrators require full passage; independent OMConnect Still expanding.
+Native high-level gameplay profiles cover Java 1.21/1.21.1. A known codec or item catalog does not establish full gameplay support on another version. Use [the version API](VERSION-API.md) to inspect capabilities and register experimental profiles.
 
-## Observation and classes
+The client advertises executable skills through `describe()`. A catalog can know a recipe even when a custom adapter does not implement its machine. Modded servers require their appropriate bridge, catalog and executors.
 
-OMConnect publishes its own contract `omconnect.agent` v1. Adaptation converts it into observation OvermindMC, Supplements zero quantities of known equipment and retains unknown blocks as unknown. The default search distance 128, Sets to 512 blocks; the result is limited to the cups, The ones that sent the server.
-
-Classes OvermindMC are transferred to the client register for selected `trackedBlocks`. For self-standing OMConnect Basic available `#logs`, `#leaves`, `#tree`, `#ores`, `#deepslate_ores`, `#crops`, `#workstations`; additional classes register the application.
-
-## Verification and further development
-
-The Repository: `npm.cmd run check`. Individual client tests: Go to `packages/omconnect` and do it `npm.cmd test`. Game group: `node packages/omconnect/examples/team.js`; variable `MC_AGENTS` it's a problem 1–20 Clients. This example only observes and exchanges data.
-
-B Java 1.21.1 Confirmed entry, traffic, Mining/Selection and simultaneous work of seven new clients. Full pass, Expanded physics and shooting in the real world is not yet confirmed. Network prescription reading corrected; Relevant results — in [Report 0.5.0](TESTING-05.md).
-
-[API client](../packages/omconnect/docs/API.md) · [Physics](../packages/omconnect/docs/PHYSICS.md) · [Training and adaptation](ADAPTIVE.md) · [Scenarios](SCENARIOS.md) · [Results](TESTING-05.md)
-
-## Supplements 0.5.0
-
-[The Ready Survival Cycle, craft, and exchange of](NATIVE-SURVIVAL.md) · [Web-Panel](DASHBOARD.md).
+[Independent client API](../packages/omconnect/docs/API.md) · [Physics](../packages/omconnect/docs/PHYSICS.md) · [Scenarios](SCENARIOS.md) · [Quality policy](QUALITY.md).
