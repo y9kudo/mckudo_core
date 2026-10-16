@@ -24,7 +24,7 @@ try {
   const output = execFileSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
     import {createRequire} from 'node:module';
-    import {OVERMIND, createMinecraftAgent, defineMission, createNeuralPlanner, createCpuPool, catalogFromMinecraftData, createActionEvidenceMemory, createAgentProgram, validateAgentProgram, startDashboard, createTaskQueue, createAgentMemory, createMissionRecovery} from 'overmindmc';
+    import {OVERMIND, createMinecraftAgent, defineMission, createNeuralPlanner, createCpuPool, catalogFromMinecraftData, createActionEvidenceMemory, createAgentProgram, validateAgentProgram, startDashboard, createTaskQueue, createAgentMemory, createMissionRecovery, createPerceptionTracker, semanticCategories} from 'overmindmc';
     import {createOMConnect, OMCONNECT, OMActionError} from 'omconnect';
     import {OMCONNECT as bundled} from 'overmindmc/connect';
     import {createOMAdapter} from 'overmindmc/adapters/omconnect';
@@ -75,6 +75,7 @@ try {
     assert.equal(createTaskQueue({tasks,skills:['wait'],resume:queue.checkpoint()}).snapshot()[0].status,'pending');
     const storage=createAgentMemory('./task-memory','package-smoke');await storage.saveTasks('Atlas',{tasks,taskCheckpoint:queue.checkpoint()});assert.equal((await storage.loadTasks('Atlas')).tasks[0].id,'wait');
     const recovery=createMissionRecovery({baseDelayMs:0,recover:async()=>{}});recovery.enable();await recovery.request('disconnected');assert.equal(recovery.snapshot().phase,'working');await recovery.close();
+    const perceptions=createPerceptionTracker();perceptions.setScope('minecraft:overworld');perceptions.observeEntity({id:'42',name:'cow',position:{x:1,y:64,z:0}});assert.equal(perceptions.evidence('42').confidence,1);assert.deepEqual(semanticCategories('deepslate_iron_ore'),['ores','deepslate_ores']);
     const dashboard=await startDashboard({port:0,manager:{snapshot:()=>({agents:[],log:[]}),close:async()=>{}}});
     try{for(const path of ['/program-builder.js','/vision3d.js','/vendor/three.module.js','/vendor/three.core.js']){const response=await fetch(dashboard.url+path);assert.equal(response.status,200);await response.arrayBuffer();}}finally{await dashboard.close();}
     const evidence = createActionEvidenceMemory({worldId:'package-smoke'});
