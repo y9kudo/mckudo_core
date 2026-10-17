@@ -28,7 +28,7 @@ import {decideFallRescue} from './fall-safety.js';
 import {OMHumanize} from './humanize.js';
 import { EntityMotion } from './entity-motion.js';
 
-export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-beta1', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-beta1', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
+export const OMCONNECT = Object.freeze({ name: 'OMConnect', version: '1.0.0-Arthas-beta2', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-beta2', author: 'y9kudo', apiVersion: 1, minecraftVersions: NATIVE_VERSIONS, authentication: ['offline', 'microsoft'] });
 export class OMConnect extends EventEmitter {
   constructor(options = {}, { createProtocolClient, physics = stepPhysics, versionProfile = null,navigationBackend=null } = {}) {
     super();
@@ -119,7 +119,7 @@ export class OMConnect extends EventEmitter {
       if (!['minecraft:overworld', 'minecraft:the_nether', 'minecraft:the_end'].includes(dimension)) { this.connectionAbort.abort(new Error("Unknown dimension.")); return; }
       const changed = this.state.dimension !== dimension;
       this.state.dimension = dimension; this.state.gameMode = typeof w.gamemode === 'object' ? w.gamemode.gameMode ?? w.gamemode.gamemode : w.gamemode;
-      if (changed) { this.world.reset(dimension); this.entities.clear(); this.state.vehicleId=null; this.stopMovement(); }
+      if (changed) { this.world.reset(dimension); this.vectorize.resetNavigation({server:this.options.host+':'+this.options.port,worldId:'connection',dimension,minecraftVersion:this.options.version}); this.entities.clear(); this.state.vehicleId=null; this.stopMovement(); }
     };
     c.on('login', p => { this.state.entityId = p.entityId; worldState(p); this.emit('login', this.snapshot()); });
     c.on('abilities',p=>{this.state.allowFlying=Boolean(p.flags&4);this.state.creativeFlying=Boolean(p.flags&2);this.state.flyingSpeed=Number.isFinite(p.flyingSpeed)?p.flyingSpeed:.05;this.emit('abilities',{allowFlying:this.state.allowFlying,flying:this.state.creativeFlying});});
@@ -350,7 +350,28 @@ export class OMConnect extends EventEmitter {
     const job = { abort, priority, skill: action.skill,action, signal:combined, promise: null };
     this.pending = job;
     let outcome = 'success', detail = '';
-    job.promise = Promise.resolve().then(() => this.skills.has(action.skill) ? this.skills.get(action.skill)(action.args || {}, { client: this, signal: combined }) : runAction(this, action, combined))
+    // Coordination grants permission; this pending job remains the only physical executor.
+    job.promise = Promise.resolve().then(async () => {
+      let dispatched=false,accepting=true,physical;
+      const perform=extraSignal=>{
+        if(dispatched||!accepting)throw new Error('An action coordinator may dispatch only once, while its hook is active.');
+        dispatched=true;
+        const executionSignal=extraSignal?AbortSignal.any([combined,extraSignal]):combined;
+        physical=Promise.resolve().then(()=>{
+          executionSignal.throwIfAborted();
+          return this.skills.has(action.skill)?this.skills.get(action.skill)(action.args||{},{client:this,signal:executionSignal}):runAction(this,action,executionSignal);
+        }).then(result=>{executionSignal.throwIfAborted();return result;}).catch(error=>{throw executionSignal.aborted?executionSignal.reason:error;});
+        physical.catch(()=>{});return physical;
+      };
+      if(!this.actionCoordinator)return perform();
+      let coordinationError,coordinationFailed=false;
+      try{await this.actionCoordinator.run(action,{signal:combined,priority},perform);}catch(error){coordinationError=error;coordinationFailed=true;}finally{accepting=false;}
+      // Even a malformed hook cannot release the executor while a dispatch is in flight.
+      const result=physical?await physical:undefined;
+      if(coordinationFailed)throw coordinationError;
+      if(!dispatched)throw new Error('An action coordinator returned without dispatching.');
+      return result;
+    })
       .then(result => { combined.throwIfAborted(); return result; })
       .catch(error => { outcome = combined.aborted ? 'cancelled' : 'failure'; detail = String((combined.aborted ? combined.reason : error)?.message || error).slice(0, 300); if (!combined.aborted) this.metrics.failures++; throw combined.aborted ? combined.reason : error; })
       .finally(() => {
@@ -362,6 +383,7 @@ export class OMConnect extends EventEmitter {
   }
   snapshot() { return { identity: OMCONNECT, ...structuredClone(this.state), authentication: structuredClone(this.authentication), time:structuredClone(this.time), inventory: this.dataLoaded?this.inventory.snapshot():{}, equipment:this.dataLoaded?this.inventory.equipment():{}, loadedChunks: this.dataLoaded?this.world.columns.size:0, metrics: { ...structuredClone(this.metrics), timing: this.tickTiming.snapshot(), navigation: navigationScheduler.snapshot() } }; }
   async close() {
+    this.vectorize.session?.close();
     this.connectionAbort.abort(new Error("Client stopped.")); this.stopMovement(); this.attention.clear(); this.stopClock(); await this.pending?.promise.catch(() => {});
     if (!this.client?.socket?.destroyed) this.client?.end('OMConnect stopped');
     const socket = this.client?.socket;

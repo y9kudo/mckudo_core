@@ -1,6 +1,6 @@
 {
   "name": "omconnect",
-  "version": "1.0.0-Arthas-beta1",
+  "version": "1.0.0-Arthas-beta2",
   "description": "Independent Minecraft Java agent client, physics and peer communication",
   "author": "y9kudo",
   "license": "MIT",

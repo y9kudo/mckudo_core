@@ -44,6 +44,10 @@ export {createNetherReactor,netherCapabilities,NETHER_TRACKED_BLOCKS} from './sr
 export {createDragonPolicy} from './src/dragon-brain.js';
 export {createNeuralNavigator,attachNeuralNavigation} from './src/neural-navigation.js';
 export {createNeuralPlanner} from './src/neural-planning.js';
+export {createCognitiveEngine} from './src/cognitive-engine.js';
+export {createCognitivePlanner,createHTNPlannerAdapter,createMCTSPlannerAdapter} from './src/cognitive-planner.js';
+export {repairPlan} from './src/plan-repair.js';
+export {evaluateCognitiveCheckpoint} from './src/cognitive-evaluation.js';
 export {createTaskQueue,validateTasks} from './src/task-queue.js';
 export {createAgentProgram,validateAgentProgram} from './src/agent-program.js';
 export {createVisionVolume,createVisionSnapshot} from './src/vision.js';
@@ -51,6 +55,9 @@ export {createAgentMemory} from './src/agent-memory.js';
 export {brewingRecipes,planBrewing,planNetheriteUpgrade,dimensionTravelPolicy} from './src/mechanics.js';
 
 export {createSpatialMemory} from './src/spatial-memory.js';
+export {createWorldAtlas,attachWorldAtlas,worldAtlasScope} from './src/world-atlas.js';
+export {createNavigationContextReader} from './src/navigation-context.js';
+export {frontierCandidates,planFrontierExploration} from './src/frontier-exploration.js';
 export {createCpuPool} from './src/cpu-pool.js';
 export {createExplorationPlanner} from './src/exploration-planner.js';
 export {createMachineGraph,planMachineResources,executeMachinePlan,machineResourceKey} from './src/machines.js';
@@ -58,4 +65,15 @@ export {createCampaignJournal} from './src/campaign-journal.js';
 export {expeditionLearningEvidence,assessExpeditionRelease} from './src/expedition-evidence.js';
 export {createNavigationRecoveryReactor} from './src/navigation-recovery.js';
 export {OMVECTORIZE,OMVectorize,volumeClearance,traceVolume,planSwimRoute,planSwimRouteAsync,predictElytraTick,planElytraFlight,elytraControl} from './packages/omconnect/src/vectorize.js';
+export {createNavigationSession,RegionalRouteGraph,IncrementalRegionPlanner,collisionShapes,bodyBounds,supportAt,BODY_POSES,predictMotion,createMotionProgress,createNavigationRecovery,NAVIGATION_FAILURE_CODES} from './packages/omconnect/index.js';
 export {STORAGE_CATEGORIES,storageCategory,findLabelledStorage,storageForSign,sortStorage} from './src/storage.js';
+
+export {createMissionRecovery} from './src/mission-recovery.js';
+
+export {createPerceptionTracker,semanticCategories} from './src/perception-tracker.js';
+
+export {createSwarmCoordinator} from './src/swarm-coordinator.js';
+export {attachSwarmAgent} from './src/swarm-integration.js';
+
+export {createTeamStorageAllocator} from './src/team-storage.js';
+export {createConstructionProject,runConstructionBatch} from './src/team-construction.js';

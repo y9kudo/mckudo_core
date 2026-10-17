@@ -1,6 +1,6 @@
-# API OvermindMC 0.4
+# OvermindMC API · Arthas beta2
 
-Public entrance — overmindmc.js. Main exports: createCore, OvermindCore, OvermindRuntime, definePlugin, validateConfig, ConfigError, matches, OVERMIND.
+Public entry point: `overmindmc`. Main exports include `createCore`, `OvermindCore`, `OvermindRuntime`, `definePlugin`, `validateConfig`, `ConfigError`, `matches` and `OVERMIND`. See [Navigation V2](NAVIGATION-V2.md) for spatial planning, [World Intelligence V2](WORLD-INTELLIGENCE-V2.md) for the atlas/exploration and [Cognitive V2](COGNITIVE-V2.md) for decisions, plan repair and controlled evaluation. [Task Orchestration V2](TASK-ORCHESTRATION-V2.md) describes dependency queues, durable action hooks, memory recovery and lifecycle controls. [Perception V2](PERCEPTION-V2.md) covers change evidence, entity budgets and combat diagnostics.
 
 Catalogue, Block classes, Prescriptions, routes, research, Reactor, Food and construction described in [AUTOMATION.md](AUTOMATION.md). The full list of signatures is in [overmindmc.d.ts](../overmindmc.d.ts).
 
@@ -95,3 +95,15 @@ The regular monitor is passed on JSON, free of juices and class objects. Maximum
 - retryStep(workflowId, stepId) — repeat error or interruption.
 
 These transactions are described in [Plagins](PLUGINS.md) and [objectives](WORKFLOWS.md). TypeScript-The announcements are part of the core package. In a branch 0.x a correct version of the relationship.
+
+## Team coordination
+
+Manager teams enable bounded advisory resource and ground-path leases by default. Set `cooperation: false` for independent execution, or configure `{capacity, ttlMs, maxWaitMs}`. `manager.snapshot().cooperation` contains current lease/wait diagnostics. Standalone clients can use `createSwarmCoordinator()` and `attachSwarmAgent()`; see [Team Coordination V2](SWARM-V2.md) for complete options, cleanup and execution boundaries.
+
+## Team storage allocation
+
+Coordinated manager teams default to `storage.mode: 'team'`. `createTeamStorageAllocator({worldId, clients, targets})` provides bounded deficit-based proposals and `.attach(client)` installs the independent OMConnect withdrawal hook. `takeStorage` with `allocation: 'team-supplies'` plans from a freshly confirmed window under normal execution. See [Team Storage V2](TEAM-STORAGE-V2.md) for quantities, classes, filters, cleanup and diagnostic semantics.
+
+## Shared construction
+
+`createConstructionProject({id, worldId, dimension, blueprint, agents})` assigns supported cells under renewable fenced claims. `runConstructionBatch(client, project, {maxActions, signal})` executes normal placement and verifies observed results. Failure-only checkpoints re-observe progress after restoration. Managers expose `buildTogether`; dashboard users get the same bounded batches and shared progress. See [Team Construction V2](TEAM-CONSTRUCTION-V2.md) for examples, cancellation and observation semantics.

@@ -12,30 +12,32 @@ export interface Goal { id: string; priority?: number; description?: string; des
 export interface AgentConfig { $schema?: string; schemaVersion: 1 | 2 | 3 | 4; name: string; worldId: string; rules?: Rule[]; workflows?: Workflow[]; goals?: Goal[]; tickIntervalMs?: number; actionTimeoutMs?: number; failureBackoffMs?: number; maxHistory?: number; }
 export interface Manifest { protocolVersion: 1; perceptionVersion?: 1; kind: string; loader: string; minecraftVersion: string; skills: readonly string[]; }
 export interface Context { signal: AbortSignal; priority?: number; }
-export interface Adapter { describe(): Manifest; observe(context: Context): Promise<Observation>; observeThreats?(context: Context): Promise<Observation>; subscribeUrgent?(listener: () => void): () => void; execute(action: Action, context: Context): Promise<unknown>; dispose?(): void; }
-export interface Result { at: number; rule: string; skill: string; outcome: 'success' | 'failure' | 'cancelled' | 'progress'; detail: string; failure?: import('./omconnect/index.js').ActionFailure; }
+export interface ActionVerification {status:'confirmed'|'unconfirmed'|'unknown';reason:string;}
+export interface Adapter {perception?:PerceptionTracker|null; describe(): Manifest; observe(context: Context): Promise<Observation>; observeThreats?(context: Context): Promise<Observation>; subscribeUrgent?(listener: () => void): () => void; execute(action: Action, context: Context): Promise<unknown>; verifyAction?(action:Action,context:Context&{before:Observation;after:Observation}):ActionVerification|Promise<ActionVerification>; dispose?(): void; }
+export interface Result { at: number; rule: string; skill: string; outcome: 'success' | 'failure' | 'cancelled' | 'progress'; detail: string; failure?: import('./omconnect/index.js').ActionFailure;verification?:ActionVerification; }
 export interface StepState { status: 'pending' | 'running' | 'completed' | 'failed' | 'interrupted'; attempts: number; retryAt: number; error: string; }
 export interface WorkflowState { id: string; status: 'pending' | 'active' | 'completed' | 'failed' | 'interrupted'; completed: number; total: number; steps: Record<string, StepState>; }
 export interface SavedWorkflow { fingerprint: string; active: boolean; steps: Record<string, StepState>; }
 export interface SavedGoal { status: 'pending' | 'active' | 'achieved' | 'blocked' | 'failed' | 'interrupted'; actions: number; reason: string; retryAt: number; inFlight: boolean; }
 export interface SavedBrain { fingerprint: string; calls: number; goals: Record<string, SavedGoal>; }
-export interface Memory { schemaVersion: 1 | 2 | 3; worldId: string; stats: Record<string, { successes: number; failures: number; streak: number }>; history: Result[]; workflows?: Record<string, SavedWorkflow>; brain?: SavedBrain; }
+export interface Memory { schemaVersion: 1 | 2 | 3; worldId: string; stats: Record<string, { successes: number; failures: number; streak: number }>; history: Result[]; workflows?: Record<string, SavedWorkflow>; brain?: SavedBrain; cognitive?:CognitiveMemory; }
 export interface Decision { id: string; kind: 'rule' | 'workflow' | 'goal' | 'reactor'; workflowId: string | null; stepId: string | null; goalId: string | null; operatorId: string | null; action: Action; priority: number; alternatives: { id: string; blocked: string | null }[]; }
 export interface PluginInfo { id: string; apiVersion: 1; requires: readonly string[]; skills: string[]; }
-export interface Snapshot { performance:Record<string,{calls:number;totalMs:number;lastMs:number;maxMs:number}>; engine: typeof OVERMIND; name: string; worldId: string; status: 'idle' | 'observing' | 'planning' | 'acting' | 'blocked' | 'fault' | 'paused' | 'stopping'; reason: string; paused: boolean; running: boolean; adapter: Manifest; observation: Observation | null; decision: Decision | null; lastResult: Result | null; history: Result[]; workflows: WorkflowState[]; brain: BrainSnapshot | null; trace?: DecisionTrace; plugins: PluginInfo[]; listenerErrors: { event: string; message: string }[]; }
+export interface Snapshot { performance:Record<string,{calls:number;totalMs:number;lastMs:number;maxMs:number}>; engine: typeof OVERMIND; name: string; worldId: string; status: 'idle' | 'observing' | 'planning' | 'acting' | 'blocked' | 'fault' | 'paused' | 'stopping'; reason: string; paused: boolean; running: boolean; adapter: Manifest; observation: Observation | null; decision: Decision | null; lastResult: Result | null; history: Result[]; workflows: WorkflowState[]; brain: BrainSnapshot | null; cognitive?:CognitiveSnapshot;trace?: DecisionTrace; plugins: PluginInfo[]; listenerErrors: { event: string; message: string }[]; }
 export type SkillHandler = (args: Record<string, Json>, context: Context & { observation: Observation }) => unknown | Promise<unknown>;
 export type SkillValidator = (args: Record<string, Json>) => boolean | string | void | Promise<boolean | string | void>;
 export interface SkillDefinition { execute: SkillHandler; validate?: SkillValidator; }
 export interface Plugin { readonly id: string; readonly apiVersion: 1; readonly requires?: readonly string[]; readonly skills: Readonly<Record<string, SkillHandler | SkillDefinition>>; }
 export declare function definePlugin(plugin: Plugin): Plugin;
-export declare const OVERMIND: Readonly<{ name: string; id: 'overmindmc'; version: string; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-beta1'; author: 'y9kudo'; protocolVersion: 1 }>;
+export declare const OVERMIND: Readonly<{ name: string; id: 'overmindmc'; version: string; versionName: 'Version Arthas'; displayVersion: 'v1.0.0Arthas-beta2'; author: 'y9kudo'; protocolVersion: 1 }>;
 export declare class ConfigError extends Error { readonly path: string; }
 export declare function validateConfig(input: unknown): AgentConfig;
 export declare function matches(condition: Condition | undefined, observation: Observation): boolean;
-export interface CoreOptions { config: AgentConfig; adapter: Adapter; planning?: PlanningOptions; learning?: ExperienceModel; reactors?: Reactor[]; preemptionMs?: number; memory?: Memory; clock?: () => number; }
+export interface CoreOptions { config: AgentConfig; adapter: Adapter; planning?: PlanningOptions; cognitive?:false|Omit<CognitiveEngineOptions,'worldId'>&{model?:CognitiveEngine};learning?: ExperienceModel|NeuralPlanner; reactors?: Reactor[]; preemptionMs?: number; memory?: Memory; clock?: () => number; }
 export declare class OvermindCore {
   constructor(options: CoreOptions);
   readonly manifest: Manifest;
+  readonly cognitive:CognitiveEngine|null;
   registerSkill(name: string, handler: SkillHandler, options?: { validate?: SkillValidator }): this;
   use(plugin: Plugin): this;
   removePlugin(id: string): this;
@@ -54,11 +56,13 @@ export declare class OvermindCore {
   on(event: 'action:finish', listener: (result: Result) => void): this;
   on(event: 'decision:trace', listener: (trace: DecisionTrace) => void): this;
   on(event: 'monitor:error', listener: (error: { message: string }) => void): this;
+  on(event:'experience:transition',listener:(sample:ExperienceTransition)=>void):this;
   once(event: 'state', listener: (snapshot: Snapshot) => void): this;
   once(event: 'action:start', listener: (decision: Decision) => void): this;
   once(event: 'action:finish', listener: (result: Result) => void): this;
   once(event: 'decision:trace', listener: (trace: DecisionTrace) => void): this;
   once(event: 'monitor:error', listener: (error: { message: string }) => void): this;
+  once(event:'experience:transition',listener:(sample:ExperienceTransition)=>void):this;
   removeListener(event: string, listener: (...args: any[]) => void): this;
   removeAllListeners(event?: string): this;
 }
@@ -67,8 +71,12 @@ export interface Operator { id: string; cost?: number; action: Action; requires?
 export interface PlannerContext { perceptionVersion: number | null; observation: Observation; goal: Goal; operators: Operator[]; skills: string[]; }
 export interface PlanProposal { steps: string[]; reason?: string; }
 export interface Planner { id: string; apiVersion: 1; plan(context: PlannerContext, cancellation: Context): PlanProposal | Promise<PlanProposal>; }
-export interface PlanningOptions { operators?: Operator[]; experience?: ExperienceModel; planner?: Planner; maxCalls?: number; minIntervalMs?: number; retryDelayMs?: number; }
-export interface ExperienceSample { episodeId: string; action: Action; before: Observation; after?: Observation | null; outcome: 'success' | 'progress' | 'failure' | 'cancelled'; durationMs?: number; }
+export interface RepairOptions {maxNodes?:number;maxDepth?:number;maxSuffixes?:number;}
+export interface RepairResult {status:'repaired'|'blocked';steps:string[];reason:string;retainedSteps:number;connectorSteps:number;replacedSteps:number;visited:number;generated:number;}
+export declare function repairPlan(context:PlannerContext,previousSteps:string[],options?:RepairOptions&{signal?:AbortSignal}):Promise<RepairResult>;
+export interface PlanningOptions { operators?: Operator[]; experience?: ExperienceModel; planner?: Planner; maxCalls?: number; minIntervalMs?: number; retryDelayMs?: number;repair?:false|RepairOptions&{maxRepairs?:number}; }
+export interface ExperienceSample { episodeId: string; action: Action; before: Observation; after?: Observation | null; outcome: 'success' | 'progress' | 'failure' | 'cancelled'; durationMs?: number; verified?:boolean;failureCode?:string; }
+export interface ExperienceTransition extends ExperienceSample {environment:'minecraft'|'external';detail:string;}
 export interface ExperienceAssessment { status: string; blocked: boolean; failures: number; durationMs: number | null; confidence: number; }
 export interface ExperienceModel { readonly worldId: string; record(sample: ExperienceSample): boolean; assess(action: Action, observation: Observation): ExperienceAssessment; operators(): Operator[]; snapshot(): { worldId: string; revision: number; hypotheses: Json[]; journal: Json[] }; }
 export declare function createExperienceModel(options: { worldId: string; facts: string[]; contextFacts?: string[]; minEvidence?: number; retryMs?: number; clock?: () => number }): ExperienceModel;
@@ -76,9 +84,9 @@ export interface AdaptiveStrategy { id: string; when?: Condition; action: Action
 export interface AdaptivePeer { id: string; clock(): number; claim(resource: string): unknown; release(resource: string): unknown; owner(resource: string): string | null; owns(resource: string): boolean; snapshot(): { claims: { resource: string; from: string; release: boolean; expiresAt: number }[] }; }
 export interface AdaptiveScenario { reactor: Reactor; snapshot(): { status: string; revision: number; current: string | null; desired: Condition; journal: Json[] }; dispose(): void; }
 export declare function createAdaptiveScenario(options: { id?: string; desired: Condition; strategies: AdaptiveStrategy[]; model?: ExperienceModel; priority?: number; peer?: AdaptivePeer }): AdaptiveScenario;
-export interface BrainSnapshot { planner: string; calls: number; maxCalls: number; goals: (SavedGoal & { id: string; priority: number })[]; plan: { goalId: string; steps: string[]; reason: string } | null; }
+export interface BrainSnapshot { planner: string; calls: number; maxCalls: number; goals: (SavedGoal & { id: string; priority: number })[]; repairs?:{attempted:number;repaired:number;fallback:number;last:(RepairResult&{goalId:string})|null};plan: { goalId: string; steps: string[]; reason: string } | null; }
 export interface ConditionExplanation { matched: boolean; facts: { fact: string; found: boolean; value: Json; operator: string; expected: Json; matched: boolean }[]; }
-export interface DecisionTrace { tick: number; at: number; rules: (ConditionExplanation & { id: string; priority: number })[]; candidates: { id: string; kind: string; priority: number; blocked: string | null }[]; selected: { id: string; kind: string; operatorId: string | null } | null; deferred?: string; }
+export interface DecisionTrace { tick: number; at: number; rules: (ConditionExplanation & { id: string; priority: number })[]; candidates: { id: string; kind: string; priority: number; blocked: string | null }[]; selected: { id: string; kind: string; operatorId: string | null } | null; deferred?: string; cognitive?:CognitiveRanking[]; }
 export declare function createSymbolicPlanner(options?: { maxDepth?: number; maxNodes?: number }): Planner & {snapshot():{operators:number;relevantOperators:number;expanded:number;generated:number}};
 export declare function validateOperators(input: unknown): Operator[];
 export declare function validatePlan(proposal: unknown, context: PlannerContext): PlanProposal;
@@ -98,8 +106,8 @@ export declare class OvermindRuntime {
   stop(): Promise<void>;
 }
 
-export type Reaction = { action: null; reason: string } | { action: Action; priority: number; reason: string };
-export interface Reactor { id: string; apiVersion: 1; preempt?: boolean; failureScope?: 'reactor' | 'action'; managesRetries?:boolean; react(observation: Observation): Reaction; }
+export type Reaction = { action: null; reason: string } | { action: Action; priority: number; reason: string;requires?:Condition;expected?:Condition;timeoutMs?:number; };
+export interface Reactor { id: string; apiVersion: 1; preempt?: boolean; failureScope?: 'reactor' | 'action'; managesRetries?:boolean; beforeAction?(context:Context&{action:Action;observation:Observation}):void|Promise<void>;afterAction?(context:{result:Result|null}):void|Promise<void>;react(observation: Observation): Reaction; }
 export interface Position { x: number; y: number; z: number; }
 export interface CatalogItem { id: string; numericId?: number; displayName?: string; stackSize?: number; maxDurability?: number | null; }
 export interface CatalogBlock { id: string; numericId?: number; displayName?: string; hardness?: number | null; diggable?: boolean; boundingBox?: string | null; drops?: string[]; harvestTools?: string[]; states?: Json[]; }
@@ -132,6 +140,25 @@ export declare function billOfMaterials(blueprint: Blueprint): Record<string, nu
 export interface ConstructionPlan { status: 'blocked' | 'needs-materials' | 'ready' | 'completed'; reason?: string; actions: Action[]; shortages?: Record<string, number>; materials?: Record<string, number>; unknown?: string[]; conflicts?: { position: string; expected: string; actual: string }[]; }
 export declare function planConstruction(blueprint: Blueprint, observation: { blocks: Record<string, string | null>; inventory?: Record<string, number> }): ConstructionPlan;
 export declare function createConstructionReactor(options: { blueprint: Blueprint; priority?: number }): Reactor;
+export interface ConstructionLease {agent:string;key:string;token:string;expiresAt:number;}
+export interface ConstructionCheckpoint {schemaVersion:1;fingerprint:string;failures:{key:string;attempts:number;error:string}[];}
+export interface ConstructionProjectSnapshot {
+  id:string;worldId:string;dimension:string;fingerprint:string;status:'pending'|'building'|'completed'|'closed';truncated:boolean;observedAt:number|null;total:number;confirmed:number;remaining:number;
+  cells:{key:string;position:Position;block:string;state:'unknown'|'pending'|'confirmed'|'conflict';attempts:number;error:string;agent:string|null}[];
+  constraints:{position:Position;kind:'air'|'dependent';state:'unknown'|'pending'|'confirmed'|'conflict'}[];leases:ConstructionLease[];
+}
+export interface ConstructionContext {agent:string;worldId:string;dimension:string;}
+export interface ConstructionProject {
+  readonly id:string;readonly worldId:string;readonly dimension:string;readonly leaseMs:number;
+  claim(context:ConstructionContext&{position:Position;inventory:Record<string,number>;creative:boolean;readBlock(position:Position):NavigationBlock|null|undefined}):{status:'claimed';lease:ConstructionLease;action:Action}|{status:'busy'|'completed'|'blocked'|'waiting'|'needs-materials';reason?:string};
+  renew(context:ConstructionContext&{token:string}):boolean;
+  release(context:ConstructionContext&{token:string}):boolean;
+  finish(context:ConstructionContext&{token:string;readBlock(position:Position):NavigationBlock|null|undefined;error?:unknown}):{status:'confirmed'|'unconfirmed'|'stale';reason?:string};
+  snapshot(options?:{maxCells?:number}):ConstructionProjectSnapshot;checkpoint():ConstructionCheckpoint;close():void;
+}
+export declare function createConstructionProject(options:{id:string;worldId:string;dimension:string;blueprint:Blueprint;agents:string[];leaseMs?:number;maxAttempts?:number;clock?:()=>number;checkpoint?:ConstructionCheckpoint}):ConstructionProject;
+export interface ConstructionBatchResult {status:'completed'|'partial'|'busy'|'waiting'|'blocked'|'needs-materials';actions:number;confirmed:number;reason:string;project:ConstructionProjectSnapshot;}
+export declare function runConstructionBatch(client:import('./omconnect/index.js').OMConnect,project:ConstructionProject,options?:{agent?:string;worldId?:string;signal?:AbortSignal;maxActions?:number}):Promise<ConstructionBatchResult>;
 export interface ImportedSchematic { format: 'nbt' | 'litematic' | 'schem' | 'schematic'; size: Position; offset?: Position; cells: (Position & { block: string; properties: Record<string, string> })[]; dataVersion: number | null; blockCount: number; unsupportedStates: number; }
 export declare function parseSchematic(buffer: Buffer | Uint8Array, options?: { filename?: string }): ImportedSchematic;
 export declare function schematicBlueprint(schematic: ImportedSchematic, origin: Position): Blueprint;
@@ -152,14 +179,17 @@ export type MultiGoalRouteOptions=Omit<Parameters<typeof planRoute>[0],'goal'>&{
 export declare function planRouteToAny(options:MultiGoalRouteOptions):RoutePlan;
 export declare function planRouteToAnyAsync(options:MultiGoalRouteOptions,scheduling?:import('./omconnect/index.js').RouteScheduling):Promise<RoutePlan>;
 export interface ExplorationOptions { getBlock(position: Position): NavigationBlock | null; mode?: 'surface' | 'ores'; radius?: number; maxCandidates?: number; maxNodes?: number; maxDrop?: number; }
-export interface ExplorationPlan { status: 'planned' | 'blocked'; reason: string; target: Position | null; route?: RoutePlan; attempts: number; }
+export interface FrontierCandidate {p:Position;score:number;informationGain:number;risk:number;}
+export interface ExplorationPlan { status: 'planned' | 'blocked'; reason: string; target: Position | null; route?: RoutePlan; attempts: number; frontier?:{strategy:'information-gain';visitedNodes:number;maxNodes:number;informationGain?:number;risk?:number;score?:number}; }
+export declare function frontierCandidates(options:ExplorationOptions&{position:Position;visited?:Position[];candidateCost?:(target:Position)=>number;maxScanCells?:number}):FrontierCandidate[];
+export declare function planFrontierExploration(options:ExplorationOptions&{position:Position;visited?:Position[];candidateCost?:(target:Position)=>number;maxScanCells?:number;signal?:AbortSignal}):ExplorationPlan;
 export declare function planExploration(options: ExplorationOptions & { position: Position; visited?: Position[];candidateCost?:(target:Position)=>number }): ExplorationPlan;
 export interface CpuPoolSnapshot {completed:number;failed:number;cancelled:number;restarts:number;pending:number;threads:number;workers:number;maxQueue:number;memoryMb:number;timeoutMs:number;closed:boolean;}
-export interface CpuExplorationJob {type:'exploration';voxels:{min:Position;size:Position;ids:Uint16Array;palette:(NavigationBlock|null)[]};options:Omit<ExplorationOptions,'getBlock'> & {position:Position;visited?:Position[]};costs:[string,number][];}
-export interface CpuPool {run(input:CpuExplorationJob,options?:{signal?:AbortSignal}):Promise<ExplorationPlan>;snapshot():CpuPoolSnapshot;close():Promise<void>;}
+export interface CpuExplorationJob {type:'exploration';voxels:{min:Position;size:Position;ids:Uint16Array;palette:(NavigationBlock|null)[]};options:Omit<ExplorationOptions,'getBlock'> & {position:Position;visited?:Position[];strategy?:'frontier'|'legacy'};costs:[string,number][];}
+export interface CpuPool {run(input:CpuExplorationJob,options?:{signal?:AbortSignal}):Promise<ExplorationPlan>;rankFrontiers?(input:CpuExplorationJob,options?:{signal?:AbortSignal}):Promise<FrontierCandidate[]>;snapshot():CpuPoolSnapshot;close():Promise<void>;}
 export declare function createCpuPool(options?:{workers?:number;maxQueue?:number;memoryMb?:number;timeoutMs?:number}):CpuPool;
-export interface ExplorationPlanner {poll(options:Omit<ExplorationOptions,'getBlock'> & {position:Position;visited?:Position[];candidateCost?:(target:Position)=>number;context?:string}):ExplorationPlan|{status:'pending'|'blocked';reason:string};fork():ExplorationPlanner;invalidate():void;close():void;snapshot():{requested:number;completed:number;stale:number;failed:number;pending:boolean;cpu:CpuPoolSnapshot|null};}
-export declare function createExplorationPlanner(options:{world:{dimension?:string;revision?:number;blockAt:ExplorationOptions['getBlock'];createReadView?():{blockAt:ExplorationOptions['getBlock'];isCurrent():boolean}};pool?:CpuPool;onReady?:()=>void;clock?:()=>number}):ExplorationPlanner;
+export interface ExplorationPlanner {poll(options:Omit<ExplorationOptions,'getBlock'> & {position:Position;visited?:Position[];candidateCost?:(target:Position)=>number;context?:string;policyRevision?:string|number;strategy?:'frontier'|'legacy'}):ExplorationPlan|{status:'pending'|'blocked';reason:string};fork():ExplorationPlanner;invalidate():void;close():void;snapshot():{requested:number;completed:number;stale:number;failed:number;pending:boolean;cpu:CpuPoolSnapshot|null};}
+export declare function createExplorationPlanner(options:{world:{dimension?:string;revision?:number;blockAt:ExplorationOptions['getBlock'];createReadView?():{blockAt:ExplorationOptions['getBlock'];isCurrent():boolean}};pool?:CpuPool;onReady?:()=>void;clock?:()=>number;atlas?:WorldAtlas|null;strategy?:'frontier'|'legacy'}):ExplorationPlanner;
 export declare function createResourceReactor(options: { catalog: Catalog; targets: Record<string, number>; taxonomy?: BlockTaxonomy; stations?: Record<string, true | Position>; priority?: number; exploration?: ExplorationOptions; maxNodes?: number }): Reactor;
 
 export interface Weapon { name?: string; item?: string; [key: string]: unknown; }
@@ -167,7 +197,7 @@ export declare function weaponProfile(name?: string): { damage: number; cooldown
 export declare function chooseWeapon<T extends Weapon>(items: T[], options?: { shieldedTarget?: boolean; avoidSweep?:boolean }): T | null;
 export interface CombatEntity { position: Position; name?: string; ownerId?:number|null; ranged?: boolean; charging?: boolean; blocking?: boolean; velocity?: Position | null; equipment?:Record<number,{name?:string}>; }
 export declare function combatDecision(input: { self: { position: Position; entityId?:number|null; health: number | null; shield?: boolean;shieldDisabledUntil?:number;onGround?:boolean;velocity?:Position;sprinting?:boolean;environment?:{submerged?:boolean;climbing?:boolean} }; target: CombatEntity; projectiles?: CombatEntity[]; nextAttackAt?: number; now?: number; retreatHealth?: number;criticalPending?:boolean;canCriticalJump?:boolean;visible?:boolean;geometry?:{inReach:boolean;distance:number;aim:Position|null} }): { mode: 'stop' | 'retreat' | 'block' | 'approach' | 'strike' | 'strafe' | 'jump' | 'wait'; reason: string;critical?:boolean;guardPoint?:Position };
-export declare function createCombatReactor(options?: NonNullable<Parameters<typeof createDefenseReactor>[0]> & { ignoredEntities?: string[];pathRetreat?:boolean;ranged?:boolean;rangedDistance?:number }): Reactor & {recordResult(result:{outcome:string},action?:Action):void;attach(core:OvermindCore):()=>void};
+export declare function createCombatReactor(options?: NonNullable<Parameters<typeof createDefenseReactor>[0]> & { ignoredEntities?: string[];pathRetreat?:boolean;ranged?:boolean;rangedDistance?:number;focusMs?:number;switchMargin?:number }): Reactor & {snapshot():CombatPolicySnapshot;recordResult(result:{outcome:string},action?:Action):void;attach(core:OvermindCore):()=>void};
 export declare function createEndSafetyReactor(): Reactor;
 export interface NetherPortalBlueprint extends Blueprint { id: string; origin: Position; axis: 'x' | 'z'; air: Position[]; }
 export declare function createNetherPortalBlueprint(options: { origin: Position; axis?: 'x' | 'z' }): NetherPortalBlueprint;
@@ -212,7 +242,7 @@ export declare function expeditionLearningEvidence(options?:{planner?:NeuralPlan
 export interface ExpeditionReleaseReadiness {status:'in-progress'|'blocked'|'needs-review';checks:Record<string,boolean>;blockers:string[];releaseEligible:false;reviewRequired:string;deaths:number;otherPlayersObserved:number;}
 export declare function assessExpeditionRelease(report:Record<string,any>,scenario:Scenario):ExpeditionReleaseReadiness;
 export declare function createEndExpedition(options:{client:import('./omconnect/index.js').OMConnect;worldId:string;scenario?:Scenario;config?:Partial<Omit<AgentConfig,'worldId'>>;cognitionMemory?:unknown;neuralMemory?:unknown;checkpoint?:ScenarioMemory;clock?:()=>number}):{brain:MinecraftBrain;controller:ScenarioController;snapshot():{scenario:ScenarioState;progress:CampaignProgress;dragon:ReturnType<DragonPolicy['snapshot']>;failures:{action:Action;attempts:number;until:number;reason:string}[]}};
-export interface StorageOptions { radius?: number; recheckMs?: number; maxStacks?: number; items?: string[]; clock?: () => number; }
+export interface StorageOptions { mode?:'all'|'team'; radius?: number; recheckMs?: number; maxStacks?: number; items?: string[]; clock?: () => number; }
 export interface NavigationRecoveryOptions {failuresRequired?:number;clock?:()=>number;}
 export declare function createNavigationRecoveryReactor(options:NavigationRecoveryOptions&{client:import('./omconnect/index.js').OMConnect}):StatefulReactor;
 export declare function createStorageReactor(options?: StorageOptions): Reactor;
@@ -230,6 +260,7 @@ export interface MinecraftBrainOptions extends Omit<CoreOptions, 'config' | 'ada
   equipment?: boolean;
   neural?: false | {model?:NeuralNavigator;memory?:NeuralMemory};
   spatial?: false | {model?:SpatialMemory;memory?:SpatialMemoryData;maxEntries?:number;maxAgeMs?:number};
+  worldIntelligence?:false|Partial<Omit<WorldAtlasOptions,'landmarks'>>&{model?:WorldAtlas};
   cognition?: false | {model?:NeuralPlanner;memory?:CognitionMemory};
   computation?: false | {pool?:CpuPool;planner?:ExplorationPlanner};
   night?: NightOptions | false;
@@ -254,7 +285,7 @@ export interface LootOptions { peer?:import("./omconnect/index.js").OMPeer; radi
 export interface SurvivalSnapshot { status:string; stage:string|null; reason:string; targets:Record<string,number>; completed:string[]; knownResources:number; remaining?:Record<string,number>; lastFailure:unknown; plan?:{item:string;required:number;missing:number;parent:string|null;recipeId?:string;ingredients?:{item:string;count:number}[];alternatives?:{recipeId:string;cost:number}[]}[]; }
 export interface StatefulReactor extends Reactor { recordResult(result:{outcome:string;detail?:string;failure?:import('./omconnect/index.js').ActionFailure},action?:Action):void; attach(core:OvermindCore):()=>void; }
 export interface SurvivalReactor extends StatefulReactor { snapshot():SurvivalSnapshot; }
-export interface MinecraftBrain extends OvermindCore { actionEvidence:ActionEvidenceMemory; computation:ExplorationPlanner|null; spatial:SpatialMemory|null; cognition:NeuralPlanner|null; neural?:NeuralNavigator; survival:SurvivalReactor|null; loot:StatefulReactor|null; }
+export interface MinecraftBrain extends OvermindCore {perception:PerceptionTracker|null;combatPolicy:ReturnType<typeof createCombatReactor>; actionEvidence:ActionEvidenceMemory; computation:ExplorationPlanner|null; spatial:SpatialMemory|null; atlas:WorldAtlas|null;navigationContext:NavigationContextReader|null;cognition:NeuralPlanner|null; neural?:NeuralNavigator; survival:SurvivalReactor|null; loot:StatefulReactor|null; }
 export declare function createSurvivalReactor(options:SurvivalOptions):SurvivalReactor;
 export interface ActionEvidenceQuery {agentId:string;dimension:string;action:Action;}
 export interface ActionEvidenceRecord extends Omit<ActionEvidenceQuery,'action'> {key:string;skill:string;code:import('./omconnect/index.js').ActionFailureCode;facts:Record<string,string|number|boolean|null>;mode:'condition'|'timer';attempts:number;at:number;until:number|null;}
@@ -284,10 +315,13 @@ export declare function teamSupplyTargets(client:import('./omconnect/index.js').
 export declare function proposeTeamTransfer(options:TeamSupplyOptions & {maxDistance?:number}):({from:import('./omconnect/index.js').OMConnect;to:import('./omconnect/index.js').OMConnect;fromTargets:Record<string,number>;toTargets:Record<string,number>;proposal:TradePlan})|null;
 export declare function shareTeamSupplies(options:TeamSupplyOptions & {peers?:Map<string,import('./omconnect/index.js').OMPeer>;signal?:AbortSignal;maxTransfers?:number}):Promise<{status:TradeReport['status']|'pending';transfers:(TradeReport & {from:string;to:string})[]}>;
 export declare function distributeStorageSupplies(options:{clients:import('./omconnect/index.js').OMConnect[];requests:(client:import('./omconnect/index.js').OMConnect)=>Record<string,number>;radius?:number;signal?:AbortSignal}):Promise<{status:'completed'|'incomplete';receipts:{agent:string;storage:Position;items:{item:string;count:number}[]}[];missing:Record<string,Record<string,number>>;errors:{agent:string;storage:Position;reason:string}[]}>;
-export interface AgentManagerOptions { brainOptions?:Omit<MinecraftBrainOptions,'client'|'worldId'>; supplyTargets?:Record<string,number>;memoryDirectory?:string; count?:number;names?:string[];connection?:import('./omconnect/index.js').OMOptions;worldId?:string;createClient?:typeof import('./omconnect/index.js').createOMConnect;createBrain?:typeof createMinecraftBrain; }
-export interface ManagedAgent { spatial:SpatialMemorySnapshot|null; tasks:AgentTask[];taskState:TaskState[];learning:NeuralSnapshot|null;cognition:CognitionSnapshot|null;recipes:import("./omconnect/index.js").RecipeBookSnapshot|null; name:string;busy:boolean;error:string;goal:SurvivalTarget;settings:{humanizeMode:boolean;viewDistance:number};attention:unknown|null;schematic:({format:ImportedSchematic['format'];blockCount:number;size:Position;unsupportedStates:number;origin:Position|null})|null;state:import('./omconnect/index.js').OMSnapshot;inventory:{item:string;name:string;count:number;slot:number}[];brain:Snapshot|null;survival:SurvivalSnapshot|null;skills:string[]; }
-export interface ManagerSnapshot { worldId:string;agents:ManagedAgent[];log:{at:number;name:string;event:string;detail:string}[]; }
-export interface AgentManager { ready:Promise<unknown>; fleet:ReturnType<typeof import('./omconnect/index.js').createFleet>;snapshot():ManagerSnapshot;catalog(name:string):{status:'waiting'|'ready';items:{id:string;name:string}[]};importSchematic(name:string,buffer:Buffer|Uint8Array,filename:string):Pick<ImportedSchematic,'format'|'blockCount'|'size'|'unsupportedStates'>;vision(name:string,options?:{radius?:number}):unknown;vision3d(name:string,options?:VisionVolumeOptions):Promise<VisionVolume>;execute(name:string,command:'connect'|'disconnect'|'respawn'|'start'|'pause'|'goal'|'action'|'give'|'trade'|'tasks'|'taskRetry'|'settings'|'buildSchematic',args?:Record<string,unknown>):Promise<unknown>;close():Promise<void>; }
+export interface MissionRecoveryOptions {maxAttempts?:number;baseDelayMs?:number;maxDeaths?:number;}
+export interface MissionRecoverySnapshot {phase:'paused'|'working'|'recovering'|'blocked'|'closed';enabled:boolean;attempts:number;deaths:number;maxAttempts:number;maxDeaths:number;reason:string;error:string;}
+export declare function createMissionRecovery(options:MissionRecoveryOptions&{recover:(context:{reason:'death'|'disconnected';attempt:number;signal:AbortSignal})=>void|Promise<void>}):{enable():void;pause():void;request(reason:'death'|'disconnected'):Promise<void>;snapshot():MissionRecoverySnapshot;close():Promise<void>};
+export interface AgentManagerOptions { cooperation?:boolean|{capacity?:number;ttlMs?:number;maxWaitMs?:number}; recovery?:false|MissionRecoveryOptions; brainOptions?:Omit<MinecraftBrainOptions,'client'|'worldId'>; supplyTargets?:Record<string,number>;memoryDirectory?:string; count?:number;names?:string[];connection?:import('./omconnect/index.js').OMOptions;worldId?:string;createClient?:typeof import('./omconnect/index.js').createOMConnect;createBrain?:typeof createMinecraftBrain; }
+export interface ManagedAgent {perception:PerceptionSnapshot|null;combat:CombatPolicySnapshot|null; recovery:MissionRecoverySnapshot|null; atlas:WorldAtlasSnapshot|null;spatial:SpatialMemorySnapshot|null; tasks:AgentTask[];taskState:TaskState[];learning:NeuralSnapshot|null;cognition:CognitionSnapshot|null;recipes:import("./omconnect/index.js").RecipeBookSnapshot|null; name:string;busy:boolean;error:string;goal:SurvivalTarget;settings:{humanizeMode:boolean;viewDistance:number};attention:unknown|null;schematic:({format:ImportedSchematic['format'];blockCount:number;size:Position;unsupportedStates:number;origin:Position|null})|null;state:import('./omconnect/index.js').OMSnapshot;inventory:{item:string;name:string;count:number;slot:number}[];brain:Snapshot|null;survival:SurvivalSnapshot|null;skills:string[]; }
+export interface ManagerSnapshot { worldId:string;construction:ConstructionProjectSnapshot[];cooperation:SwarmSnapshot|null;storageAllocation:TeamStorageSnapshot|null;agents:ManagedAgent[];log:{at:number;name:string;event:string;detail:string}[]; }
+export interface AgentManager { ready:Promise<unknown>; fleet:ReturnType<typeof import('./omconnect/index.js').createFleet>;snapshot():ManagerSnapshot;catalog(name:string):{status:'waiting'|'ready';items:{id:string;name:string}[]};importSchematic(name:string,buffer:Buffer|Uint8Array,filename:string):Pick<ImportedSchematic,'format'|'blockCount'|'size'|'unsupportedStates'>;vision(name:string,options?:{radius?:number}):unknown;vision3d(name:string,options?:VisionVolumeOptions):Promise<VisionVolume>;execute(name:string,command:'connect'|'disconnect'|'respawn'|'start'|'pause'|'goal'|'action'|'give'|'trade'|'tasks'|'taskRetry'|'settings'|'buildSchematic'|'buildTogether',args?:Record<string,unknown>):Promise<unknown>;close():Promise<void>; }
 export declare function createAgentManager(options?:AgentManagerOptions):AgentManager;
 export interface MinecraftAgentOptions extends Omit<AgentManagerOptions,'count'|'names'|'worldId'> {name?:string;worldId:string;}
 export type MissionStep = {get:string;count?:number} | {craft:string;count?:number} | {go:Position;range?:number;bridge?:boolean;excavate?:boolean} | {swim:Position}|{nether:Record<string,number>};
@@ -309,32 +343,58 @@ export declare function createMinecraftAgent(options:MinecraftAgentOptions):Mine
 export declare function startDashboard(options?:{port?:number;manager?:AgentManager;textureArchive?:string;telemetry?:ReturnType<typeof import('./src/intelligence.js').createTelemetry>}):Promise<{url:string;manager:AgentManager;close():Promise<void>}>;
 export declare function startExpeditionMonitor(options:{reportPath:string;port?:number;clock?:()=>number}):Promise<{url:string;snapshot():Promise<Record<string,any>>;close():Promise<void>}>;
 
-export interface NavigationExperience {from:Position;to:Position;dimension:string;kind?:string;health?:number|null;food?:number|null;nearbyPlayers?:number;healthAfter?:number|null;outcome:'success'|'failure'|'cancelled';id?:string;reason?:string;failureCode?:string;}
-export interface NeuralMemory {schemaVersion:1|2;worldId:string;architecture:'12-16-1';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[];bias:number};replay:{x:number[];y:0|1}[];failed:{key:string;until:number;count:number}[];}
-export interface NeuralSnapshot {kind:'local-neural-network';architecture:'12-16-1';samples:number;updates:number;loss:number;rememberedFailures:number;journal:{at:number;from:Position;to:Position;dimension:string;outcome:string;damage:boolean;reason:string}[];}
-export interface NeuralNavigator {worldId:string;record(event:NavigationExperience):boolean;assess(event:Omit<NavigationExperience,'outcome'>):{failureProbability:number;samples:number;trained:boolean;rememberedFailures:number;cost:number};snapshot():NeuralSnapshot;export():NeuralMemory;}
+export interface NavigationContext {loaded:boolean;signature:string;slipperiness:number;speed:number;headroom:number;water:boolean;lava:boolean;slow:boolean;fallHeight:number;hazards:number;hostiles:number;historyFailureRate:number;historyConfidence:number;}
+export interface NavigationContextReader {read(from:Position,to:Position,kind?:string):NavigationContext;clear():void;snapshot():{entries:number;maxEntries:number;reads:number;hits:number};}
+export declare function createNavigationContextReader(options:{client:import('./omconnect/index.js').OMConnect;atlas?:WorldAtlas|null;maxEntries?:number}):NavigationContextReader;
+export interface ContextualNavigationMemory {architecture:'24-16-3';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[][];bias:number[]};counters:number[];replay:{x:number[];y:number[];mask:boolean[]}[];}
+export interface ContextualNavigationSnapshot {architecture:'24-16-3';samples:number;updates:number;loss:number;timedSamples:number;damageSamples:number;replaySize:number;replayCapacity:number;}
+export interface NavigationExperience {from:Position;to:Position;dimension:string;kind?:string;health?:number|null;food?:number|null;nearbyPlayers?:number;healthAfter?:number|null;outcome:'success'|'failure'|'cancelled';id?:string;reason?:string;failureCode?:string;context?:NavigationContext;durationMs?:number;timingEstimated?:boolean;damageEstimated?:boolean;}
+export interface NeuralMemory {schemaVersion:1|2|3;worldId:string;architecture:'12-16-1';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[];bias:number};replay:{x:number[];y:0|1}[];failed:{key:string;until:number;count:number}[];contextual?:ContextualNavigationMemory;}
+export interface NeuralSnapshot {kind:'local-neural-network';architecture:'12-16-1';samples:number;updates:number;loss:number;rememberedFailures:number;contextual?:ContextualNavigationSnapshot;journal:{at:number;from:Position;to:Position;dimension:string;outcome:string;damage:boolean;reason:string}[];}
+export interface NeuralNavigator {worldId:string;record(event:NavigationExperience):boolean;assess(event:Omit<NavigationExperience,'outcome'>):{failureProbability:number;samples:number;trained:boolean;rememberedFailures:number;cost:number;expectedTimeMs?:number|null;expectedDamage?:number|null;uncertainty?:number};snapshot():NeuralSnapshot;export():NeuralMemory;}
 export declare function createNeuralNavigator(options:{worldId:string;learningRate?:number;memory?:NeuralMemory;clock?:()=>number}):NeuralNavigator;
-export declare function attachNeuralNavigation(client:import('./omconnect/index.js').OMConnect,model:NeuralNavigator):()=>void;
-export interface CognitionMemory {schemaVersion:1;worldId:string;architecture:'24-24-1';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[];bias:number};replay:{x:number[];y:0|1}[];}
-export interface CognitionSnapshot {kind:'local-neural-planner';architecture:'24-24-1';samples:number;updates:number;loss:number;journal:{at:number;skill:string;item:string;outcome:string;damage:boolean;detail:string}[];}
-export interface NeuralPlanner {worldId:string;assess(observation:Observation,action:Action):{failureProbability:number;trained:boolean;cost:number};record(event:{before:Observation;after?:Observation|null;action:Action;outcome:'success'|'failure'|'cancelled'|'progress';detail?:string}):boolean;snapshot():CognitionSnapshot;export():CognitionMemory;}
-export declare function createNeuralPlanner(options:{worldId:string;memory?:CognitionMemory;learningRate?:number;clock?:()=>number}):NeuralPlanner;
+export declare function attachNeuralNavigation(client:import('./omconnect/index.js').OMConnect,model:NeuralNavigator,options?:{contextReader?:NavigationContextReader|null}):()=>void;
+export interface CognitionMemory {schemaVersion:1|2;worldId:string;architecture:'24-24-1';samples:number;updates:number;weights:{w:number[][];b:number[];v:number[];bias:number};replay:{x:number[];y:0|1}[];provenance?:{complete:boolean;episodeHashes:string[];namespaceHashes?:string[];namespaceCoverageComplete?:boolean};}
+export interface CognitionSnapshot {kind:'local-neural-planner';architecture:'24-24-1';mode?:'train'|'evaluate';samples:number;updates:number;loss:number;provenanceComplete?:boolean;trackedEpisodes?:number;trainingNamespaces?:number;journal:{at:number;skill:string;item:string;outcome:string;damage:boolean;reason?:string;detail:string}[];}
+export interface LearnedPlanAssessment {failureProbability?:number;trained:boolean;cost:number;uncertainty?:number;}
+export interface PlannerExperience {before:Observation;after?:Observation|null;action:Action;outcome:Result['outcome'];detail?:string;episodeId?:string;verified?:boolean;failureCode?:string;}
+export interface NeuralPlanner {worldId:string;readonly mode:'train'|'evaluate';setMode(mode:'train'|'evaluate'):void;assess(observation:Observation,action:Action):LearnedPlanAssessment&{failureProbability:number;uncertainty:number};record(event:PlannerExperience):boolean;snapshot():CognitionSnapshot;export():CognitionMemory;}
+export declare function createNeuralPlanner(options:{worldId:string;memory?:CognitionMemory;learningRate?:number;clock?:()=>number;mode?:'train'|'evaluate'}):NeuralPlanner;
+export type CognitivePhase='observe'|'understand'|'plan'|'act'|'verify'|'reflect'|'replan';
+export interface CognitiveMemory {schemaVersion:1;kind:'cognitive-engine';worldId:string;revision:number;records:{key:string;successes:number;failures:number;timedSamples:number;meanDurationMs:number;lastSeen:number}[];}
+export interface CognitiveCandidate {id:string;kind:string;priority:number;action?:Action;blocked?:string|null;workflowId?:string;stepId?:string;}
+export interface CognitiveRanking {id:string;kind:string;priority:number;blocked:string|null;learnedCost:number;failureCost:number;timeCost:number;uncertainty:number;retained:boolean;estimatedCost:number;error?:string;}
+export interface CognitiveSnapshot {worldId:string;phase:CognitivePhase;revision:number;ranks:number;records:number;maxEntries:number;maxAssessments:number;committed:string|null;ranking:CognitiveRanking[];journal:{at:number;phase:CognitivePhase;kind:string;id?:string;reason?:string;skill?:string;outcome?:string;verified?:boolean}[];}
+export interface CognitiveEngineOptions {worldId:string;assess?:(observation:Observation,action:Action)=>LearnedPlanAssessment;maxEntries?:number;maxAssessments?:number;journalSize?:number;commitmentMargin?:number;memory?:CognitiveMemory;clock?:()=>number;}
+export interface CognitiveEngine {readonly worldId:string;phase(phase:CognitivePhase,detail?:{reason?:string;id?:string}):void;rank<T extends CognitiveCandidate>(observation:Observation,candidates:T[]):T[];commit(candidate:CognitiveCandidate&{action:Action},observation:Observation):void;record(event:{candidate:CognitiveCandidate&{action:Action};before:Observation;outcome:Result['outcome'];durationMs?:number;verified?:boolean;failureCode?:string}):boolean;snapshot():CognitiveSnapshot;export():CognitiveMemory;}
+export declare function createCognitiveEngine(options:CognitiveEngineOptions):CognitiveEngine;
+export interface CognitivePlannerSnapshot {busy:boolean;calls:number;selected:string|null;elapsedMs:number;budgetExpired:boolean;choices:{provider:string;steps:string[];reason:string;baseCost:number;learnedCost:number;uncertain:number;cost:number}[];rejected:{provider:string;reason:string}[];}
+export declare function createCognitivePlanner(options?:{planners?:Planner[];assess?:(observation:Observation,action:Action)=>LearnedPlanAssessment;budgetMs?:number;clock?:()=>number}):Planner&{snapshot():CognitivePlannerSnapshot};
+export declare function createHTNPlannerAdapter(options:{planner:ReturnType<typeof import('./src/intelligence.js').createHTNPlanner>;tasks:(context:PlannerContext)=>import('./src/intelligence.js').HTNTask[];id?:string}):Planner;
+export declare function createMCTSPlannerAdapter(options:{planner:{plan(state:any,options?:{signal?:AbortSignal}):{status:string;action:Action|null}|Promise<{status:string;action:Action|null}>};completion?:Planner;id?:string}):Planner;
+export interface CognitiveEvaluation {split:'evaluation';source:'unit'|'headless'|'minecraft';records:(PlannerExperience&{episodeId:string})[];}
+export interface CognitiveEvaluationResult {decision:'promote'|'retain'|'inconclusive';accepted:boolean;source:CognitiveEvaluation['source'];split:'evaluation';reason:string;memory:CognitionMemory;metrics:{samples:number;baselineBrier:number|null;candidateBrier:number|null;groups:{id:string;samples:number;baselineBrier:number;candidateBrier:number}[]};}
+export declare function evaluateCognitiveCheckpoint(options:{baseline:CognitionMemory;candidate:CognitionMemory;evaluation:CognitiveEvaluation;minSamples?:number;minImprovement?:number;maxRegression?:number}):CognitiveEvaluationResult;
 export type AgentProgramNode={id:string;title?:string;priority?:number}&({type:'action';action:Action&{args:Record<string,Json>}}|{type:'resources';targets:Record<string,number>}|{type:'navigate';position:Position;range?:number;bridge?:boolean;excavate?:boolean}|{type:'scenario';scenario:Scenario}|{type:'sequence'|'parallel';children:AgentProgramNode[]}|{type:'if';condition:Condition;then:AgentProgramNode[];else?:AgentProgramNode[]}|{type:'repeat';count:number;children:AgentProgramNode[]}|{type:'until';condition:Condition;maxIterations:number;children:AgentProgramNode[]});
 export interface AgentProgram {schemaVersion:1;name:string;nodes:AgentProgramNode[];}
-export interface ProgramSnapshot {status:'running'|'completed'|'failed';active:string|null;reason:string;nodes:{id:string;status:'pending'|'completed'|'failed'|'blocked';iteration:number;failures:number;branch?:'then'|'else';reason?:string}[];}
-export interface AgentProgramController {definition():AgentProgram;reactor:Reactor;recordResult(event:Pick<Result,'outcome'>&Partial<Pick<Result,'detail'>>,action:Action):void;snapshot():ProgramSnapshot;}
+export interface ProgramSnapshot {definitionHash?:string;status:'running'|'completed'|'failed';active:string|null;reason:string;nodes:{id:string;status:'pending'|'completed'|'failed'|'blocked';iteration:number;failures:number;inFlight?:boolean;uncertain?:boolean;scenario?:ScenarioMemory;branch?:'then'|'else';reason?:string}[];}
+export interface AgentProgramController {beginAction():void;definition():AgentProgram;reactor:Reactor;recordResult(event:Pick<Result,'outcome'>&Partial<Pick<Result,'detail'>>,action:Action):void;snapshot():ProgramSnapshot;}
 export declare function validateAgentProgram(input:unknown,options?:{skills?:readonly string[]}):AgentProgram;
-export declare function createAgentProgram(options:{program:AgentProgram;skills?:readonly string[];scenarioFactory?:(scenario:Scenario)=>ScenarioController;resume?:ProgramSnapshot}):AgentProgramController;
-export type AgentTask={id:string;title:string;mode?:'sequential'|'parallel';priority?:number}&({type:'action';action:Action&{args:Record<string,Json>}}|{type:'scenario';scenario:Scenario}|{type:'program';program:AgentProgram});
-export interface TaskState {id:string;status:'pending'|'running'|'completed'|'failed'|'blocked';reason:string;program?:ProgramSnapshot;}
+export declare function createAgentProgram(options:{program:AgentProgram;skills?:readonly string[];scenarioFactory?:(scenario:Scenario,memory?:ScenarioMemory)=>ScenarioController;resume?:ProgramSnapshot}):AgentProgramController;
+export type AgentTask={id:string;title:string;mode?:'sequential'|'parallel';priority?:number;dependsOn?:string[];requires?:Condition;expected?:Condition;priorityWhen?:{condition:Condition;boost:number}[];retry?:{maxAttempts:number;delayMs?:number};timeoutMs?:number;resumePolicy?:'manual'|'recheck'}&({type:'action';action:Action&{args:Record<string,Json>}}|{type:'scenario';scenario:Scenario}|{type:'program';program:AgentProgram});
+export interface TaskState {id:string;status:'pending'|'running'|'completed'|'failed'|'blocked';reason:string;program?:ProgramSnapshot|null;scenario?:ScenarioMemory;definitionHash?:string;failures?:number;retryAt?:number;uncertain?:boolean;}
 export interface VisionVolumeOptions {radius?:number;down?:number;up?:number;maxBlocks?:number;waypoints?:{id:string;title?:string;position:Position}[];}
 export type VisionVolume={status:'waiting';blocks:[];palette:[];entities:[]}|{status:'ready';at:number;signature:string;center:Position;radius:number;down:number;up:number;revision:number;palette:{name:string;stateId:number;properties:Record<string,string|number|boolean>;shapes:number[][];category:string}[];blocks:[number,number,number,number][];truncated:boolean;consistent:boolean;unknownCells:number;readCells:number;dimension:string;self:{position:Position;yaw:number;pitch:number;health:number|null};entities:{id:string;name:string;kind:string;position:Position;yaw:number}[];route:{dimension:string;status:string;goal:Position;index:number;steps:{kind:string;position:Position}[]}|null;target:Position|null;waypoints:{id:string;title?:string;position:Position}[];loadedChunks:number;protectedRegions:unknown[]};
 export declare function createVisionVolume(client:import('./omconnect/index.js').OMConnect,options?:VisionVolumeOptions):Promise<VisionVolume>;
 export declare function createVisionSnapshot(client:import('./omconnect/index.js').OMConnect,options?:{radius?:number;down?:number;up?:number}):unknown;
-export interface TaskQueue {reactor:Reactor;definition():AgentTask[];snapshot():TaskState[];retry(id:string):void;attach(core:OvermindCore):()=>void;}
+export interface TaskCheckpoint {schemaVersion:1;definitionHash:string;tasks:TaskState[];}
+export interface TaskQueue {checkpoint():TaskCheckpoint;reactor:Reactor;definition():AgentTask[];snapshot():TaskState[];retry(id:string):void;attach(core:OvermindCore):()=>void;}
 export declare function validateTasks(input:unknown,options?:{skills?:readonly string[]}):AgentTask[];
-export declare function createTaskQueue(options?:{tasks?:AgentTask[];skills?:readonly string[];scenarioFactory?:(scenario:Scenario)=>ScenarioController;resume?:TaskState[]}):TaskQueue;
-export declare function createAgentMemory(directory:string,worldId:string):{load(name:string):Promise<{schemaVersion:1;worldId:string;name:string;spatial?:SpatialMemoryData;neural?:NeuralMemory;cognition?:CognitionMemory;tasks?:AgentTask[];taskState?:TaskState[];goal?:SurvivalTarget}|null>;save(name:string,state:{spatial?:SpatialMemoryData;neural?:NeuralMemory;cognition?:CognitionMemory;tasks?:AgentTask[];taskState?:TaskState[];goal?:SurvivalTarget}):Promise<void>;flush():Promise<void>};
+export declare function createTaskQueue(options?:{tasks?:AgentTask[];skills?:readonly string[];scenarioFactory?:(scenario:Scenario,memory?:ScenarioMemory)=>ScenarioController;resume?:TaskState[]|TaskCheckpoint;checkpoint?:(checkpoint:TaskCheckpoint)=>void|Promise<void>;clock?:()=>number}):TaskQueue;
+export interface AgentMemoryState {spatial?:SpatialMemoryData;atlas?:WorldAtlasMemory;cognitive?:CognitiveMemory;neural?:NeuralMemory;cognition?:CognitionMemory;tasks?:AgentTask[];taskState?:TaskState[];taskCheckpoint?:TaskCheckpoint;goal?:SurvivalTarget;}
+export interface TaskMemoryState {tasks:AgentTask[];taskState?:TaskState[];taskCheckpoint?:TaskCheckpoint;}
+export interface MemoryDiagnostics {source:'empty'|'primary'|'backup';revision:number;recovered:boolean;legacy:boolean;}
+export declare function createAgentMemory(directory:string,worldId:string,options?:{maxBytes?:number}):{load(name:string):Promise<(AgentMemoryState&{schemaVersion:1;worldId:string;name:string})|null>;save(name:string,state:AgentMemoryState):Promise<void>;loadTasks(name:string):Promise<(TaskMemoryState&{schemaVersion:1;worldId:string;name:string})|null>;saveTasks(name:string,state:TaskMemoryState):Promise<void>;diagnostics(name:string):MemoryDiagnostics;flush():Promise<void>};
 export interface BrewingRecipe {from:string;to:string;ingredient:string;station:string;fuel:string;bottlesPerBatch:number;brewTicks:number;}
 export declare function brewingRecipes(registry:any):BrewingRecipe[];
 export type BrewingPlan={status:'blocked';reason:string;steps:[]}|{status:'planned';potion:string;form:'potion'|'splash_potion'|'lingering_potion';bottles:number;steps:({from:string;to:string;ingredient:string;bottles:number;container?:string})[];ingredients:Record<string,number>;fuel:{item:string;count:number};station:string;requiresExecutor:'brew'};
@@ -353,7 +413,29 @@ export interface SpatialMemory {
   snapshot():SpatialMemorySnapshot;export():SpatialMemoryData;
 }
 export declare function createSpatialMemory(options:{worldId:string;maxEntries?:number;maxAgeMs?:number;memory?:SpatialMemoryData;clock?:()=>number}):SpatialMemory;
+export interface WorldAtlasScope {serverId:string;worldId:string;minecraftVersion:string;}
+export interface AtlasRegion {dimension:string;position:Position;cells:number[];hazards:number[];visits:number;firstSeen:number;lastSeen:number;}
+export interface AtlasTransition {dimension:string;from:Position;to:Position;kind:string;successes:number;failures:number;damage:number;timedSamples:number;meanTimeMs:number;valid:boolean;lastSeen:number;}
+export interface AtlasAnchor {dimension:string;id:string;position:Position;kind:'base'|'portal'|'safe'|'resource'|'hazard';lastSeen:number;}
+export interface AtlasRecord {kind:'region'|'transition'|'anchor';key:string;dimension:string;observedAt:number;value:AtlasRegion|AtlasTransition|AtlasAnchor;}
+export interface WorldAtlasMemory {schemaVersion:2;kind:'world-atlas';scope:WorldAtlasScope;regions:AtlasRegion[];transitions:AtlasTransition[];anchors:AtlasAnchor[];landmarks?:SpatialMemoryData;}
+export interface WorldAtlasSnapshot {scope:WorldAtlasScope;schemaVersion:2;regions:number;transitions:number;anchors:number;revision:number;invalidations:number;pendingWrites:number;flushes:number;migrated:boolean;observedBlocks:number;recordedTransitions:number;evicted:number;requiresRevalidation:true;}
+export interface WorldAtlasOptions {scope:WorldAtlasScope;landmarks?:SpatialMemory;memory?:WorldAtlasMemory|SpatialMemoryData;store?:import('./src/intelligence.js').WorldStore;maxRegions?:number;maxTransitions?:number;maxAgeMs?:number;clock?:()=>number;}
+export interface WorldAtlas {
+  readonly scope:Readonly<WorldAtlasScope>;readonly worldId:string;readonly landmarks:SpatialMemory;
+  observe(observation:{dimension:string;self?:{position?:Position};world?:{sampledBlocks?:{name:string;position:Position}[]}},options?:{getBlock?:(p:Position)=>NavigationBlock|null}):number;
+  invalidate(input:{dimension:string;position:Position}):number;recordTransition(event:NavigationExperience):boolean;markAnchor(anchor:Omit<AtlasAnchor,'lastSeen'>):void;
+  regionAt(query:{dimension:string;position:Position}):(AtlasRegion&{observedFractionLowerBound:number;requiresRevalidation:true})|null;
+  explorationCost(query:{dimension:string;position:Position}):number;
+  transitionHistory(query:{dimension:string;from:Position;to:Position;kind?:string}):Pick<AtlasTransition,'successes'|'failures'|'valid'|'meanTimeMs'|'damage'>&{requiresRevalidation:true}|null;
+  returnCorridor(query:{dimension:string;from:Position;to:Position;maxEdges?:number;maxDamage?:number}):{status:'hint'|'unavailable';waypoints:Position[];transitions:AtlasTransition[];visited:number;requiresRevalidation:true};
+  flush(options?:{limit?:number}):number;hydrate(options:{dimension:string;limit?:number}):number;snapshot():WorldAtlasSnapshot;export(options?:{includeLandmarks?:boolean}):WorldAtlasMemory;
+}
+export declare function createWorldAtlas(options:WorldAtlasOptions):WorldAtlas;
+export declare function worldAtlasScope(client:import('./omconnect/index.js').OMConnect,worldId:string):WorldAtlasScope;
+export declare function attachWorldAtlas(client:import('./omconnect/index.js').OMConnect,atlas:WorldAtlas):()=>void;
 export {OMVECTORIZE,OMVectorize,volumeClearance,traceVolume,planSwimRoute,planSwimRouteAsync,predictElytraTick} from './packages/omconnect/index.js';
+export * from './packages/omconnect/src/navigation-v2.js';
 export type {SwimRouteOptions,SwimRouteResult,VolumeResult,ElytraPrediction} from './packages/omconnect/index.js';
 export interface MachineResource {kind?:'item'|'fluid';id:string;amount?:number;}
 export interface MachineRecipe {id:string;machine:string;inputs?:MachineResource[];outputs:MachineResource[];catalysts?:MachineResource[];energy?:{unit:string;amount:number}|null;durationTicks?:number;}
@@ -373,3 +455,39 @@ export declare function storageForSign(client:import('./omconnect/index.js').OMC
 export declare function findLabelledStorage(client:import('./omconnect/index.js').OMConnect,label:string,options?:{radius?:number}):Position;
 export interface SortStorageOptions {source?:Position;sourceLabel?:string;radius?:number;destinations?:Partial<Record<StorageCategory,Position>>;maxBatches?:number;resumeInventory?:boolean;preserveItems?:string[];signal?:AbortSignal;onProgress?:(report:Record<string,unknown>)=>void;}
 export declare function sortStorage(client:import('./omconnect/index.js').OMConnect,options?:SortStorageOptions):Promise<{status:'completed'|'incomplete';source:Position;sourceEmpty:boolean;serverConfirmed:true;conserved?:boolean;assignments:Partial<Record<StorageCategory,Position>>;labels:unknown[];transferred:unknown[];batches:number;initialCounts?:Record<string,number>;finalCounts?:Record<string,number>}>;
+
+export interface PerceptionOptions {maxEntities?:number;maxChanges?:number;maxRays?:number;visibilityDistance?:number;clock?:()=>number;}
+export interface PerceptionChange {revision:number;at:number;type:'scope'|'entity'|'entityGone'|'block'|'chunkLoad'|'chunkUnload';dimension?:string;id?:string;name?:string;position?:Position;categories?:string[];stateId?:number|null;x?:number;z?:number;}
+export interface PerceptionSnapshot {schemaVersion:1;dimension:string|null;revision:number;trackedEntities:number;received:number;coalesced:number;dropped:number;changes:PerceptionChange[];}
+export interface PerceptionEvidence {source:'unknown'|'cache'|'packet';ageMs:number|null;confidence:number;}
+export interface PerceptionTracker {setScope(dimension:string):void;observeEntity(entity:{id:string|number;name?:string;position:Position},options?:{dimension?:string;source?:'cache'|'packet'}):void;forgetEntity(id:string|number):void;observeBlock(event:{position:Position;name?:string;stateId?:number},dimension?:string):void;observeChunk(chunk:{x:number;z:number},loaded:boolean,dimension?:string):void;evidence(id:string|number):PerceptionEvidence;snapshot(options?:{limit?:number}):PerceptionSnapshot;clear():void;}
+export declare function createPerceptionTracker(options?:Pick<PerceptionOptions,'maxEntities'|'maxChanges'|'clock'>):PerceptionTracker;
+export declare function semanticCategories(name:string):string[];
+export interface CombatPolicySnapshot {focus:{id:string;dimension:string;until:number}|null;mode:string;failedTargets:number;blockedShots:number;blockedRetreats:number;}
+
+export interface SwarmLease {token:string;agent:string;kind:'resource'|'path';dimension:string;resources:string[];expiresAt:number;}
+export type SwarmGrant={status:'granted';token:string;expiresAt:number}|{status:'blocked';owner:string|null;reason:string};
+export interface SwarmSnapshot {worldId:string;members:string[];capacity:number;active:number;grants:number;conflicts:number;expired:number;leases:SwarmLease[];waiting:{agent:string;kind:'resource'|'path';dimension:string;resources:string[];order:number;lastSeen:number}[];}
+export interface SwarmCoordinator {
+  readonly worldId:string;
+  acquire(request:{agent:string;dimension:string;resources:string[];kind?:'resource'|'path';durationMs?:number}):SwarmGrant;
+  reservePath(request:{agent:string;dimension:string;positions:Position[];durationMs?:number}):SwarmGrant;
+  renew(agent:string,token:string,durationMs?:number):boolean;
+  release(agent:string,token:string):boolean;
+  releaseAgent(agent:string):void;
+  cancelWait(agent:string,kind?:'resource'|'path'):void;
+  snapshot():SwarmSnapshot;
+  close():void;
+}
+export declare function createSwarmCoordinator(options:{worldId:string;members:string[];capacity?:number;ttlMs?:number;clock?:()=>number}):SwarmCoordinator;
+export declare function attachSwarmAgent(client:import('./omconnect/index.js').OMConnect,options:{coordinator:SwarmCoordinator;name?:string;maxWaitMs?:number}):()=>void;
+
+export interface TeamStoragePlan {agent:string;at:number;dimension:string;position:Position;members:string[];amounts:Record<string,number>;remainingForTeam:Record<string,number>;}
+export interface TeamStorageSnapshot {worldId:string;policyId:'team-supplies';calls:number;plans:TeamStoragePlan[];}
+export interface TeamStorageAllocator {
+  readonly worldId:string;readonly policyId:'team-supplies';
+  allocate(context:{agent:string;dimension:string;position:Position;contents:{item?:string;name?:string;count:number}[]}):Record<string,number>;
+  attach(client:import('./omconnect/index.js').OMConnect):()=>void;
+  snapshot():TeamStorageSnapshot;
+}
+export declare function createTeamStorageAllocator(options:{worldId:string;clients:import('./omconnect/index.js').OMConnect[]|(()=>import('./omconnect/index.js').OMConnect[]);targets?:(client:import('./omconnect/index.js').OMConnect)=>Record<string,number>;defaults?:boolean;maxDistance?:number;clock?:()=>number}):TeamStorageAllocator;

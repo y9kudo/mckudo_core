@@ -1,5 +1,68 @@
 # Changelog
 
+## 1.0.0-Arthas-beta2 · Navigation, World Intelligence, Cognition and Task V2 development
+
+### Team Construction V2 increment
+
+- Added a bounded shared blueprint queue with dynamic cell assignment, observed support, renewable scoped claims, fenced tokens and shared retry budgets.
+- Confirm completion from received blocks; reconcile errors after an observed change and reject executor-only success.
+- Added failure-only checkpoints that re-observe progress after restoration, bounded diagnostics, TypeScript declarations and installed-package checks.
+- Added dashboard **Build together** batches and shared progress. Pause/death/disconnection cancel team work; single-agent schematic pause cancels the whole batch, and Creative cell failure budgets survive subsequent batches.
+- Three Java 1.21.1 Survival agents built an 18-block floor across resumed batches. An independent client confirmed all blocks; materials were conserved with no damage/corrections. Occupied-target and timeout outcomes were reconciled.
+
+### Team Supplies and Storage V2 increment
+
+- Manager teams now default to bounded fair storage withdrawals, calculated after receiving the real window contents and under the existing resource lease.
+- Added max-min allocation using current team holdings, equipment/cursor counts, nearby eligible members, goal totals and shared wood/food reserves. Surplus and unrelated items can remain in the chest.
+- Preserve resource scenario class targets for storage instead of inheriting a single mining species; respect explicit filters/ceilings and reject missing, asynchronous or invalid allocation policies.
+- Added independent OMConnect withdrawal-policy hooks, selected-agent planned-supply diagnostics and beginner documentation. Explicit take-all and disabled storage modes remain available.
+- Standard reactors on three Java 1.21.1 agents each collected two apples and one iron pickaxe from shared stock, with complete conservation, no damage/corrections and confirmed deposits restoring the fixture.
+
+### Team Coordination V2 increment
+
+- Added bounded world/dimension-scoped advisory resource leases, FIFO overlap waiting, expiring/fenced tokens and sliding ground-route reservations.
+- Added optional OMConnect permission hooks under the existing single action executor, including cancellation and lease-loss handling; reserve possible double-chest partners across unloaded boundaries.
+- Manager teams install coordination by default and expose reservation diagnostics. Resource scenarios now receive the same peer used by survival goals; expired mining claims can be reacquired.
+- Fixed automatic trading resuming a manually paused/replaced brain, canceled paused management transfers and prevented overlapping auto-trade ticks.
+- A three-agent, server-observed Java 1.21.1 ground/wait check passed without damage or corrections. This does not establish complete joint task planning or fair take-all chest allocation.
+
+### Perception and Combat V2 increment
+
+- Added bounded/coalesced entity, block and chunk change evidence with overlapping semantic categories and explicit freshness metadata.
+- Prioritize relevant entities before the 128-entity observation cap; budget new visibility rays, cache only matching poses/revisions, and distinguish unknown from blocked visibility.
+- Fast threat reads now include fresh inventory, avoiding false unarmed retreat during action preemption.
+- Reuse resource samples across irrelevant edits while preserving geometry invalidation; fix visibility through walls along integer voxel boundaries.
+- Stabilize admissible combat focus briefly, preserving urgent creeper/attributed-hit reselection and player attack permissions.
+- Added perception/combat dashboard diagnostics and a synthetic 4,096-entity benchmark. A non-destructive Java 1.21.1 player-motion/removal check passed; no PvP or campaign result is claimed.
+
+### Task Orchestration and Recovery V2 increment
+
+- Added task dependency validation, fresh resource guards, bounded dynamic priorities, retry backoff and per-action cancellation deadlines.
+- Added fingerprinted task/program checkpoints, nested scenario memory and conservative reconciliation of interrupted mutations.
+- Await durable preparation before physical dispatch and completion persistence before the next action; storage failure blocks further work.
+- Added checksummed JSON envelopes, beta1 import, one verified backup and separate frequent task-state storage.
+- Added opt-in bounded reconnect/death recovery; explicit pause/disconnect cancels recovery. Dashboard retains dependency queues in JSON and exposes blocked/uncertain states.
+- Verified three navigation tasks across reconnection and a separate Node.js process restart on local Java 1.21.1, with an independent observer and no damage/corrections. This is not autonomous campaign acceptance.
+
+- Added the Cognitive V2 decision cycle with shared arbitration, hard emergency priority ordering, bounded learned assessment and an observable decision journal.
+- Added explicit reactor prerequisite/effect contracts, optional adapter outcome verification and `EFFECT_UNCONFIRMED`; verified symbolic `progress` now trains the neural planner.
+- Added bounded symbolic suffix/connector repair, independent per-goal caches and context-sensitive temporary operator exclusions, with full-planning fallback.
+- Added validated cognitive planner portfolios and adapters for existing HTN/MCTS implementations. All proposals remain subject to the action model and fresh observations.
+- Added immutable cognitive checkpoint comparisons, train/evaluation modes, session-scoped provenance, regression rejection and schema-1-to-2 neural-planner memory compatibility.
+- Added `experience:transition` evidence events, cognitive history persistence, dashboard decision diagnostics and the explicitly offline `benchmark:cognition` comparison in CI.
+- Audited module dependencies and captured the beta1 planning baseline; added the V2 migration and compatibility plan.
+- Added directed regional route hints, incremental LPA* graph repair and bounded long-distance navigation sessions.
+- Added expiring scoped route memory, live revalidation of imported hints and cancellation of superseded searches.
+- Shared collision/body geometry between physics and volume queries; exposed partial support queries and pure multi-tick predictions.
+- Integrated segmented ground execution, early stuck detection and bounded goal recovery while retaining ordinary A*, native fallback and one physical action executor.
+- Added public V2 JS/TS APIs and deterministic offline navigation benchmarks. Real server trials and remaining Phase A mechanics are separate acceptance work.
+- Added a scoped, bounded World Atlas with observed region coverage, hazards, anchors, directed transition history, TTL/LRU eviction and invalidated return-route hints.
+- Added transactional SQLite schema-1-to-2 migration and batched atlas persistence while preserving existing observed blocks and air tombstones. Agent JSON checkpoints retain their outer schema and now persist atlas state separately.
+- Added occlusion-aware frontier ranking in CPU workers and multi-goal exploration with one global expansion budget. Visits, policy revisions and atlas changes invalidate cached requests.
+- Added a contextual 24–16–3 network for transition failure, measured duration and damage. Neural memory schema 3 preserves legacy schemas 1/2; geometry-aware failure penalties and masked approximate labels retain deterministic route safety.
+- Captured pre-traversal context and measured/estimated timing flags in OMConnect events; brain stop/start now detaches and restores learning/atlas listeners without duplication.
+- Passed a non-destructive Java 1.21.1 movement and atlas persistence/reconnection check. This is separate from long-distance, learning-quality and autonomous campaign acceptance.
+
 ## Arthas release preparation · unreleased
 
 - Multi-goal OMVectorize A* shares one frontier and budget across up to 128 candidate destinations. OMConnect selects block-interaction positions through this search and reuses its validated route.

@@ -51,7 +51,7 @@ export function createCpuPool({ workers = 1, maxQueue = 16, memoryMb = 96, timeo
       catch (error) { slot.job = null; slot.worker.unref(); stats.failed++; finish(job, error); }
     }
   }
-  return {
+  const api = {
     run(input, { signal } = {}) {
       if (closed || jobs.size >= maxQueue) return Promise.reject(new Error(closed ? "CPU pool closed." : "Queue CPU full."));
       if (signal?.aborted) return Promise.reject(signal.reason);
@@ -70,6 +70,8 @@ export function createCpuPool({ workers = 1, maxQueue = 16, memoryMb = 96, timeo
       await Promise.all(slots.map(slot => { slot.retiring = true; return slot.worker.terminate(); })); slots.length = 0;
     }
   };
+  api.rankFrontiers=(input,options)=>api.run({...input,type:'exploration',phase:'rank'},options);
+  return api;
 }
 
 // Shared by the entire process, rather than one expensive pool for every agent.

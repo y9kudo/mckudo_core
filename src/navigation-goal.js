@@ -4,6 +4,7 @@ import { editDecision } from '../packages/omconnect/src/protection.js';
 import { createBlockTaxonomy } from './taxonomy.js';
 import { leaseNavigationRoute } from '../packages/omconnect/src/route-lease.js';
 import {planSafeAscent} from '../packages/omconnect/src/ascent.js';
+import {createNavigationRecovery} from '../packages/omconnect/src/navigation-recovery.js';
 
 const floor=p=>Object.fromEntries(['x','y','z'].map(k=>[k,Math.floor(p[k])]));
 const key=p=>`${p.x},${p.y},${p.z}`;
@@ -12,7 +13,8 @@ const key=p=>`${p.x},${p.y},${p.z}`;
  * and temporary avoidance of failed waypoints. The client executes real physics. */
 export function createNavigationGoal({ client, position, range=1, bridge=true, excavate=false, catalog, resourceFactory, planner=planRouteAsync, clock=Date.now }) {
   const goal=floor(position), taxonomy=createBlockTaxonomy(catalog), failed=new Map(), suppliers=new Map();
-  let dimension, pending, ready, activeResource, issued, ascent, ascentMode=false, lastReason="Waiting for position.";
+  const recovery=createNavigationRecovery({maxAttempts:3,clock});
+  let dimension, pending, ready, activeResource, issued, ascent, ascentMode=false, lastReason="Waiting for position.",recoveryContext,blockedContext,failureView;
   const idle=reason=>{lastReason=reason;return {action:null,reason};};
   const materials=()=>bridgeMaterials(client.registry,client.inventory.items(),{blockAtState:id=>client.world.Block?.fromStateId(id,0),itemValue:client.options?.bridgeItemValue,reserve:client.options?.bridgeReserve??0,dimension:client.state.dimension});
   const ascentDecision=start=>{
@@ -29,6 +31,11 @@ export function createNavigationGoal({ client, position, range=1, bridge=true, e
       dimension??=o.dimension;
       if(o.dimension!==dimension)return idle("Measurement changed. Set a new target in the current measurement.");
       const start=floor(o.self.position);
+      recoveryContext=JSON.stringify([o.dimension,key(start),client.inventory.revision,client.protection?.revision,[start,goal].map(p=>{const b=client.world.blockAt(p);return b?.stateId??b?.name??null;}),[...client.entities.values()].filter(e=>e.kind==='player'&&e.position&&Math.hypot(e.position.x-start.x,e.position.y-start.y,e.position.z-start.z)<16).map(e=>String(e.id)+':'+key(floor(e.position))).sort()]);
+      if(blockedContext===recoveryContext){
+        if(failureView&&!failureView()){blockedContext=undefined;recovery.reset();ready=null;}
+        else return idle('Navigation retry budget exhausted for the current goal and observed context.');
+      }
       if(client.state.onGround && ['x','y','z'].every(k=>Math.abs(start[k]-goal[k])<=range))return null;
       if(!client.state.onGround)return idle("Before planning, wait for a steady support.");
       for(const [k,v] of failed)if(v.until<=clock())failed.delete(k);
@@ -78,6 +85,8 @@ export function createNavigationGoal({ client, position, range=1, bridge=true, e
       return {priority:20,action:{skill:'navigate',args},reason:lastReason};
     },
     recordResult(event,action) {
+      if(event.outcome==='failure'&&!activeResource){failureView=ready?.isCurrent;const next=recovery.decide({code:event.failure?.code||'BLOCKED',goalId:key(goal),contextRevision:recoveryContext||''});if(next.status==='blocked')blockedContext=recoveryContext;}
+      if(event.outcome==='success'&&client.state.onGround)recovery.confirmSafe(client.state.position);
       if(ascent){if(event.outcome==='failure'){if(failed.size>=64)failed.delete(failed.keys().next().value);failed.set(key(ascent.destination),{until:clock()+10000});ascentMode=false;}ascent=null;ready=null;return;}
       if(activeResource){activeResource.recordResult?.(event,action);activeResource=null;ready=null;return;}
       if(action?.skill==='navigate'&&issued){
@@ -88,6 +97,7 @@ export function createNavigationGoal({ client, position, range=1, bridge=true, e
         issued=null;ready=null;
       }
     },
-    snapshot:()=>({goal:{...goal},dimension:dimension??null,status:pending?'planning':ready?.error||ready?.plan?.status==='blocked'?'blocked':'ready',planning:Boolean(pending),avoided:failed.size,reason:lastReason})
+    resetRecovery(){recovery.reset();blockedContext=undefined;},
+    snapshot:()=>({goal:{...goal},dimension:dimension??null,status:blockedContext!==undefined&&blockedContext===recoveryContext||ready?.error||ready?.plan?.status==='blocked'?'blocked':pending?'planning':'ready',planning:Boolean(pending),avoided:failed.size,reason:lastReason,recovery:recovery.snapshot()})
   };
 }

@@ -1,6 +1,6 @@
 {
   "name": "overmindmc",
-  "version": "1.0.0-Arthas-beta1",
+  "version": "1.0.0-Arthas-beta2",
   "description": "Minecraft Java agent platform with visual programs, 3D debugging, resource planning and independent OMConnect execution",
   "author": "y9kudo",
   "license": "MIT",
@@ -77,7 +77,7 @@
     "test:package": "node scripts/package-smoke.js",
     "demo:mission": "node examples/mission.js",
     "demo:evidence": "node examples/evidence-memory.js",
-    "test:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types/daily.mts test/types/platform07.mts test/types/evidence.mts test/types/nether.mts test/types/intelligence.mts test/types/physical.mts test/types/native.mts test/types/dev3.mts",
+    "test:types": "tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 test/types/daily.mts test/types/platform07.mts test/types/evidence.mts test/types/nether.mts test/types/intelligence.mts test/types/physical.mts test/types/native.mts test/types/dev3.mts test/types/v2.mts",
     "mission:check": "node examples/mission.js examples/missions/first-tools.json --check",
     "test:cpu": "node examples/cpu-responsiveness.js",
     "test:runtime": "node examples/runtime-responsiveness.js",
@@ -106,7 +106,10 @@
     "check:english": "node scripts/check-english.js",
     "expedition:full": "node examples/expedition.js",
     "expedition:check": "node examples/expedition.js --check",
-    "expedition:monitor": "node examples/monitor.js"
+    "expedition:monitor": "node examples/monitor.js",
+    "benchmark:navigation": "node scripts/navigation-benchmark.js",
+    "benchmark:cognition": "node examples/cognitive-comparison.js",
+    "benchmark:perception": "node examples/perception-benchmark.js"
   },
   "dependencies": {
     "minecraft-data": "^3.117.0",

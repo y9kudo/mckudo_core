@@ -2,8 +2,14 @@ import { setImmediate as yieldTask } from 'node:timers/promises';
 import {performance} from 'node:perf_hooks';
 import { fluidAt } from './environment.js';
 import {planRoute,planRouteAsync,planRouteToAny,planRouteToAnyAsync} from './navigation.js';
+import {createNavigationSession} from './navigation-session.js';
+export {createNavigationSession} from './navigation-session.js';
+export {RegionalRouteGraph,IncrementalRegionPlanner} from './regional-navigation.js';
+export {collisionShapes,bodyBounds,supportAt,BODY_POSES} from './traversal.js';
+export {predictMotion,createMotionProgress} from './motion-v2.js';
+export {createNavigationRecovery,NAVIGATION_FAILURE_CODES} from './navigation-recovery.js';
 
-export const OMVECTORIZE = Object.freeze({ name: 'OMVectorize', author: 'y9kudo', version: '1.0.0-Arthas-beta1', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-beta1', modes: ['ground','swim','elytra'], predictions: ['elytra'] });
+export const OMVECTORIZE = Object.freeze({ name: 'OMVectorize', author: 'y9kudo', version: '1.0.0-Arthas-beta2', versionName: 'Version Arthas', displayVersion: 'v1.0.0Arthas-beta2', modes: ['ground','swim','elytra'], predictions: ['elytra'] });
 const axes = ['x', 'y', 'z'];
 const valid = p => p && axes.every(k => Number.isFinite(p[k]) && Math.abs(p[k]) <= 30000000);
 const distance = (a,b) => Math.hypot(...axes.map(k=>a[k]-b[k]));
@@ -13,39 +19,8 @@ const center = p => ({x:p.x+.5,y:p.y+.05,z:p.z+.5});
 const name = b => (b?.name || b?.id || '').replace(/^minecraft:/,'');
 const dangerous = new Set(['lava','fire','soul_fire','cactus','magma_block','powder_snow','sweet_berry_bush','wither_rose','cobweb']);
 
-/** Checks the whole player body, including partial block collision shapes. */
-export function volumeClearance({position,getBlock,height=1.8,radius=.3}) {
-  if(!valid(position)||typeof getBlock!=='function'||!Number.isFinite(height)||height<=0||height>3||!Number.isFinite(radius)||radius<=0||radius>1)throw new Error("OMVectorize: Wrong body volume.");
-  const box=[position.x-radius,position.y,position.z-radius,position.x+radius,position.y+height,position.z+radius];
-  let water=false;
-  for(let y=Math.floor(box[1]+1e-7);y<=Math.floor(box[4]-1e-7);y++)for(let z=Math.floor(box[2]+1e-7);z<=Math.floor(box[5]-1e-7);z++)for(let x=Math.floor(box[0]+1e-7);x<=Math.floor(box[3]-1e-7);x++){
-    const p={x,y,z},b=getBlock(p);
-    if(!b)return {clear:false,reason:'unloaded',position:p};
-    if(dangerous.has(name(b)))return {clear:false,reason:'hazard',position:p};
-    const fluid=fluidAt(b);if(fluid?.kind==='lava')return {clear:false,reason:'hazard',position:p};
-    if(fluid?.kind==='water'&&box[1]<y+fluid.height)water=true;
-    for(const s of b.shapes || (b.boundingBox==='block'?[[0,0,0,1,1,1]]:[])){
-      if(box[3]>x+s[0]+1e-7&&box[0]<x+s[3]-1e-7&&box[4]>y+s[1]+1e-7&&box[1]<y+s[4]-1e-7&&box[5]>z+s[2]+1e-7&&box[2]<z+s[5]-1e-7)return {clear:false,reason:'collision',position:p};
-    }
-  }
-  const eye={x:position.x,y:position.y+Math.min(1.62,height*.9),z:position.z},f=fluidAt(getBlock(cell(eye)));
-  const above=fluidAt(getBlock({...cell(eye),y:Math.floor(eye.y)+1}));
-  const submerged=f?.kind==='water'&&eye.y<Math.floor(eye.y)+(above?.kind==='water'?1:f.height);
-  return {clear:true,reason:'clear',water,submerged:Boolean(submerged)};
-}
-
-export function traceVolume({from,to,getBlock,height=1.8,radius=.3}) {
-  if(!valid(from)||!valid(to))throw new Error("OMVectorize: from/to shall be the coordinates.");
-  const length=distance(from,to);if(length>512)throw new Error("traceVolume: maximum 512 blocks.");
-  const samples=Math.max(1,Math.ceil(length/.15));let submergedSamples=0;
-  for(let i=0;i<=samples;i++){
-    const p=Object.fromEntries(axes.map(k=>[k,from[k]+(to[k]-from[k])*i/samples]));
-    const result=volumeClearance({position:p,getBlock,height,radius});
-    if(!result.clear)return {...result,fraction:i/samples};
-    if(result.submerged)submergedSamples++;
-  }
-  return {clear:true,reason:'clear',submergedSamples,samples:samples+1};
-}
+export {volumeClearance,traceVolume} from './traversal.js';
+import {volumeClearance,traceVolume} from './traversal.js';
 
 class Queue {
   values=[];
@@ -120,7 +95,10 @@ export function predictElytraTick({position,velocity,yaw,pitch,rocket=false}){
 }
 
 export class OMVectorize {
-  constructor({getBlock,getRevision,groundBackend=null}={}){if(typeof getBlock!=='function')throw new Error("OMVectorize: requires getBlock.");if(groundBackend&&typeof groundBackend.planGroundAsync!=='function')throw new Error('A ground backend must implement planGroundAsync.');this.getBlock=getBlock;this.getRevision=getRevision;this.groundBackend=groundBackend;}
+  constructor({getBlock,getRevision,groundBackend=null,scope={server:'local',worldId:'ephemeral',dimension:'unknown',minecraftVersion:'unknown'}}={}){if(typeof getBlock!=='function')throw new Error("OMVectorize: requires getBlock.");if(groundBackend&&typeof groundBackend.planGroundAsync!=='function')throw new Error('A ground backend must implement planGroundAsync.');this.getBlock=getBlock;this.getRevision=getRevision;this.groundBackend=groundBackend;this.scope=scope;this.resetNavigation();}
+  resetNavigation(scope=this.scope){this.session?.close();this.scope=scope;this.session=createNavigationSession({getBlock:this.getBlock,getRevision:this.getRevision,scope,planner:(options,scheduling)=>this.planGroundAsync(options,scheduling)});}
+  planGroundSegmentAsync(options,scheduling={}){return this.session.plan(options,scheduling);}
+  navigationSnapshot(){return this.session.snapshot();}
   planGround(options){return planRoute({...options,getBlock:options.getBlock||this.getBlock});}
   planGroundToAny(options){return planRouteToAny({...options,getBlock:options.getBlock||this.getBlock});}
   planGroundToAnyAsync(options,scheduling={}){return planRouteToAnyAsync({...options,getBlock:options.getBlock||this.getBlock},{getRevision:this.getRevision,...scheduling});}

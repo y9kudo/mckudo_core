@@ -378,7 +378,7 @@ export function createSurvivalReactor({ client, peer, spatial, explorationPlanne
             const resource=`block/${o.dimension}/${source.position.x}/${source.position.y}/${source.position.z}`;
             const owner=peer.owner(resource);
             if(owner&&owner!==peer.id)continue;
-            if(claim!==resource){releaseClaim();claim=resource;peer.claim(resource,{bid:distance(source.position,o.self.position)/8+learnedCost(result.action),ttlMs:30000});}
+            if(claim!==resource||!peer.snapshot().claims.some(c=>c.from===peer.id&&c.resource===resource&&!c.release)){releaseClaim();claim=resource;peer.claim(resource,{bid:distance(source.position,o.self.position)/8+learnedCost(result.action),ttlMs:30000});}
             if(!peer.owns(resource))return {action:null,reason:"Harmonization of resource with other agents."};
           }
           return result;

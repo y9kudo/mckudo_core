@@ -1,14 +1,16 @@
 import { EventEmitter } from 'node:events';
 import {performance} from 'node:perf_hooks';
 import { randomUUID, createHash } from 'node:crypto';
-import { validateConfig, jsonCopy, id, object } from './config.js';
+import { validateConfig, validateCondition, jsonCopy, id, object } from './config.js';
 import { matches, explainCondition } from './conditions.js';
 import { OVERMIND } from './identity.js';
 import { WorkflowPlanner } from './workflows.js';
 import { SkillRegistry } from './skills.js';
 import { GoalBrain } from './brain.js';
 import { normalizeObservation } from './perception.js';
-import { normalizeActionFailure } from '../packages/omconnect/src/failures.js';
+import { normalizeActionFailure, OMActionError } from '../packages/omconnect/src/failures.js';
+import { knownCondition } from './planner.js';
+import { createCognitiveEngine } from './cognitive-engine.js';
 
 const canonical = value => Array.isArray(value) ? value.map(canonical) : object(value) ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 
@@ -19,7 +21,8 @@ export class OvermindCore extends EventEmitter {
   #wakeMonitor = null;
   #timings = Object.create(null);
   #brain = null; #tickNumber = 0; #reactors; #preemptionMs; #urgent = false; #unsubscribeUrgent; #learning; #session = randomUUID();
-  constructor({ config, adapter, memory, planning, learning = planning?.experience, reactors = [], preemptionMs = 50, clock = Date.now }) {
+  #cognitive = null;
+  constructor({ config, adapter, memory, planning, cognitive = false, learning = planning?.experience, reactors = [], preemptionMs = 50, clock = Date.now }) {
     super();
     this.#config = validateConfig(config);
     if (learning && (learning.worldId !== this.#config.worldId || typeof learning.record !== 'function' || typeof learning.assess !== 'function')) throw new Error("The model of experience should be the same worldId.");
@@ -33,6 +36,7 @@ export class OvermindCore extends EventEmitter {
     if (!reactors.length && !this.#config.rules.length && !this.#config.workflows.length && !this.#config.goals.length) throw new Error("Add rules, objectives, objectives or Reactor.");
     if (!adapter || typeof adapter.observe !== 'function' || typeof adapter.execute !== 'function' || typeof adapter.describe !== 'function') throw new TypeError("Adaptation must be implemented describe(), observe() and execute().");
     this.#adapter = adapter; this.#clock = clock;
+    if(cognitive!==false){if(!object(cognitive))throw new Error('cognitive: options or false.');this.#cognitive=cognitive.model||createCognitiveEngine({...cognitive,memory:cognitive.memory??memory?.cognitive,worldId:this.#config.worldId,clock:cognitive.clock??clock});if(this.#cognitive.worldId!==this.#config.worldId||['phase','rank','commit','record','snapshot','export'].some(k=>typeof this.#cognitive[k]!=='function'))throw new Error('Cognitive engine belongs to another world or has an invalid API.');}
     const manifest = jsonCopy(adapter.describe());
     if (manifest.protocolVersion !== 1 || !Array.isArray(manifest.skills) || !manifest.skills.every(id)) throw new TypeError("Adaptation: requires protocolVersion: 1 and a list skills.");
     this.manifest = Object.freeze({ ...manifest, skills: Object.freeze([...manifest.skills]) });
@@ -41,7 +45,7 @@ export class OvermindCore extends EventEmitter {
     this.#workflows = new WorkflowPlanner(this.#config.workflows, memory?.workflows);
     if (this.#config.goals.length) {
       if (!planning) throw new Error("For goals Pass it to me planning: { operators, planner? }.");
-      this.#brain = new GoalBrain(this.#config.goals, planning, clock, memory?.brain);
+      this.#brain = new GoalBrain(this.#config.goals, {...planning,repair:planning.repair??(this.#cognitive?{}:false)}, clock, memory?.brain);
     } else if (planning || memory?.brain) throw new Error("For planning Or brain memory, add goals in configuration.");
     this.#state = { engine: OVERMIND, name: this.#config.name, worldId: this.#config.worldId, status: 'idle', reason: "Waiting for first observation.", decision: null, observation: null, adapter: manifest, lastResult: null };
   }
@@ -64,9 +68,10 @@ export class OvermindCore extends EventEmitter {
   resetWorkflow(id) { if (this.#pending) throw new Error("Wait for the current step to finish first."); this.#workflows.reset(id); return this; }
   retryStep(workflow, step) { if (this.#pending) throw new Error("Wait for the current step to finish first."); this.#workflows.retry(workflow, step); return this; }
   retryGoal(goalId) { if (this.#pending) throw new Error("Wait for the current step to finish first."); if (!this.#brain) throw new Error("Brain's not connected."); this.#brain.retry(goalId); return this; }
-  snapshot() { return jsonCopy({ ...this.#state, performance:this.#timings, paused: this.#paused, running: this.#loop, history: this.#history,
+  get cognitive(){return this.#cognitive;}
+  snapshot() { return jsonCopy({ ...this.#state, performance:this.#timings, ...(this.#cognitive?{cognitive:this.#cognitive.snapshot()}:{}),paused: this.#paused, running: this.#loop, history: this.#history,
     workflows: this.#workflows.snapshot(), brain: this.#brain?.snapshot() ?? null, plugins: this.#skills.snapshot(), listenerErrors: this.#listenerErrors }, '$', 1048576); }
-  exportMemory() { return jsonCopy({ schemaVersion: this.#brain ? 3 : 2, worldId: this.#config.worldId, stats: this.#stats, history: this.#history, workflows: this.#workflows.export(), ...(this.#brain ? { brain: this.#brain.export() } : {}) }, '$', 1048576); }
+  exportMemory() { return jsonCopy({ schemaVersion: this.#brain ? 3 : 2, worldId: this.#config.worldId, stats: this.#stats, history: this.#history, workflows: this.#workflows.export(), ...(this.#brain ? { brain: this.#brain.export() } : {}),...(this.#cognitive?{cognitive:this.#cognitive.export()}: {}) }, '$', 1048576); }
   async #observe(signal) {
     const start=performance.now();try{const o = await this.#adapter.observe({ signal }); signal.throwIfAborted();
       return this.manifest.perceptionVersion === 1 ? normalizeObservation(o) : jsonCopy(o);
@@ -82,9 +87,12 @@ export class OvermindCore extends EventEmitter {
         if (r.action === null) return { id: reactor.id, kind: 'reactor', active: false, reason: r.reason };
         if (!object(r.action) || !id(r.action.skill) || !Number.isInteger(r.priority) || r.priority < -1000 || r.priority > 1000) throw new Error("Reactor: invalid action or priority.");
         r.action.args ??= {}; if (!object(r.action.args)) throw new Error("Reactor args: an object is required.");
+        if(r.requires){validateCondition(r.requires,'reaction.requires');if(!knownCondition(r.requires,observation)||!matches(r.requires,observation))return {id:reactor.id,kind:'reactor',active:false,reason:'Required observed facts are missing or unsatisfied.'};}
+        if(r.expected)validateCondition(r.expected,'reaction.expected');
         const memoryKey = JSON.stringify(['reactor', reactor.id]);
         const cooldownKey = reactor.failureScope === 'action' ? memoryKey + '/' + createHash('sha256').update(JSON.stringify(canonical(r.action))).digest('hex') : memoryKey;
-        return { id: reactor.id, kind: 'reactor', active: true, priority: r.priority, action: r.action, description: r.reason, memoryKey, cooldownKey, managesRetries: reactor.managesRetries === true };
+        if(r.timeoutMs!==undefined&&(!Number.isInteger(r.timeoutMs)||r.timeoutMs<100||r.timeoutMs>300000))throw new Error('Reaction timeoutMs: 100–300000.');
+        return { id: reactor.id, kind: 'reactor', active: true, priority: r.priority, action: r.action, expected:r.expected,timeoutMs:r.timeoutMs,description: r.reason, memoryKey, cooldownKey, managesRetries: reactor.managesRetries === true };
       } catch (error) { return { id: reactor.id, kind: 'reactor', active: false, reason: String(error.message).slice(0, 500), error: true }; }
       finally{this.#timing(reactor.id,performance.now()-started);}
     });
@@ -112,18 +120,22 @@ export class OvermindCore extends EventEmitter {
   async #step() {
     if (this.#paused) return this.snapshot();
     const ac = new AbortController(); this.#abort = ac;
-    let timedOut = false, plan = null, context = 'world', began = false, monitoring = false, monitorTimer, monitorPending, beforeAction, startedAt, monitorRunning = false, monitorRequested = false;
+    let timedOut = false, plan = null, context = 'world', began = false, dispatched = false, verification,monitoring = false, monitorTimer, monitorPending, beforeAction, startedAt, monitorRunning = false, monitorRequested = false, reactorTimer;
     const timeout = setTimeout(() => { timedOut = true; ac.abort(new Error("Task timed out.")); }, this.#config.actionTimeoutMs);
     try {
       this.#state.status = 'observing'; this.#state.decision = null;
+      this.#cognitive?.phase('observe');
       let o = await this.#observe(ac.signal);
       this.#state.observation = o; context = this.#context(o);
+      this.#cognitive?.phase('understand');
       const now = this.#clock();
       this.#state.trace = { tick: ++this.#tickNumber, at: now, rules: this.#config.rules.map(r => ({ id: r.id, priority: r.priority, ...explainCondition(r.when, o) })), candidates: [], selected: null };
       for (const [key, until] of this.#cooldowns) if (until <= now) this.#cooldowns.delete(key);
       const reactions = this.#reactions(o); this.#state.trace.reactors = reactions.map(r => ({ id: r.id, active: r.active, reason: r.description || r.reason, error: r.error || false }));
       const applicable = [...reactions.filter(r => r.active), ...this.#config.rules.filter(r => matches(r.when, o)).map(r => ({ ...r, kind: 'rule', memoryKey: r.id })), ...this.#workflows.candidates(o, now), ...(this.#brain?.candidates(o, now) ?? [])].sort((a, b) => b.priority - a.priority);
-      const candidates = applicable.map(r => ({ ...r, blocked: r.blocked || (r.kind !== 'goal' && !this.#skills.has(r.action.skill) ? "Adaptation doesn't support skills." : ['rule', 'reactor'].includes(r.kind) && this.#cooldowns.has(this.#cooldownKey(r, context)) ? "Pause after an error in this area." : null) }));
+      this.#cognitive?.phase('plan');
+      let candidates = applicable.map(r => ({ ...r, blocked: r.blocked || (r.kind !== 'goal' && !this.#skills.has(r.action.skill) ? "Adaptation doesn't support skills." : ['rule', 'reactor'].includes(r.kind) && this.#cooldowns.has(this.#cooldownKey(r, context)) ? "Pause after an error in this area." : null) }));
+      if(this.#cognitive){candidates=this.#cognitive.rank(o,candidates);this.#state.trace.cognitive=this.#cognitive.snapshot().ranking;}
       for (let i = 0; i < candidates.length; i++) {
         if (candidates[i].blocked) continue;
         if (candidates[i].kind === 'goal') {
@@ -138,17 +150,19 @@ export class OvermindCore extends EventEmitter {
       if (plan?.kind === 'goal') {
         const fresh = await this.#observe(ac.signal);
         const urgent = [...this.#config.rules.filter(r => matches(r.when, fresh)).map(r => ({ ...r, memoryKey: r.id })), ...this.#reactions(fresh).filter(r => r.active)]
-          .some(r => r.priority >= plan.priority && this.#skills.has(r.action.skill) && !this.#cooldowns.has(this.#cooldownKey(r, this.#context(fresh))));
+          .some(r => (r.priority>plan.priority||r.priority===plan.priority&&(!this.#cognitive||r.priority>=900)) && this.#skills.has(r.action.skill) && !this.#cooldowns.has(this.#cooldownKey(r, this.#context(fresh))));
         this.#state.observation = fresh;
         if (!this.#brain.isCurrent(plan, fresh) || urgent) {
           this.#state.status = 'idle'; this.#state.reason = urgent ? "After planning, priority response emerged." : "The world changed during planning; I need a new solution.";
           this.#state.trace.selected = null; this.#state.trace.deferred = this.#state.reason;
+          this.#cognitive?.phase('replan',{reason:this.#state.reason});
           this.#publish('decision:trace', this.#state.trace); this.#notify(); return this.snapshot();
         }
         o = fresh; context = this.#context(o);
       }
       this.#publish('decision:trace', this.#state.trace);
       if (!plan) {
+        this.#cognitive?.phase('reflect',{reason:'No admissible action is ready.'});
         const troubled = this.#workflows.snapshot().find(w => ['failed', 'interrupted'].includes(w.status));
         this.#state.status = candidates.length || troubled ? 'blocked' : 'idle';
         this.#state.reason = candidates[0]?.blocked || (troubled ? `Task ${troubled.id}: ${troubled.status}. Need a clear step-back.` : "No rules or steps, ready to be implemented.");
@@ -162,7 +176,12 @@ export class OvermindCore extends EventEmitter {
       if (plan.kind === 'goal') this.#brain.begin(plan);
       began = true;
       beforeAction = jsonCopy(o); startedAt = this.#clock();
+      this.#cognitive?.commit(plan,o);this.#cognitive?.phase('act',{id:plan.id});
       this.#notify(); this.#publish('action:start', this.#state.decision);
+      ac.signal.throwIfAborted();
+      if(plan.timeoutMs)reactorTimer=setTimeout(()=>{timedOut=true;ac.abort(new Error('Task action timed out.'));},plan.timeoutMs);
+      // A task checkpoint must reach durable storage before any physical side effect.
+      if(plan.kind==='reactor')await this.#reactors.find(r=>r.id===plan.id)?.beforeAction?.({action:jsonCopy(plan.action),observation:jsonCopy(o),signal:ac.signal});
       ac.signal.throwIfAborted();
       const handler = this.#skills.get(plan.action.skill);
       if (handler?.validate) {
@@ -194,16 +213,21 @@ export class OvermindCore extends EventEmitter {
       if (monitoring) monitorTimer = setTimeout(() => { monitorPending = poll(); }, this.#preemptionMs);
       let result;
       const executionStart=performance.now();
+      dispatched = true;
       try { result = handler ? await handler.execute(jsonCopy(plan.action.args), { signal: ac.signal, observation: jsonCopy(o) }) : await this.#adapter.execute(jsonCopy(plan.action), { signal: ac.signal, priority: plan.priority }); }
       finally {this.#timing('execute',performance.now()-executionStart); monitoring = false; this.#wakeMonitor = null; clearTimeout(monitorTimer); await monitorPending; }
       ac.signal.throwIfAborted();
       if (result?.ok === false) throw new Error(String(result.message || "Skills reported failure."));
+      this.#cognitive?.phase('verify',{id:plan.id});
       let outcome = 'success';
-      if (plan.until || plan.kind === 'goal' || this.#learning) {
+      if (plan.until || plan.expected || plan.kind === 'goal' || this.#learning || this.#cognitive || this.#adapter.verifyAction || this.listenerCount('experience:transition')) {
         const after = await this.#observe(ac.signal); this.#state.observation = after;
         if (plan.until && !matches(plan.until, after)) outcome = 'progress';
       }
-      this.#record(plan, context, outcome);
+      if(plan.expected){verification={status:knownCondition(plan.expected,this.#state.observation)&&matches(plan.expected,this.#state.observation)?'confirmed':'unconfirmed',reason:'Reaction result checked against observed expected facts.'};}
+      else if(this.#adapter.verifyAction){verification=jsonCopy(await this.#adapter.verifyAction(plan.action,{before:beforeAction,after:this.#state.observation,signal:ac.signal}));ac.signal.throwIfAborted();if(!['confirmed','unconfirmed','unknown'].includes(verification?.status)||typeof verification.reason!=='string'||verification.reason.length>500)throw new Error('Adapter verification result is invalid.');}
+      if(verification?.status==='unconfirmed')throw new OMActionError('EFFECT_UNCONFIRMED',verification.reason);
+      this.#record(plan, context, outcome,'',undefined,verification);
       this.#learn(plan, beforeAction, this.#state.observation, this.#state.lastResult.outcome, startedAt);
       if (plan.priority >= 900 && this.#state.lastResult?.outcome !== 'failure') this.#urgent = true;
       this.#state.status = this.#state.lastResult?.outcome === 'failure' ? 'fault' : 'idle';
@@ -211,15 +235,26 @@ export class OvermindCore extends EventEmitter {
     } catch (error) {
       const cancelled = ac.signal.aborted && !timedOut;
       const message = timedOut ? "Task timed out." : String(error?.message || error).slice(0, 300);
-      if (plan && began) this.#record(plan, context, cancelled ? 'cancelled' : 'failure', message, !cancelled && !timedOut && error?.code ? normalizeActionFailure(error) : undefined);
-      if (plan && began) this.#learn(plan, beforeAction, null, cancelled ? 'cancelled' : 'failure', startedAt);
+      if (plan && began) this.#record(plan, context, cancelled ? 'cancelled' : 'failure', message, !cancelled && !timedOut && error?.code ? normalizeActionFailure(error) : undefined,verification);
+      if (plan && began && dispatched) this.#learn(plan, beforeAction, null, cancelled ? 'cancelled' : 'failure', startedAt);
       this.#state.status = cancelled ? this.#paused ? 'paused' : 'idle' : 'fault'; this.#state.reason = message;
-    } finally { monitoring = false; this.#wakeMonitor = null; clearTimeout(monitorTimer); clearTimeout(timeout); if (this.#abort === ac) this.#abort = null; }
+      this.#cognitive?.phase('replan',{reason:message});
+    } finally {
+      monitoring = false; this.#wakeMonitor = null; clearTimeout(monitorTimer); clearTimeout(timeout);clearTimeout(reactorTimer);
+      // Completion persistence is awaited even after cancellation. Never emit a second result
+      // when storage fails after the server has already accepted the action.
+      if(began&&plan?.kind==='reactor')try{await this.#reactors.find(r=>r.id===plan.id)?.afterAction?.({result:this.#state.lastResult});}
+      catch(error){this.#state.status='fault';this.#state.reason='Checkpoint failed: '+String(error.message).slice(0,300);this.#publish('monitor:error',{message:this.#state.reason});}
+      if (this.#abort === ac) this.#abort = null;
+    }
     this.#notify(); return this.snapshot();
   }
-  #record(plan, context, outcome, detail = '', failure) {
+  #record(plan, context, outcome, detail = '', failure, verification) {
     if (plan.kind === 'goal') {
-      outcome = this.#brain.finish(plan, outcome, this.#state.observation, detail);
+      const requested=outcome;
+      outcome = this.#brain.finish(plan, outcome, this.#state.observation, detail,failure);
+      if(outcome!=='failure'&&outcome!=='cancelled')verification={status:'confirmed',reason:'Operator effects confirmed by fresh observations.'};
+      if(outcome==='failure'&&requested!=='failure'&&requested!=='cancelled'){failure||={code:'EFFECT_UNCONFIRMED'};verification={status:'unconfirmed',reason:'Fresh observations did not match the modeled operator effects.'};}
       if (outcome === 'failure' && !detail) detail = "Observation did not confirm the expected effect; plan discarded.";
     }
     if (plan.kind === 'workflow') this.#workflows.finish(plan, outcome, detail, this.#clock());
@@ -237,13 +272,17 @@ export class OvermindCore extends EventEmitter {
         }
       }
     }
-    const result = { at: this.#clock(), rule: plan.id, skill: plan.action.skill, outcome, detail, ...(failure ? {failure} : {}) };
+    const result = { at: this.#clock(), rule: plan.id, skill: plan.action.skill, outcome, detail, ...(failure ? {failure} : {}),...(verification?{verification}: {}) };
     this.#history.push(result); this.#history = this.#history.slice(-this.#config.maxHistory);
     this.#state.lastResult = result; this.#publish('action:finish', result);
   }
   #learn(plan, before, after, outcome, startedAt) {
+    const verified=this.#state.lastResult?.verification?.status==='confirmed',durationMs=Math.max(0,this.#clock()-startedAt),failureCode=this.#state.lastResult?.failure?.code;
+    if(this.#cognitive){try{this.#cognitive.phase('reflect',{id:plan.id});this.#cognitive.record({candidate:plan,before,outcome,durationMs,verified,failureCode});}catch(error){this.#publish('monitor:error',{message:`Cognitive reflection: ${String(error.message).slice(0,200)}`});}}
+    const sample={episodeId:`${this.#session}:${this.#tickNumber}`,action:plan.action,before,after,outcome,durationMs,verified,environment:['omconnect','mineflayer'].includes(this.manifest.kind)?'minecraft':'external',detail:this.#state.lastResult?.detail||'',...(failureCode?{failureCode}:{})};
+    if(this.listenerCount('experience:transition'))this.#publish('experience:transition',sample);
     if (!this.#learning) return;
-    try { this.#learning.record({ episodeId: `${this.#session}:${this.#tickNumber}`, action: plan.action, before, after, outcome, durationMs: Math.max(0, this.#clock() - startedAt) }); }
+    try { this.#learning.record(sample); }
     catch (error) { this.#publish('monitor:error', { message: `Experience model: ${String(error.message).slice(0, 250)}` }); }
   }
   start() {
@@ -260,6 +299,7 @@ export class OvermindCore extends EventEmitter {
     if (typeof this.#adapter.subscribeUrgent === 'function') this.#unsubscribeUrgent = this.#adapter.subscribeUrgent(() => {
       if (!this.#loop || this.#paused) return;
       this.#urgent = true;
+      if(this.#cognitive&&this.#state.status==='planning')this.#abort?.abort(new Error('Reconsider planning after an urgent observation.'));
       this.#wakeMonitor?.();
       if (!this.#pending) { clearTimeout(this.#timer); this.#timer = setTimeout(next, 0); }
     });

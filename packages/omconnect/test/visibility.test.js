@@ -25,3 +25,13 @@ test('visibility handles diagonal crossings, negative coordinates and a zero len
   assert.equal(traceVisibility({origin,target:origin,getBlock:()=>air}).visible,true);
   assert.throws(()=>traceVisibility({origin:{x:NaN,y:0,z:0},target,getBlock:()=>air}),/Visibility/);
 });
+
+test('a ray parallel to an integer voxel boundary checks both adjacent walls',()=>{
+  const air={name:'air',boundingBox:'empty',shapes:[]},wall={name:'stone',boundingBox:'block',shapes:[[0,0,0,1,1,1]]};
+  for(const side of[0,-1]){
+    const read=p=>p.x===2&&p.z===side?wall:air;
+    const result=traceVisibility({origin:{x:.5,y:65.5,z:0},target:{x:5.5,y:65.5,z:0},getBlock:read});
+    assert.equal(result.visible,false);assert.equal(result.reason,'blocked');
+  }
+  assert.equal(traceVisibility({origin:{x:.5,y:65.5,z:0},target:{x:5.5,y:65.5,z:0},getBlock:p=>p.z===-1?null:air}).reason,'unloaded');
+});

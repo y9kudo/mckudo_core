@@ -36,20 +36,36 @@ export async function transferStorage(c,args,signal,runtime,direction){
   const maxStacks=args.maxStacks??54;
   if(!['take','deposit'].includes(direction)||!Number.isInteger(maxStacks)||maxStacks<1||maxStacks>54)throw new Error('Storage: direction take/deposit; maxStacks 1–54.');
   if(args.items!==undefined&&(!Array.isArray(args.items)||!args.items.length||args.items.length>128))throw new Error('Storage items: 1–128 ID.');
-  const allowed=args.items?.map(id),amounts=new Map();
+  const allowed=args.items?.map(id),amounts=new Map(),allocation=args.allocation;
+  const policy=allocation===undefined?null:c.storagePolicy;
+  if(allocation!==undefined&&(direction!=='take'||typeof allocation!=='string'||!/^[a-z0-9-]{1,64}$/.test(allocation)||args.all===true||policy?.id!==allocation||typeof policy.allocate!=='function'))throw new Error('Storage allocation requires an installed matching withdrawal policy.');
   if(args.amounts!==undefined){
     if(!args.amounts||Array.isArray(args.amounts)||typeof args.amounts!=='object'||Object.keys(args.amounts).length>128)throw new Error("Storage amounts: object ID:Number.");
     for(const [key,n] of Object.entries(args.amounts)){if(!Number.isInteger(n)||n<1||n>4096)throw new Error('Storage amounts: 1–4096.');amounts.set(id(key),n);}
   }
-  if(!allowed&&!amounts.size&&args.all!==true)throw new Error("Specify items, amounts or, clearly, all:true.");
+  if(!policy&&!allowed&&!amounts.size&&args.all!==true)throw new Error("Specify items, amounts or, clearly, all:true.");
   return withStorage(c,args,signal,runtime,async(w,position,identity)=>{
+    if(policy){
+      if(c.storagePolicy!==policy)throw new Error('Storage allocation policy changed before dispatch.');
+      const caps=new Map(amounts);
+      const contents=c.containers.contents().filter(s=>(!allowed||allowed.includes(s.name))&&(args.amounts===undefined||caps.has(s.name))).map(s=>({item:s.item,name:s.name,count:s.count}));
+      const planned=policy.allocate({dimension:c.state.dimension,position:{...position},identity:structuredClone(identity),contents,serverConfirmed:true});
+      if(!planned||typeof planned!=='object'||Array.isArray(planned)||typeof planned.then==='function'||Object.keys(planned).length>128)throw new Error('Storage allocation must synchronously return at most 128 quantities.');
+      amounts.clear();
+      for(const [key,n]of Object.entries(planned)){
+        const name=id(key);if(!Number.isInteger(n)||n<1||n>4096||amounts.has(name))throw new Error('Invalid storage allocation quantity or duplicate aliases.');
+        const amount=args.amounts===undefined?n:Math.min(n,caps.get(name)||0);if(amount)amounts.set(name,amount);
+      }
+      signal.throwIfAborted();
+    }
+    const quantified=policy!==null||args.amounts!==undefined;
     const sourceSlots=()=>direction==='take'?w.slots.slice(0,w.storageSlots):w.slots.slice(w.storageSlots);
     const targetSlots=()=>direction==='take'?w.slots.slice(w.storageSlots):w.slots.slice(0,w.storageSlots);
     const capacity=item=>targetSlots().reduce((n,s)=>n+(!s?(c.registry.itemsByName[item.name]?.stackSize||64):same(s,item)?Math.max(0,(c.registry.itemsByName[item.name]?.stackSize||64)-s.count):0),0);
-    const transferred=[];let reason='empty-or-filtered';
+    const transferred=[];let reason=policy&&!amounts.size?'allocation-satisfied':'empty-or-filtered';
     for(let i=0;i<maxStacks;i++){
       signal.throwIfAborted();
-      const permitted=s=>s&&(!allowed||allowed.includes(s.name))&&(!amounts.size||amounts.has(s.name)&&amounts.get(s.name)>0);
+      const permitted=s=>s&&(!allowed||allowed.includes(s.name))&&(!quantified||amounts.has(s.name)&&amounts.get(s.name)>0);
       const source=sourceSlots().find(s=>permitted(s)&&capacity(s)>0);
       if(!source){if(sourceSlots().some(permitted))reason='destination-full';break;}
       const amount=Math.min(source.count,amounts.get(source.name)??source.count,capacity(source)),before=total(targetSlots(),source),beforeSource=total(sourceSlots(),source);
@@ -71,6 +87,6 @@ export async function transferStorage(c,args,signal,runtime,direction){
       }
       transferred.push({item:source.item,count:amount});if(amounts.has(source.name))amounts.set(source.name,amounts.get(source.name)-amount);reason='stack-budget';
     }
-    return {ok:true,serverConfirmed:true,direction,position,identity,transferred,reason,contents:c.containers.contents()};
+    return {ok:true,serverConfirmed:true,direction,position,identity,transferred,reason,...(policy?{allocation}:{}),contents:c.containers.contents()};
   });
 }

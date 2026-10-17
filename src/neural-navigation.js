@@ -1,9 +1,10 @@
 import {jsonCopy} from './config.js';
+import {createContextualNavigation} from './contextual-navigation.js';
 
 const INPUTS=12,HIDDEN=16,clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const point=p=>p&&['x','y','z'].every(k=>Number.isFinite(p[k]));
 const cell=p=>`${Math.floor(p.x)},${Math.floor(p.y)},${Math.floor(p.z)}`;
-const key=e=>`${e.dimension}/${cell(e.from)}>${cell(e.to)}/${e.kind??'walk'}`;
+const key=e=>`${e.dimension}/${cell(e.from)}>${cell(e.to)}/${e.kind??'walk'}${e.context?'/'+e.context.signature:''}`;
 const features=e=>{
   if(!point(e.from)||!point(e.to))throw new Error("Learning to Transmit from/to.");
   if(typeof e.dimension!=='string'||e.dimension.length>80||['health','food','nearbyPlayers','healthAfter'].some(k=>e[k]!=null&&!Number.isFinite(e[k])))throw new Error("Uncorrect observation of transition.");
@@ -27,9 +28,10 @@ export function createNeuralNavigator({worldId,learningRate=.025,memory,clock=Da
     for(let i=0;i<HIDDEN;i++){v[i]-=learningRate*dz*h[i];const d=dz*old[i]*(1-h[i]*h[i]);b[i]-=learningRate*d;for(let j=0;j<INPUTS;j++)w[i][j]-=learningRate*d*x[j];}
     bias-=learningRate*dz;updates++;loss=.95*loss+.05*(-y*Math.log(Math.max(1e-9,p))-(1-y)*Math.log(Math.max(1e-9,1-p)));
   };
+  let contextualMemory;
   if(memory){
     const m=jsonCopy(memory,'neuralMemory',2*1024*1024);
-    if(![1,2].includes(m.schemaVersion)||m.worldId!==worldId||m.architecture!=='12-16-1'||!Number.isSafeInteger(m.samples)||m.samples<0||!Number.isSafeInteger(m.updates)||m.updates<0)throw new Error("The memory of a neural net of another world or a wrong format.");
+    if(![1,2,3].includes(m.schemaVersion)||m.worldId!==worldId||m.architecture!=='12-16-1'||!Number.isSafeInteger(m.samples)||m.samples<0||!Number.isSafeInteger(m.updates)||m.updates<0)throw new Error("The memory of a neural net of another world or a wrong format.");
     const finite=a=>a.every(n=>Number.isFinite(n)&&Math.abs(n)<=1000);
     if(!Array.isArray(m.weights?.w)||m.weights.w.length!==HIDDEN||m.weights.w.some(a=>!Array.isArray(a)||a.length!==INPUTS||!finite(a))||!Array.isArray(m.weights.b)||m.weights.b.length!==HIDDEN||!finite(m.weights.b)||!Array.isArray(m.weights.v)||m.weights.v.length!==HIDDEN||!finite(m.weights.v)||!Number.isFinite(m.weights.bias)||Math.abs(m.weights.bias)>1000)throw new Error("Invalid neural-network weights.");
     ({w,b,v,bias}=m.weights);samples=m.samples;updates=m.updates;
@@ -38,8 +40,10 @@ export function createNeuralNavigator({worldId,learningRate=.025,memory,clock=Da
     if(!Array.isArray(m.failed)||m.failed.length>256||m.failed.some(e=>typeof e.key!=='string'||e.key.length>300||!Number.isFinite(e.until)||!Number.isInteger(e.count)||e.count<1||e.count>32))throw new Error("Damaged memory failure.");
     // Old memories penalized every entrance to a destination. Keep their network,
     // but discard those over-broad bans when upgrading to directed transitions.
-    for(const f of m.failed)if(m.schemaVersion===2&&f.until>clock()&&f.until<=clock()+300000)failed.set(f.key,{until:f.until,count:f.count});
+    for(const f of m.failed)if(m.schemaVersion>=2&&f.until>clock()&&f.until<=clock()+300000)failed.set(f.key,{until:f.until,count:f.count});
+    if(m.schemaVersion===3){if(!m.contextual)throw new Error('Contextual navigation memory is missing.');contextualMemory=m.contextual;}
   }
+  const contextual=createContextualNavigation({learningRate,memory:contextualMemory});
   let prunedAt=-Infinity;
   const prune=()=>{const now=clock();if(now===prunedAt)return;prunedAt=now;for(const [k,f]of failed)if(f.until<=now)failed.delete(k);};
   return {
@@ -47,9 +51,10 @@ export function createNeuralNavigator({worldId,learningRate=.025,memory,clock=Da
     record(event){
       if(!['success','failure','cancelled'].includes(event.outcome))throw new Error("Unknown transition result.");
       if(event.outcome==='cancelled')return false;
-      if(['STALE_WORLD','SERVER_CORRECTION','OCCUPIED','SUPPORT_CHANGED'].includes(event.failureCode))return false;
+      if(['STALE_WORLD','SERVER_CORRECTION','OCCUPIED','SUPPORT_CHANGED','UNLOADED','DYNAMIC_OBSTACLE'].includes(event.failureCode))return false;
       if(event.id&&seen.has(event.id))return false;
       const x=features(event),y=Number(event.outcome==='failure'||event.healthAfter!=null&&event.healthAfter<(event.health??20));
+      if(event.context){if(event.context.loaded===false)return false;contextual.record(x,event);}
       if(event.id){seen.add(event.id);if(seen.size>2048)seen.delete(seen.values().next().value);}
       const k=key(event);prune();
       if(y){const count=Math.min(32,(failed.get(k)?.count||0)+1);failed.set(k,{count,until:clock()+Math.min(300000,15000*count)});if(failed.size>256)failed.delete(failed.keys().next().value);}else failed.delete(k);
@@ -57,19 +62,23 @@ export function createNeuralNavigator({worldId,learningRate=.025,memory,clock=Da
       train(sample);for(let i=0;i<Math.min(16,replay.length);i++){train(replay[cursor%replay.length]);cursor++;}
       journal.push({at:clock(),from:{...event.from},to:{...event.to},dimension:event.dimension,outcome:event.outcome,damage:y===1&&event.outcome==='success',reason:String(event.reason||'').slice(0,200)});if(journal.length>32)journal.shift();return true;
     },
-    assess(event){prune();const x=features(event),cacheKey=x.join(',');if(!predictions.has(cacheKey)){predictions.set(cacheKey,forward(x).p);if(predictions.size>256)predictions.delete(predictions.keys().next().value);}const probability=predictions.get(cacheKey),exact=failed.get(key(event));return {failureProbability:probability,samples,trained:samples>=8,rememberedFailures:exact?.count||0,cost:(exact?12+exact.count:0)+(samples>=8?probability*6:0)};},
-    snapshot(){prune();return {kind:'local-neural-network',architecture:'12-16-1',samples,updates,loss,rememberedFailures:failed.size,journal:structuredClone(journal)};},
-    export(){prune();return jsonCopy({schemaVersion:2,worldId,architecture:'12-16-1',samples,updates,weights:{w,b,v,bias},replay,failed:[...failed].map(([key,f])=>({key,...f}))},'neuralMemory',2*1024*1024);}
+    assess(event){
+      prune();const x=features(event),exact=failed.get(key(event));
+      if(event.context){const estimate=contextual.assess(x,event.context);return {...estimate,rememberedFailures:exact?.count||0,cost:estimate.cost+(event.context.loaded&&exact?12+exact.count:0)};}
+      const cacheKey=x.join(',');if(!predictions.has(cacheKey)){predictions.set(cacheKey,forward(x).p);if(predictions.size>256)predictions.delete(predictions.keys().next().value);}const probability=predictions.get(cacheKey);return {failureProbability:probability,samples,trained:samples>=8,rememberedFailures:exact?.count||0,cost:(exact?12+exact.count:0)+(samples>=8?probability*6:0)};
+    },
+    snapshot(){prune();return {kind:'local-neural-network',architecture:'12-16-1',samples,updates,loss,rememberedFailures:failed.size,contextual:contextual.snapshot(),journal:structuredClone(journal)};},
+    export(){prune();return jsonCopy({schemaVersion:3,worldId,architecture:'12-16-1',samples,updates,weights:{w,b,v,bias},replay,failed:[...failed].map(([key,f])=>({key,...f})),contextual:contextual.export()},'neuralMemory',2*1024*1024);}
   };
 }
 
-export function attachNeuralNavigation(client,model){
-  const describe=(from,to,kind)=>({from,to,kind,dimension:client.state.dimension,health:client.state.health,food:client.state.food,nearbyPlayers:[...client.entities.values()].filter(e=>e.kind==='player'&&Math.hypot(e.position.x-to.x,e.position.z-to.z)<3).length});
+export function attachNeuralNavigation(client,model,{contextReader}={}){
+  const describe=(from,to,kind)=>({from,to,kind,dimension:client.state.dimension,health:client.state.health,food:client.state.food,nearbyPlayers:[...client.entities.values()].filter(e=>e.kind==='player'&&Math.hypot(e.position.x-to.x,e.position.z-to.z)<3).length,...(contextReader&&client.state.status==='ready'&&typeof client.state.dimension==='string'?{context:contextReader.read(from,to,kind)}:{})});
   const prior=client.navigationPolicy,policy={cost:(from,to,kind)=>{
     const base=prior?.cost?.(from,to,kind)??0;
     if(!Number.isFinite(base)||base<0||base>1000)throw new Error('Prior navigation cost must be finite and within 0–1000.');
     return Math.min(1000,base+model.assess(describe(from,to,kind)).cost);
-  }};client.navigationPolicy=policy;
+  },describeTransition:describe};client.navigationPolicy=policy;
   const listen=e=>model.record({...describe(e.from,e.to,e.kind),...e});client.on('navigationStep',listen);
   return ()=>{client.off('navigationStep',listen);if(client.navigationPolicy===policy)client.navigationPolicy=prior;};
 }

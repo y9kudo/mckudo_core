@@ -72,3 +72,7 @@ test('eight control-flow levels survive validation, task wrapping and public def
   const tasks=[{id:'nested',title:'Nested',type:'program',program}],queue=createTaskQueue({tasks,skills});assert.deepEqual(queue.definition(),tasks);assert.equal(queue.reactor.react({}).action.skill,'wait');
   assert.throws(()=>validateAgentProgram(document([{id:'too-deep',type:'sequence',children:[node]}]),{skills}),/8 levels/);
 });
+
+test('dependency queues cannot silently lose their guards when opened by the visual editor',()=>{
+  assert.throws(()=>tasksToProgram([{id:'guarded',title:'Guarded',type:'action',dependsOn:[],requires:{fact:'/tool',eq:true},action:{skill:'wait',args:{}}}]),/JSON mode/);
+});

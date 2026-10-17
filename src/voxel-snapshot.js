@@ -26,8 +26,9 @@ export async function captureVoxels({ position, radius = 24, mode = 'surface', g
 
 export function readVoxelSnapshot({ min, size, ids, palette } = {}) {
   if (!point(min) || !size || !['x', 'y', 'z'].every(k => Number.isInteger(size[k]) && size[k] > 0 && size[k] <= 128) || size.x * size.y * size.z > 200000 || !(ids instanceof Uint16Array) || ids.length !== size.x * size.y * size.z || !Array.isArray(palette) || palette.length < 1 || palette.length > 4096 || palette[0] !== null) throw new Error("Damaged snapshot Geometry.");
-  return p => {
+  const read=p => {
     const x = Math.floor(p.x) - min.x, y = Math.floor(p.y) - min.y, z = Math.floor(p.z) - min.z;
     return x < 0 || y < 0 || z < 0 || x >= size.x || y >= size.y || z >= size.z ? null : palette[ids[(y * size.z + z) * size.x + x]] || null;
   };
+  read.bounds={min:{...min},size:{...size}};return read;
 }

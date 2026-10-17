@@ -1,0 +1,62 @@
+import {createNavigationSession,RegionalRouteGraph,IncrementalRegionPlanner,predictMotion,createNavigationRecovery,supportAt,OMVectorize,type NavigationSessionMemory,type NavigationScope} from '../../overmindmc.js';
+import {createNavigationSession as connectSession} from '../../packages/omconnect/index.js';
+import {RegionalRouteGraph as VectorGraph} from '../../packages/omconnect/src/vectorize.js';
+const scope:NavigationScope={server:'localhost:25565',worldId:'test',dimension:'minecraft:overworld',minecraftVersion:'1.21.1'};
+const session=createNavigationSession({scope,getBlock:()=>null});
+const memory:NavigationSessionMemory=session.exportMemory();
+connectSession({scope,getBlock:()=>null,memory});
+const graph=new RegionalRouteGraph();graph.setEdge('a','b',1,{gateway:{x:1,y:1,z:0}});void new IncrementalRegionPlanner(graph).plan('a','b');
+new VectorGraph();
+const vector=new OMVectorize({getBlock:()=>null,scope});void vector.planGroundSegmentAsync({start:{x:0,y:1,z:0},goal:{x:1000,y:1,z:0}});vector.navigationSnapshot().cacheHits;
+supportAt({position:{x:.5,y:1,z:.5},getBlock:()=>null});
+predictMotion({state:{position:{x:0,y:1,z:0},velocity:{x:0,y:0,z:0},onGround:true},getBlock:()=>null,ticks:4});
+createNavigationRecovery().decide({code:'SERVER_CORRECTION'});
+import {createWorldAtlas,createNavigationContextReader,createNeuralNavigator,createMinecraftBrain,planFrontierExploration,type WorldAtlasMemory} from '../../overmindmc.js';
+import {openWorldStore} from '../../src/intelligence.js';
+import {createOMConnect} from '../../omconnect/index.js';
+const atlasScope={serverId:'localhost:25565',worldId:'typed',minecraftVersion:'1.21.1'};
+const atlas=createWorldAtlas({scope:atlasScope});const atlasMemory:WorldAtlasMemory=atlas.export();
+createWorldAtlas({scope:atlasScope,memory:atlasMemory});atlas.returnCorridor({dimension:scope.dimension,from:{x:0,y:1,z:0},to:{x:1,y:1,z:0}}).requiresRevalidation;
+const store=await openWorldStore({path:':memory:',...atlasScope});createWorldAtlas({scope:atlasScope,store});store.readAtlasRecords({dimension:scope.dimension});store.close();
+const client=createOMConnect({username:'Typed'}),context=createNavigationContextReader({client,atlas});
+const model=createNeuralNavigator({worldId:'typed'});model.assess({from:{x:0,y:1,z:0},to:{x:1,y:1,z:0},dimension:scope.dimension,context:context.read({x:0,y:1,z:0},{x:1,y:1,z:0})}).expectedDamage;
+createMinecraftBrain({client,worldId:'typed',worldIntelligence:{memory:atlasMemory,scope:atlasScope}}).atlas?.snapshot().regions;
+planFrontierExploration({position:{x:0,y:1,z:0},getBlock:()=>null}).frontier?.visitedNodes;
+import {createCognitiveEngine,createCognitivePlanner,createHTNPlannerAdapter,createMCTSPlannerAdapter,repairPlan,evaluateCognitiveCheckpoint,createNeuralPlanner,createCore,type CognitiveMemory,type PlannerContext} from '../../overmindmc.js';
+import {createHTNPlanner,createMCTSPlanner} from '../../src/intelligence.js';
+const thinking=createNeuralPlanner({worldId:'typed'}),engine=createCognitiveEngine({worldId:'typed',assess:(o,a)=>thinking.assess(o,a)});
+const cognitiveMemory:CognitiveMemory=engine.export();createCognitiveEngine({worldId:'typed',memory:cognitiveMemory});
+engine.rank({},[{id:'work',kind:'reactor',priority:10,action:{skill:'work'}}])[0].action.skill;
+const portfolio=createCognitivePlanner({assess:(o,a)=>thinking.assess(o,a)});portfolio.snapshot().choices[0]?.learnedCost;
+createHTNPlannerAdapter({planner:createHTNPlanner(),tasks:()=>[]});
+createMCTSPlannerAdapter({planner:createMCTSPlanner({model:{actions:()=>[{skill:'work',args:{}}],step:state=>({state,reward:0}),terminal:()=>true}})});
+const ctx={} as PlannerContext;void repairPlan(ctx,[],{maxNodes:128,maxDepth:3});
+thinking.setMode('evaluate');evaluateCognitiveCheckpoint({baseline:thinking.export(),candidate:thinking.export(),evaluation:{split:'evaluation',source:'unit',records:[]}}).memory;
+createCore({config:{schemaVersion:4,name:'Typed',worldId:'typed',rules:[{id:'work',action:{skill:'work'}}]},adapter:{describe:()=>({protocolVersion:1,kind:'test',loader:'vanilla',minecraftVersion:'1.21.1',skills:['work']}),observe:async()=>({}),execute:async()=>({ok:true}),verifyAction:()=>({status:'unknown',reason:'Custom skill.'})},cognitive:{model:engine}}).cognitive?.snapshot().phase;
+
+import {createTaskQueue,createAgentMemory,createMissionRecovery,type AgentTask,type TaskCheckpoint} from '../../overmindmc.js';
+const tasks:AgentTask[]=[{id:'wait',title:'Wait',type:'action',action:{skill:'wait',args:{}},dependsOn:[],requires:{fact:'/self/health',gt:0},retry:{maxAttempts:2,delayMs:100},timeoutMs:1000,priorityWhen:[{condition:{fact:'/self/food',lt:8},boost:10}]}];
+const queue=createTaskQueue({tasks,skills:['wait'],checkpoint:async checkpoint=>{const value:TaskCheckpoint=checkpoint;value.definitionHash;}}),taskCheckpoint:TaskCheckpoint=queue.checkpoint();
+createTaskQueue({tasks,skills:['wait'],resume:taskCheckpoint}).snapshot()[0]?.uncertain;
+const disk=createAgentMemory('data/typed','typed');void disk.saveTasks('Typed',{tasks,taskCheckpoint});void disk.loadTasks('Typed');disk.diagnostics('Typed').recovered;
+const recovery=createMissionRecovery({recover:async({signal})=>{signal.throwIfAborted();}});recovery.enable();void recovery.request('disconnected');void recovery.close();
+
+import {createPerceptionTracker,semanticCategories,createCombatReactor,type PerceptionSnapshot} from '../../overmindmc.js';
+import {createOMAdapter} from '../../adapters/omconnect.js';
+const perceptions=createPerceptionTracker({maxEntities:512,maxChanges:128});perceptions.setScope('minecraft:overworld');perceptions.observeEntity({id:'one',name:'cow',position:{x:0,y:1,z:0}});const perceptionState:PerceptionSnapshot=perceptions.snapshot();perceptionState.changes[0]?.categories;
+semanticCategories('minecraft:birch_log');createCombatReactor({focusMs:600,switchMargin:1.5}).snapshot().focus?.id;
+createOMAdapter(client,{trackedBlocks:[],perception:{maxRays:24,visibilityDistance:48}}).perception?.evidence('one').confidence;
+
+import {createSwarmCoordinator,attachSwarmAgent,type SwarmSnapshot} from '../../overmindmc.js';
+const swarm=createSwarmCoordinator({worldId:'typed',members:['Typed','Blake'],capacity:64});
+const detachSwarm=attachSwarmAgent(client,{coordinator:swarm,maxWaitMs:1000});
+const swarmState:SwarmSnapshot=swarm.snapshot();swarmState.leases[0]?.token;detachSwarm();swarm.close();
+
+import {createTeamStorageAllocator,type TeamStorageSnapshot} from '../../overmindmc.js';
+const supplies=createTeamStorageAllocator({worldId:'typed',clients:[client],targets:()=>({'#logs':4,apple:8})});
+const detachSupplies=supplies.attach(client);const supplyState:TeamStorageSnapshot=supplies.snapshot();supplyState.plans[0]?.amounts;detachSupplies();
+
+import {createConstructionProject,runConstructionBatch,type ConstructionProjectSnapshot} from '../../overmindmc.js';
+const construction=createConstructionProject({id:'typed',worldId:'typed',dimension:'minecraft:overworld',agents:['Typed'],blueprint:{schemaVersion:1,cells:[{x:0,y:64,z:0,block:'minecraft:stone'}]}});
+const constructionState:ConstructionProjectSnapshot=construction.snapshot();constructionState.cells[0]?.agent;
+void runConstructionBatch(client,construction,{maxActions:1});construction.checkpoint();construction.close();
