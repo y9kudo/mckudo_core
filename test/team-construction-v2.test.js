@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
+import {setTimeout as delay} from 'node:timers/promises';
 import nbt from 'prismarine-nbt';
 import {createConstructionProject,runConstructionBatch,createAgentManager,blockKey} from '../overmindmc.js';
 
@@ -112,7 +113,9 @@ test('canceling an in-flight batch prevents its next placement and releases the 
 
 test('losing the project lease aborts the physical executor',async()=>{
   const f=fixture({leaseMs:300});let entered;const started=new Promise(r=>entered=r);
-  f.clients[0].execute=async(a,{signal})=>{entered();await new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(signal.reason),{once:true}));};
+  // Real clients have a live socket. The mock needs a referenced, abortable handle too;
+  // a pending Promise plus unreferenced lease/AbortSignal timers cannot keep Node alive.
+  f.clients[0].execute=async(a,{signal})=>{entered();await delay(2000,undefined,{signal});};
   const pending=runConstructionBatch(f.clients[0],f.project,{signal:AbortSignal.timeout(2000)});await started;f.advance(301);
   await assert.rejects(pending,/lease expired/);assert.equal(f.project.snapshot().leases.length,0);
 });
