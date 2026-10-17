@@ -21,7 +21,8 @@ import { runTrade } from './trade.js';
 import { equipmentTradeTargets } from './equipment-policy.js';
 import {proposeTeamTransfer,teamSupplyTargets} from './cooperation.js';
 import {createVisionSnapshot,createVisionVolume} from './vision.js';
-import {parseSchematic,buildSchematic,findSchematicSite,buildSchematicPhysical} from './schematics.js';
+import {parseSchematic,schematicBlueprint,buildSchematic,findSchematicSite,buildSchematicPhysical} from './schematics.js';
+import {createConstructionProject,runConstructionBatch} from './team-construction.js';
 import {createActionEvidenceMemory} from './action-evidence.js';
 import {createNetherReactor} from './nether.js';
 
@@ -37,7 +38,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
   const fleet = createFleet({count,names,connection,createClient}), entries = new Map(), log = [], blockedTrades=new Map();
   for(const [name,c]of fleet.agents){c.options||={};c.options.username??=name;}
   const storageAllocator=swarm?createTeamStorageAllocator({worldId,clients:()=>[...fleet.agents.values()],targets:c=>storageTargets(entries.get(c.options.username))}):null;
-  const recoveries=new Map();
+  const recoveries=new Map(),constructionProjects=new Map();
   if(recovery!==false&&(!recovery||typeof recovery!=='object'||Array.isArray(recovery)))throw new Error('recovery: false or recovery options.');
   let closed=false, closing;const memory=memoryDirectory?createAgentMemory(memoryDirectory,worldId,{maxBytes:8*1024*1024}):null;
   const retain=e=>{e.spatialMemory=e.brain?.spatial?.export()||e.spatialMemory;e.atlasMemory=e.brain?.atlas?.export({includeLandmarks:false})||e.atlasMemory;e.neuralMemory=e.brain?.neural?.export()||e.neuralMemory;e.cognitionMemory=e.brain?.cognition?.export()||e.cognitionMemory;e.cognitiveMemory=e.brain?.cognitive?.export()||e.cognitiveMemory;e.taskState=e.queue?.snapshot()||e.taskState;e.taskCheckpoint=e.queue?.checkpoint()||e.taskCheckpoint;};
@@ -51,7 +52,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
   const note = (name,event,detail='') => {log.push({at:Date.now(),name,event,detail:String(detail).slice(0,500)});if(log.length>200)log.shift();};
   const wire = (name,client) => {
     client.options||={};client.options.username??=name;
-    const old = entries.get(name), entry = {client,brain:null,busy:false,error:'',goal:old?.goal || 'diamond_set',survival:null,tasks:old?.tasks||[],taskState:old?.taskState||[],taskCheckpoint:old?.taskCheckpoint,queue:null,schematic:old?.schematic||null,schematicOrigin:old?.schematicOrigin||null,neuralMemory:old?.neuralMemory,cognitionMemory:old?.cognitionMemory,cognitiveMemory:old?.cognitiveMemory,spatialMemory:old?.spatialMemory,atlasMemory:old?.atlasMemory,settings:old?.settings||{humanizeMode:Boolean(client.options.humanizeMode),viewDistance:client.options.viewDistance||24},loaded:old?.loaded||false};
+    const old = entries.get(name), entry = {client,brain:null,busy:false,error:'',goal:old?.goal || 'diamond_set',survival:null,tasks:old?.tasks||[],taskState:old?.taskState||[],taskCheckpoint:old?.taskCheckpoint,queue:null,schematic:old?.schematic||null,schematicOrigin:old?.schematicOrigin||null,schematicFailures:old?.schematicFailures||new Map(),neuralMemory:old?.neuralMemory,cognitionMemory:old?.cognitionMemory,cognitiveMemory:old?.cognitiveMemory,spatialMemory:old?.spatialMemory,atlasMemory:old?.atlasMemory,settings:old?.settings||{humanizeMode:Boolean(client.options.humanizeMode),viewDistance:client.options.viewDistance||24},loaded:old?.loaded||false};
     client.options.humanizeMode=entry.settings.humanizeMode;client.options.viewDistance=entry.settings.viewDistance;
     old?.detachStorage?.();entry.detachStorage=storageAllocator?.attach(client);
     old?.detachSwarm?.();entry.detachSwarm=swarm?attachSwarmAgent(client,{coordinator:swarm,name,maxWaitMs:cooperation.maxWaitMs}):null;
@@ -59,7 +60,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
     entries.set(name,entry);client.managedNames=new Set(names.map(n=>n.toLowerCase()));
     for(const event of ['warning','fault'])client.on(event,e=>{entry.error=String(e.message);note(name,event,e.message);});
     client.on('action',e=>note(name,e.skill,`${e.outcome} ${e.detail}`));
-    const interrupted=cause=>{if(entries.get(name)!==entry)return;void Promise.resolve(entry.brain?.stop()).then(()=>{if(entries.get(name)===entry)releaseReservations(name);}).catch(error=>note(name,'recovery-error',error.message));note(name,cause);void recoveries.get(name)?.request(cause);};
+    const interrupted=cause=>{if(entries.get(name)!==entry)return;entry.managementAbort?.abort(new Error(`Construction or transfer interrupted: ${cause}.`));void Promise.resolve(entry.brain?.stop()).then(()=>{if(entries.get(name)===entry)releaseReservations(name);}).catch(error=>note(name,'recovery-error',error.message));note(name,cause);void recoveries.get(name)?.request(cause);};
     client.on('death',()=>interrupted('death'));
     client.on('end',()=>interrupted('disconnected'));
     if(recovery!==false&&!recoveries.has(name))recoveries.set(name,createMissionRecovery({...recovery,recover:async({reason,signal})=>{
@@ -73,15 +74,15 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
     return entry;
   };
   for(const [name,client]of fleet.agents)wire(name,client);
-  const snapshot = () => ({worldId,cooperation:swarm?.snapshot()||null,storageAllocation:storageAllocator?.snapshot()||null,agents:[...entries].map(([name,e])=>({name,busy:e.busy,error:e.error,perception:e.brain?.perception?.snapshot()||null,combat:e.brain?.combatPolicy?.snapshot()||null,recovery:recoveries.get(name)?.snapshot()||null,goal:e.goal,settings:{...e.settings},attention:e.client.humanize?.last||null,schematic:e.schematic?{format:e.schematic.format,blockCount:e.schematic.blockCount,size:e.schematic.size,unsupportedStates:e.schematic.unsupportedStates,origin:e.schematicOrigin}:null,state:e.client.snapshot(),inventory:(e.client.dataLoaded===false?[]:e.client.inventory.items()).map(i=>({item:i.item,name:i.name,count:i.count,slot:i.slot})),brain:e.brain?.snapshot() || null,survival:e.brain?.survival?.snapshot() || null,skills:e.client.describe().skills,tasks:e.tasks,taskState:e.queue?.snapshot()||e.taskState,learning:e.brain?.neural?.snapshot()||null,cognition:e.brain?.cognition?.snapshot()||null,spatial:e.brain?.spatial?.snapshot()||null,atlas:e.brain?.atlas?.snapshot()||null,recipes:e.client.dataLoaded===false?null:e.client.recipeBook?.snapshot()||null})),log:[...log]});
-  const importSchematic=(name,buffer,filename)=>{const e=entries.get(name);if(!e)throw new Error("Unknown agent.");const schematic=parseSchematic(buffer,{filename});e.schematic=schematic;e.schematicOrigin=null;note(name,'schematic',`${schematic.format}: ${schematic.blockCount} blocks`);return {format:schematic.format,blockCount:schematic.blockCount,size:schematic.size,unsupportedStates:schematic.unsupportedStates};};
+  const snapshot = () => ({worldId,construction:[...constructionProjects.values()].map(p=>p.project.snapshot()),cooperation:swarm?.snapshot()||null,storageAllocation:storageAllocator?.snapshot()||null,agents:[...entries].map(([name,e])=>({name,busy:e.busy,error:e.error,perception:e.brain?.perception?.snapshot()||null,combat:e.brain?.combatPolicy?.snapshot()||null,recovery:recoveries.get(name)?.snapshot()||null,goal:e.goal,settings:{...e.settings},attention:e.client.humanize?.last||null,schematic:e.schematic?{format:e.schematic.format,blockCount:e.schematic.blockCount,size:e.schematic.size,unsupportedStates:e.schematic.unsupportedStates,origin:e.schematicOrigin}:null,state:e.client.snapshot(),inventory:(e.client.dataLoaded===false?[]:e.client.inventory.items()).map(i=>({item:i.item,name:i.name,count:i.count,slot:i.slot})),brain:e.brain?.snapshot() || null,survival:e.brain?.survival?.snapshot() || null,skills:e.client.describe().skills,tasks:e.tasks,taskState:e.queue?.snapshot()||e.taskState,learning:e.brain?.neural?.snapshot()||null,cognition:e.brain?.cognition?.snapshot()||null,spatial:e.brain?.spatial?.snapshot()||null,atlas:e.brain?.atlas?.snapshot()||null,recipes:e.client.dataLoaded===false?null:e.client.recipeBook?.snapshot()||null})),log:[...log]});
+  const importSchematic=(name,buffer,filename)=>{const e=entries.get(name);if(!e)throw new Error("Unknown agent.");if(e.busy)throw new Error('Pause active management before importing a schematic.');const schematic=parseSchematic(buffer,{filename});const previous=constructionProjects.get(`schematic-${name}`);previous?.project.close();constructionProjects.delete(`schematic-${name}`);e.schematic=schematic;e.schematicOrigin=null;e.schematicFailures=new Map();note(name,'schematic',`${schematic.format}: ${schematic.blockCount} blocks`);return {format:schematic.format,blockCount:schematic.blockCount,size:schematic.size,unsupportedStates:schematic.unsupportedStates};};
   const execute = async(name,command,args={},cancellation,automatic=false) => {
     if(closed)throw new Error("Manager closed. Create a new instance.");
     let e=entries.get(name);if(!e)throw new Error("Unknown agent.");
-    if(['pause','disconnect','tasks','goal'].includes(command))recoveries.get(name)?.pause();
+    if(['pause','disconnect','tasks','goal','buildSchematic','buildTogether'].includes(command))recoveries.get(name)?.pause();
     if(command==='pause'){e.managementAbort?.abort(new Error('Management paused by user.'));e.runRequested=false;e.intentVersion++;await e.brain?.pause();e.client.pending?.abort.abort(new Error("Stopped in the panel."));await e.client.pending?.promise.catch(()=>{});releaseReservations(name);return snapshot();}
     if(e.busy)throw new Error("Previous management still in place.");e.busy=true;e.error='';
-    if(!automatic&&['disconnect','respawn','tasks','taskRetry','goal','action','give','trade','buildSchematic'].includes(command)){e.runRequested=false;e.intentVersion++;}
+    if(!automatic&&['disconnect','respawn','tasks','taskRetry','goal','action','give','trade','buildSchematic','buildTogether'].includes(command)){e.runRequested=false;e.intentVersion++;}
     try {
       await ready;cancellation?.throwIfAborted();
       if(closed)throw new Error("Manager closes.");
@@ -120,14 +121,47 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
       } else if(command==='buildSchematic'){
         if(!e.schematic)throw new Error("First, load the circuit over the panel.");
         if(e.client.state.status!=='ready')throw new Error("The agent should be in the world.");
-        await e.brain?.pause();
+        const controller=new AbortController();e.managementAbort=controller;
+        try{
+        const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(180000),...(cancellation?[cancellation]:[])]);
+        await e.brain?.pause();signal.throwIfAborted();
         const selected=args.origin||e.schematicOrigin||findSchematicSite(e.client,e.schematic,{minDistance:16,maxDistance:128})?.origin;
         if(!selected)throw new Error("Free flat area not found in the cups received.");
         const origin={...selected};
+        if(e.schematicOrigin&&['x','y','z'].some(k=>e.schematicOrigin[k]!==origin[k]))e.schematicFailures=new Map();
         e.schematicOrigin=origin;
         const build=e.client.state.gameMode==='creative'?buildSchematicPhysical:buildSchematic;
-        const result=await build(e.client,e.schematic,origin,{signal:AbortSignal.timeout(180000),maxActions:Math.min(32,Math.max(1,Number(args.maxActions)||16))});
+        e.schematicFailures||=new Map();
+        const result=await build(e.client,e.schematic,origin,{signal,failureCounts:e.schematicFailures,maxActions:Math.min(32,Math.max(1,Number(args.maxActions)||16))});
         note(name,'buildSchematic',`${result.status}: ${result.actions} actions`);return {...result,origin};
+        }finally{if(e.managementAbort===controller)e.managementAbort=null;}
+      } else if(command==='buildTogether'){
+        if(!e.schematic)throw new Error('Upload a schematic to the selected agent first.');
+        const members=args.names||names.filter(n=>entries.get(n).client.state.status==='ready'),id=args.projectId||`schematic-${name}`;
+        if(!Array.isArray(members)||!members.includes(name)||!members.length||members.length>20||new Set(members).size!==members.length||members.some(n=>!entries.has(n)))throw new Error('Choose unique connected team members including the selected agent.');
+        const workers=members.map(n=>entries.get(n)),dimension=e.client.state.dimension;
+        if(workers.some(w=>w!==e&&w.busy||w.client.state.status!=='ready'||w.client.state.dimension!==dimension))throw new Error('Construction workers must be idle and in the same dimension.');
+        const budget=args.maxActions??16;if(!Number.isInteger(budget)||budget<1||budget>32)throw new Error('Team batch: maxActions 1–32 per worker.');
+        let shared=constructionProjects.get(id);
+        if(shared&&(shared.schematic!==e.schematic||shared.members.join(',')!==members.join(',')||args.origin&&['x','y','z'].some(k=>args.origin[k]!==shared.origin[k])))throw new Error('Project already has a different schematic, team or origin; choose another projectId.');
+        if(!shared){
+          if(constructionProjects.size>=8)throw new Error('Manager supports at most 8 construction projects.');
+          const origin=args.origin||findSchematicSite(e.client,e.schematic,{minDistance:16,maxDistance:128})?.origin;
+          if(!origin)throw new Error('No observed empty construction site found.');
+          const project=createConstructionProject({id,worldId,dimension,agents:members,blueprint:schematicBlueprint(e.schematic,origin)});
+          shared={project,origin:{...origin},schematic:e.schematic,members:[...members]};constructionProjects.set(id,shared);
+        }
+        const controller=new AbortController(),signal=AbortSignal.any([controller.signal,AbortSignal.timeout(180000),...(cancellation?[cancellation]:[])]);
+        for(const w of workers){w.busy=true;w.managementAbort=controller;w.runRequested=false;w.intentVersion++;recoveries.get(w.client.options.username)?.pause();}
+        try{
+          const pauses=await Promise.allSettled(workers.map(w=>w.brain?.pause()));
+          if(pauses.some(r=>r.status==='rejected'))throw new AggregateError(pauses.filter(r=>r.status==='rejected').map(r=>r.reason),'Could not pause construction workers.');
+          signal.throwIfAborted();
+          const results=await Promise.allSettled(workers.map((w,i)=>runConstructionBatch(w.client,shared.project,{agent:members[i],worldId,maxActions:budget,signal})));
+          const failures=results.filter(r=>r.status==='rejected');if(failures.length)throw new AggregateError(failures.map(r=>r.reason),'Team construction batch interrupted.');
+          note(name,'buildTogether',`${id}: ${shared.project.snapshot().confirmed} observed blocks`);
+          return {origin:shared.origin,project:shared.project.snapshot(),workers:results.map((r,i)=>({name:members[i],...r.value,project:undefined}))};
+        }finally{for(const w of workers){w.busy=false;if(w.managementAbort===controller)w.managementAbort=null;}}
       } else if(command==='tasks'){
         const tasks=validateTasks(args.tasks,{skills:e.client.describe().skills});
         await e.brain?.stop();retain(e);e.brain=null;e.queue=null;e.resourceDemand=null;e.tasks=tasks;e.taskState=[];e.taskCheckpoint=undefined;await save(name,e);note(name,'tasks',`Objectives: ${tasks.length}`);
@@ -197,7 +231,7 @@ export function createAgentManager({ count = 3, names = ['Owen','Liam','Noah','M
           try{if(e.loaded)await save(name,e);}catch(error){errors.push(error);}
         }
         try{await fleet.close();}catch(error){errors.push(error);}
-        for(const e of entries.values()){e.detachStorage?.();e.detachSwarm?.();}swarm?.close();
+        for(const e of entries.values()){e.detachStorage?.();e.detachSwarm?.();}swarm?.close();for(const p of constructionProjects.values())p.project.close();
         try{await memory?.flush();}catch(error){if(!errors.includes(error))errors.push(error);}
         if(errors.length)throw new AggregateError(errors,"Clients closed, but the work's work is wrong.");
       })();

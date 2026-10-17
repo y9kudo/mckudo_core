@@ -76,3 +76,4 @@ export {createSwarmCoordinator} from './src/swarm-coordinator.js';
 export {attachSwarmAgent} from './src/swarm-integration.js';
 
 export {createTeamStorageAllocator} from './src/team-storage.js';
+export {createConstructionProject,runConstructionBatch} from './src/team-construction.js';

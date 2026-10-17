@@ -34,7 +34,7 @@ try {
     import {createMachineGraph,planMachineResources,createCampaignJournal} from 'overmindmc';
     import {createNavigationSession,RegionalRouteGraph,IncrementalRegionPlanner,createNavigationRecovery} from 'overmindmc';
     import {createWorldAtlas,createNeuralNavigator,planFrontierExploration} from 'overmindmc';
-    import {createTeamStorageAllocator,createSwarmCoordinator,attachSwarmAgent,createCognitiveEngine,createCognitivePlanner,repairPlan,buildPlannerContext,evaluateCognitiveCheckpoint} from 'overmindmc';
+    import {createConstructionProject,runConstructionBatch,createTeamStorageAllocator,createSwarmCoordinator,attachSwarmAgent,createCognitiveEngine,createCognitivePlanner,repairPlan,buildPlannerContext,evaluateCognitiveCheckpoint} from 'overmindmc';
     import {createNavigationSession as standaloneNavigation} from 'omconnect/vectorize';
     import {createDQN,createVectorEnvironment,openWorldStore} from 'overmindmc/intelligence';
     import {loadNativeKernel,createNativeNavigationBackend,NativeFrameDecoder} from 'overmindmc/native';
@@ -45,7 +45,7 @@ try {
     assert.equal(OVERMIND.version, ${JSON.stringify(version)});
     assert.equal(OMCONNECT.version, OVERMIND.version); assert.equal(bundled.version, OVERMIND.version);
     assert.equal(coreVector.version, OVERMIND.version); assert.equal(clientVector.version, OVERMIND.version);
-    const swarm=createSwarmCoordinator({worldId:'installed',members:['Atlas','Blake']});assert.equal(swarm.acquire({agent:'Atlas',dimension:'minecraft:overworld',resources:['cell/0,1,0']}).status,'granted');assert.equal(typeof attachSwarmAgent,'function');assert.equal(typeof createTeamStorageAllocator,'function');swarm.close();
+    const swarm=createSwarmCoordinator({worldId:'installed',members:['Atlas','Blake']});assert.equal(swarm.acquire({agent:'Atlas',dimension:'minecraft:overworld',resources:['cell/0,1,0']}).status,'granted');assert.equal(typeof attachSwarmAgent,'function');assert.equal(typeof createTeamStorageAllocator,'function');const project=createConstructionProject({id:'installed',worldId:'installed',dimension:'minecraft:overworld',agents:['Atlas'],blueprint:{schemaVersion:1,cells:[{x:0,y:1,z:0,block:'minecraft:stone'}]}});assert.equal(project.snapshot().confirmed,0);assert.equal(typeof runConstructionBatch,'function');project.close();swarm.close();
     const navigationScope={server:'installed',worldId:'smoke',dimension:'minecraft:overworld',minecraftVersion:'1.21.1'};
     const navigation=createNavigationSession({scope:navigationScope,getBlock:()=>null});
     assert.equal((await navigation.plan({start:{x:0,y:1,z:0},goal:{x:2,y:1,z:0}})).status,'blocked');

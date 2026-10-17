@@ -55,3 +55,8 @@ const swarmState:SwarmSnapshot=swarm.snapshot();swarmState.leases[0]?.token;deta
 import {createTeamStorageAllocator,type TeamStorageSnapshot} from '../../overmindmc.js';
 const supplies=createTeamStorageAllocator({worldId:'typed',clients:[client],targets:()=>({'#logs':4,apple:8})});
 const detachSupplies=supplies.attach(client);const supplyState:TeamStorageSnapshot=supplies.snapshot();supplyState.plans[0]?.amounts;detachSupplies();
+
+import {createConstructionProject,runConstructionBatch,type ConstructionProjectSnapshot} from '../../overmindmc.js';
+const construction=createConstructionProject({id:'typed',worldId:'typed',dimension:'minecraft:overworld',agents:['Typed'],blueprint:{schemaVersion:1,cells:[{x:0,y:64,z:0,block:'minecraft:stone'}]}});
+const constructionState:ConstructionProjectSnapshot=construction.snapshot();constructionState.cells[0]?.agent;
+void runConstructionBatch(client,construction,{maxActions:1});construction.checkpoint();construction.close();
