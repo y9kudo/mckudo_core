@@ -2,6 +2,14 @@
 
 ## 1.0.0-Arthas-beta2 · Navigation, World Intelligence, Cognition and Task V2 development
 
+### Team Construction V2 increment
+
+- Added a bounded shared blueprint queue with dynamic cell assignment, observed support, renewable scoped claims, fenced tokens and shared retry budgets.
+- Confirm completion from received blocks; reconcile errors after an observed change and reject executor-only success.
+- Added failure-only checkpoints that re-observe progress after restoration, bounded diagnostics, TypeScript declarations and installed-package checks.
+- Added dashboard **Build together** batches and shared progress. Pause/death/disconnection cancel team work; single-agent schematic pause cancels the whole batch, and Creative cell failure budgets survive subsequent batches.
+- Three Java 1.21.1 Survival agents built an 18-block floor across resumed batches. An independent client confirmed all blocks; materials were conserved with no damage/corrections. Occupied-target and timeout outcomes were reconciled.
+
 ### Team Supplies and Storage V2 increment
 
 - Manager teams now default to bounded fair storage withdrawals, calculated after receiving the real window contents and under the existing resource lease.

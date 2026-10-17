@@ -133,11 +133,14 @@ The cognitive service is enabled by default in the standard Minecraft brain and 
 | --- | --- | --- |
 | Resources | Bounded world/dimension leases, double-chest partners and scenario mining peer claims | Implicit station/internal edit coordination and joint task assignment |
 | Shared storage | Confirmed-window fair withdrawals, current holdings/equipment, original class goals, bounded reserves and explicit take-all opt-out | Historical fairness, distributed warehousing and richer enchantment/durability utility |
+| Shared construction | Dynamic cell claims, observed support/completion, retry checkpoints and pause-safe dashboard batches | Stateful team placement, material campaigns, structural and flight traffic planning |
 | Ground traffic | Sliding validated walk windows, reverse/diagonal gates, bounded waits and cancellation | Vertical/flight traffic, fleet-wide deadlock resolution and busy live bottlenecks |
 | Lifecycle | Lease cleanup, claim reacquisition, pause-safe automatic exchange and non-overlapping trade ticks | Distributed coordination and longer recovery/transfer trials |
 | Evidence | API fault injection, ordinary physics-backed execution, three-client ground movement and conserved automatic storage distribution | Extended live transfer contention and fixed-build multi-agent Survival campaigns |
 
 [Team Coordination V2](SWARM-V2.md) and [Team Storage V2](TEAM-STORAGE-V2.md) describe default manager integration and public services. These are advisory permissions under existing execution and server checks, not shared authoritative world state.
+
+[Team Construction V2](TEAM-CONSTRUCTION-V2.md) adds a shared work queue. A three-agent Survival floor trial passed with independent observation and material conservation; occupied-target and timeout outcomes were reconciled. Checkpoints restore failure budgets and require fresh observations before trusting progress.
 
 ## Algorithm references
 

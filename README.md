@@ -20,6 +20,7 @@ This beta2 source develops V2 navigation, World Intelligence, cognitive decision
 
 - **Perception and defense:** prioritized entity observations, bounded visibility work, incremental change evidence, inventory-aware urgent checks and short target commitment. [Perception V2 guide](docs/PERCEPTION-V2.md).
 - **Team coordination:** temporary resource and ground-passage reservations, shared mining claims, fair storage withdrawals and pause-safe automatic exchange. Enabled by default for manager teams. [Team V2 guide](docs/SWARM-V2.md) · [Supplies and storage](docs/TEAM-STORAGE-V2.md).
+- **Shared construction:** dynamic blueprint cell assignment, observed completion, renewable claims, bounded retries and resumable dashboard batches. [Team construction guide](docs/TEAM-CONSTRUCTION-V2.md).
 - **Task orchestration:** dependency graphs, observed resource guards, dynamic priorities, durable checkpoints, conservative interrupted-action reconciliation and optional bounded reconnect/respawn recovery. [Task V2 guide](docs/TASK-ORCHESTRATION-V2.md).
 - **Goal-driven resources:** plan tool, crafting and smelting prerequisites, select interchangeable block classes, gather construction stock and build supported access to elevated minerals.
 - **Shared spatial search:** evaluate multiple destination candidates in one A* search and hand the selected route to OMConnect. The symbolic planner supports causal filtering and a stable cost frontier for larger operator domains.

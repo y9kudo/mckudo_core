@@ -103,3 +103,7 @@ Manager teams enable bounded advisory resource and ground-path leases by default
 ## Team storage allocation
 
 Coordinated manager teams default to `storage.mode: 'team'`. `createTeamStorageAllocator({worldId, clients, targets})` provides bounded deficit-based proposals and `.attach(client)` installs the independent OMConnect withdrawal hook. `takeStorage` with `allocation: 'team-supplies'` plans from a freshly confirmed window under normal execution. See [Team Storage V2](TEAM-STORAGE-V2.md) for quantities, classes, filters, cleanup and diagnostic semantics.
+
+## Shared construction
+
+`createConstructionProject({id, worldId, dimension, blueprint, agents})` assigns supported cells under renewable fenced claims. `runConstructionBatch(client, project, {maxActions, signal})` executes normal placement and verifies observed results. Failure-only checkpoints re-observe progress after restoration. Managers expose `buildTogether`; dashboard users get the same bounded batches and shared progress. See [Team Construction V2](TEAM-CONSTRUCTION-V2.md) for examples, cancellation and observation semantics.
